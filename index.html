@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Deep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik+Dirt&family=Sofia+Sans+Condensed:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ================= MAPA ================= -->
+  <section class="pantalla" id="pantalla-mapa">
+    <header class="barra">
+      <h1>Deep</h1>
+      <span class="sub">El pueblo y sus minas</span>
+    </header>
+    <div class="lienzo" id="mapaLienzo">
+      <canvas id="mapaCv" class="px"></canvas>
+      <div class="capa" id="mapaPuntos"></div>
+    </div>
+    <div class="panel" id="mapaPanel">
+      <span class="lbl" id="mpEyebrow">Mapa</span>
+      <h2 id="mpTitulo">Elige adónde ir</h2>
+      <p id="mpTexto">Toca el pueblo o una de las minas.</p>
+      <div class="fila">
+        <button class="btn" id="mpBoton" hidden>Bajar a la mina</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PLAZA ================= -->
+  <section class="pantalla" id="pantalla-plaza" hidden>
+    <header class="barra">
+      <button class="volver" id="plazaVolver" aria-label="Volver al mapa">‹ Mapa</button>
+      <h1>La plaza</h1>
+      <span class="sub" id="plazaKit"></span>
+    </header>
+    <div class="lienzo" id="plazaLienzo">
+      <canvas id="plazaCv" class="px"></canvas>
+      <div class="capa" id="plazaPuntos"></div>
+    </div>
+    <div class="panel" id="plazaPanel">
+      <span class="lbl" id="ppEyebrow">Plaza del pueblo</span>
+      <h2 id="ppTitulo">¿Dónde entras?</h2>
+      <div id="ppCuerpo"><p>Toca una casa.</p></div>
+    </div>
+  </section>
+
+  <!-- ================= MINA ================= -->
+  <section class="pantalla" id="pantalla-mina" hidden>
+    <header id="hud">
+      <div style="min-width:0">
+        <div class="lamp-top"><span class="lbl">Lámpara</span><span id="lampPct">100%</span></div>
+        <div class="bar"><i id="lampFill"></i></div>
+        <span id="seg">Pozo 1</span>
+      </div>
+      <div class="depth"><span class="lbl">Profundidad</span><b><span id="depth">0</span><small>m</small></b><span id="next"></span></div>
+      <button class="iconbtn" id="tuneBtn" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
+      <div class="inv" id="inv"></div>
+    </header>
+
+    <main id="stage">
+      <canvas id="cv"></canvas>
+      <div id="toastHost"></div>
+      <button id="cashBtn" hidden>Subir a cobrar</button>
+
+      <div class="sheet" id="help" hidden>
+        <div class="card">
+          <h2>Cómo se juega</h2>
+          <ul>
+            <li>Empiezas en la jaula del pozo: pulsa abajo para abrir la trampilla y bajar.</li>
+            <li>Empuja contra un bloque para picarlo, o pica hacia abajo. No se puede picar hacia arriba ni saltar.</li>
+            <li>Para subir escalones, pon una escalera y sube con la flecha de arriba.</li>
+            <li>Un techo demasiado ancho sin apoyo cruje y se derrumba entero. Pon puntales.</li>
+            <li>Lo que cae desde lo alto, o un derrumbe grande, se rompe en escombro y su material se pierde. Un golpe de pico quita todo el escombro conectado.</li>
+            <li>Si una piedra cae justo cuando sales de debajo, te libras por los pelos pero quedas tumbado un momento.</li>
+            <li>La tierra no vale nada. Busca arcilla, carbón, cuarzo y cobre.</li>
+            <li>La arena cae y forma rampas; si te cubre la cabeza, sal o te sepulta. El agua moja la mecha.</li>
+            <li>Si la llama se pone azul hay grisú: baja la mecha o explota.</li>
+            <li>El aceite no se pica: métete en su hueco. Las polillas buscan tu luz.</li>
+            <li>Las salas seguras recargan la lámpara. Desde ahí puedes subir a cobrar.</li>
+            <li>Si subes vivo, el pozo se queda como lo dejaste. Si mueres, el último tramo se derrumba con tu mochila dentro.</li>
+          </ul>
+          <p class="note">Teclado: flechas o WASD. P puntal, E escalera, M mecha.</p>
+          <button class="btn" id="helpClose">Entendido</button>
+        </div>
+      </div>
+
+      <div class="sheet" id="over" hidden>
+        <div class="card">
+          <span class="eyebrow" id="ovEyebrow"></span>
+          <h2 id="ovTitle"></h2>
+          <p id="ovText"></p>
+          <div class="list" id="ovList"></div>
+          <p class="note" id="ovNote"></p>
+          <button class="btn" id="ovBtn">Volver al pueblo</button>
+        </div>
+      </div>
+
+      <div class="sheet" id="tuning" hidden>
+        <div class="card">
+          <h2>Ajustes de prueba</h2>
+          <p class="note">Parten de js/datos.js. Lo que cambies aquí solo vale en este navegador.</p>
+          <label class="sl">Consumo de la lámpara (%/s)<output id="o_drain"></output><input type="range" id="s_drain" min="0.2" max="3" step="0.1"></label>
+          <label class="sl">Ancho máximo de techo sin apoyo<output id="o_span"></output><input type="range" id="s_span" min="3" max="9" step="2"></label>
+          <label class="sl">Tiempo de crujido (s)<output id="o_crack"></output><input type="range" id="s_crack" min="0.2" max="2" step="0.1"></label>
+          <label class="sl">Escombro si cae desde (casillas o más)<output id="o_thrH"></output><input type="range" id="s_thrH" min="1" max="8" step="1"></label>
+          <label class="sl">Escombro si caen juntos (bloques o más)<output id="o_thrS"></output><input type="range" id="s_thrS" min="1" max="15" step="1"></label>
+          <label class="sl">Zoom al explorar<output></output>
+            <select id="s_zoom"><option value="siempre">Cerca, con scroll lateral</option><option value="salas">Ver todo el ancho</option></select></label>
+          <label class="sl">Oscuridad<output></output>
+            <select id="s_dark"><option value="1">Con oscuridad</option><option value="0">Sin oscuridad (para probar)</option></select></label>
+          <button class="btn" id="tuneClose">Seguir</button>
+          <button class="btn ghost" id="helpBtn">Cómo se juega</button>
+          <button class="btn ghost" id="tuneReset">Valores de datos.js</button>
+        </div>
+      </div>
+    </main>
+
+    <nav id="pad">
+      <div class="dpad">
+        <span></span>
+        <button data-k="U" aria-label="Subir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
+        <span></span>
+        <button data-k="L" aria-label="Izquierda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button data-k="D" aria-label="Abajo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
+        <button data-k="R" aria-label="Derecha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+      <div class="acts">
+        <button data-k="prop" class="tool" aria-label="Poner puntal"><span>Puntal</span><b id="nProp">0</b></button>
+        <button data-k="lad" class="tool" aria-label="Poner escalera"><span>Escalera</span><b id="nLad">0</b></button>
+        <button data-k="wick" id="wickBtn" class="tool wick" aria-label="Subir o bajar la mecha"><span>Mecha</span><b id="wickLbl">Alta</b></button>
+      </div>
+    </nav>
+  </section>
+</div>
+
+<script src="js/datos.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/partida.js"></script>
+<script src="js/mina.js"></script>
+<script src="js/pueblo.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
