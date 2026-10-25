@@ -6,11 +6,11 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.201',
+  version: '0.202',
 
-  // Pantalla: píxeles del lienzo por cada píxel del juego. Más = transiciones de zoom más suaves pero más pesado.
-  // 1 o 2 va sobrado para pixel art; el juego elige el valor exacto para que la ampliación sea siempre limpia.
-  pantalla: { calidad: 2 },
+  // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
+  // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
+  pantalla: { calidad: 0 },
 
   // ---------- Herramientas ----------
   herramientas: {

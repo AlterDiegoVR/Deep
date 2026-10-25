@@ -839,7 +839,8 @@ const stage = document.getElementById('stage');
 let VW = COLS*T, VH = 400, scale = 1, cam = -2, zoom = CA.zoomCerca, ZCLOSE = CA.zoomCerca, camX = COLS*T/2;
 // La mina se dibuja a pocos píxeles (pixel art: el navegador la amplía sin suavizar, se ve igual) y los textos
 // en una capa aparte a resolución completa, para que sigan nítidos. Mucho más ligero en móviles.
-const tx = document.createElement('canvas'), tctx = tx.getContext('2d');
+const tx = document.createElement('canvas'), txCtx = tx.getContext('2d');
+let tctx = txCtx;   // dónde se dibujan los textos: la capa aparte, o la propia mina si ya va a resolución completa
 tx.id = 'cvTxt'; stage.insertBefore(tx, cv.nextSibling);
 let PX = 1, TXS = 1;   // píxeles del lienzo por píxel del juego · escala de la capa de textos
 function resize(){
@@ -848,13 +849,17 @@ function resize(){
   scale = n >= 1 ? n/dpr : r.width / VW;
   VH = Math.floor(r.height / scale);
   // mayor divisor de n que no pase de la calidad elegida: así la ampliación es siempre exacta
-  const q = Math.max(1, (D.pantalla && D.pantalla.calidad) || 2);
+  // calidad 0 = resolución completa del dispositivo (movimiento más suave); 1-2 = menos píxeles (más ligero, a saltos)
+  const qq = D.pantalla ? D.pantalla.calidad : 0, q = qq > 0 ? qq : n;
   PX = 1; if(n >= 1) for(let d=Math.min(n, q); d>=1; d--) if(n % d === 0){ PX = d; break; }
+  const full = n < 1 || PX === n;
   cv.width = VW*PX; cv.height = VH*PX;
   cv.style.width = (VW*scale)+'px'; cv.style.height = (VH*scale)+'px';
   TXS = scale*dpr;
-  tx.width = Math.round(VW*TXS); tx.height = Math.round(VH*TXS);
-  tx.style.width = cv.style.width; tx.style.height = cv.style.height;
+  if(full){ cv.width = Math.round(VW*TXS); cv.height = Math.round(VH*TXS); PX = TXS; }
+  // a resolución completa no hace falta capa aparte: los textos van en la misma mina (como en la 0.2)
+  tctx = full ? ctx : txCtx; tx.hidden = full;
+  if(!full){ tx.width = Math.round(VW*TXS); tx.height = Math.round(VH*TXS); tx.style.width = cv.style.width; tx.style.height = cv.style.height; }
 }
 new ResizeObserver(resize).observe(stage);
 const hsh = (a,b) => (h2(a,b,77)*1e6)|0;
@@ -1088,7 +1093,7 @@ function addLight(r0, r1, sx, sy, R, inten, shadow, mark){
 }
 function render(){
   ctx.setTransform(PX, 0, 0, PX, 0, 0);
-  tctx.setTransform(1, 0, 0, 1, 0, 0); tctx.clearRect(0, 0, tx.width, tx.height); tctx.setTransform(TXS, 0, 0, TXS, 0, 0);
+  if(tctx !== ctx){ tctx.setTransform(1, 0, 0, 1, 0, 0); tctx.clearRect(0, 0, tx.width, tx.height); tctx.setTransform(TXS, 0, 0, TXS, 0, 0); }
   ctx.imageSmoothingEnabled = false;
   ctx.fillStyle = '#000'; ctx.fillRect(0,0,VW,VH);
   // zoom: se acerca al topo y lo centra; con zoom 1 la vista es la normal
