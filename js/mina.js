@@ -5,17 +5,17 @@ window.Mina = (()=>{
 const DATA = window.SPRITES, D = window.DATOS, P1 = D.pozo1;
 const T = 24, COLS = P1.columnas, SURF = 3, ROOM_H = P1.altoSala;
 // ---------- tipos ----------
-const AIR=0, DIRT=1, STONE=2, HARD=3, CLAY=4, COAL=5, COPPER=6, QUARTZ=7, SAND=8, WATER=9, GAS=10, ROCK=11, BEAM=12, PROP=13, LADDER=14, RUBBLE=15, DOOR=16;
+const AIR=0, DIRT=1, STONE=2, HARD=3, CLAY=4, COAL=5, COPPER=6, QUARTZ=7, SAND=8, WATER=9, GAS=10, ROCK=11, BEAM=12, PROP=13, LADDER=14, RUBBLE=15, DOOR=16, MUD=17;
 const M = D.materiales;
 const mat = (key, extra) => Object.assign({hp:M[key].golpes, val:M[key].valor, n:M[key].nombre, dot:M[key].color, key}, extra);
 const INFO = {
   [AIR]:{}, [DIRT]:mat('tierra', {tile:'tierra'}), [STONE]:mat('piedra', {tile:'piedra'}), [HARD]:mat('rocaDura', {tile:'roca_dura'}), [CLAY]:mat('arcilla', {tile:'arcilla'}),
   [COAL]:mat('carbon', {tile:'piedra', veta:'carbon'}), [COPPER]:mat('cobre', {tile:'piedra', veta:'cobre'}),
   [QUARTZ]:mat('cuarzo', {tile:'piedra', veta:'cuarzo'}), [SAND]:mat('arena', {tile:'arena'}), [WATER]:{}, [GAS]:{}, [ROCK]:{hp:999, tile:'maciza'},
-  [BEAM]:{hp:1}, [PROP]:{}, [LADDER]:{}, [RUBBLE]:mat('escombro', {tile:'escombro'}), [DOOR]:{hp:999, tile:'maciza'},
+  [BEAM]:{hp:1}, [PROP]:{}, [LADDER]:{}, [RUBBLE]:mat('escombro', {tile:'escombro'}), [DOOR]:{hp:999, tile:'maciza'}, [MUD]:{},
 };
 const KEY2T = {}; for(const [tt, I] of Object.entries(INFO)) if(I.val) KEY2T[I.key] = +tt;
-const isSolid = t => !(t===AIR || t===WATER || t===GAS || t===PROP || t===LADDER);
+const isSolid = t => !(t===AIR || t===WATER || t===GAS || t===PROP || t===LADDER || t===MUD);
 const isStruct = t => t===DIRT||t===STONE||t===HARD||t===CLAY||t===COAL||t===COPPER||t===QUARTZ||t===BEAM||t===ROCK||t===DOOR;
 const isAnchor = t => t===HARD||t===BEAM||t===ROCK||t===DOOR;
 const isLoose = t => t===SAND||t===RUBBLE;
@@ -35,6 +35,8 @@ const DESV = P1.desvio ? {r: SURF + P1.desvio.fila, izq: P1.desvio.entrada !== '
 const SECRET = {r: SURF + P1.salaSellada.fila, c0: P1.salaSellada.columna, w: P1.salaSellada.ancho, h: P1.salaSellada.alto};
 const DT = P1.desdeTramo, LA = D.lampara, JU = D.jugador, ES = D.estructura, PE = D.peligros, CA = D.camara, TB = D.temblor, VU = D.vuelta;
 const AG = D.agua || {nivelMinimo:0.25, diferenciaMinima:0.02};
+const SA = D.salas, AI = D.aire || {segundos:10, conPulmones:20, recupera:4}, BA = D.barro;
+const CARD = Object.fromEntries((D.cartas||[]).map(k => [k.id, k]));
 const SND = (n, v) => window.Sonido && window.Sonido.tocar(n, v);
 // volumen según la distancia al topo (en casillas)
 const near = (r, c) => p ? Math.max(0, 1 - Math.hypot(r - p.r, (c - p.c)*0.6)/14) : 0;
@@ -91,6 +93,7 @@ function genRow(r){
   if(L.surface){ R.nat.fill(1); return R; }
   if(L.part !== undefined){
     R.nat.fill(1);
+    if(L.part === ROOM_H-2) W.items.push({k:'cofreSala', room:L.room, r, c:SA.columnaCofre, alive:true});
     if(L.part === 0 || L.part === ROOM_H-1) Tt.fill(BEAM);
     for(let c=0;c<COLS;c++) R.hp[c] = INFO[Tt[c]].hp||0;
     return R;
@@ -179,6 +182,13 @@ function addKit(r, fresh){
   W.items.push({k:'herr', tipo: h2(r, 11, W.seed + 53) < RC.probPuntal ? 'puntal' : 'escalera', r, c, alive:true});
 }
 // Las salas seguras se reconstruyen en cada bajada: techo y suelo de viga, dentro vacío
+// partidas de antes: cofres en las salas que ya existían
+function ensureRoomItems(){
+  for(let i=0;i<ROOM_ROW.length;i++){
+    if(ROOM_ROW[i] + ROOM_H > W.rows.length) break;
+    if(!W.items.some(it => it.k === 'cofreSala' && it.room === i)) W.items.push({k:'cofreSala', room:i, r:ROOM_ROW[i]+ROOM_H-2, c:SA.columnaCofre, alive:true});
+  }
+}
 function restoreRooms(){
   for(let i=0;i<ROOM_ROW.length;i++){
     const r0 = ROOM_ROW[i]; if(r0 + ROOM_H > W.rows.length) break;
@@ -191,7 +201,7 @@ function tAt(r,c){ if(c<0 || c>=COLS) return ROCK; if(r<0) return AIR; ensure(r+
 function setT(r,c,v){ const R = W.rows[r]; R.t[c] = v; R.hp[c] = INFO[v].hp||0; R.sh[c] = 0; R.lv[c] = v === WATER ? 1 : 0; }
 
 // ---------- estado de la bajada ----------
-let platOpen = 0, p, lamp, bag, props, ladders, wick, dead, deadT, cashed, rocks, particles, floats, fillQ, digT, moveT, buried, crackMsgT, lockMsgT, flashT, maxDepth, lastRoomFloor, roomsSeen, segSeen, llaves = 0, prevRecord = 0, newGround = false, bonusOpen = false, shake = 0, shakeKick = 0, cracking = 0, looking = false, driftT = 0, started = false, simAcc = 0, stabAcc = 0, tick = 0, t = 0, wet = false, gasNear = false;
+let platOpen = 0, p, lamp, bag, props, ladders, wick, dead, deadT, cashed, rocks, particles, floats, fillQ, digT, moveT, buried, crackMsgT, lockMsgT, flashT, maxDepth, lastRoomFloor, roomsSeen, segSeen, llaves = 0, cards = {}, air = 10, spun = new Set(), carpDone = 0, chestFx = null, ruletaOpen = false, prevRecord = 0, newGround = false, bonusOpen = false, shake = 0, shakeKick = 0, cracking = 0, looking = false, driftT = 0, started = false, simAcc = 0, stabAcc = 0, tick = 0, t = 0, wet = false, gasNear = false;
 const input = {L:false, R:false, U:false, D:false};
 // pulsaciones cortas: se guardan un momento para que un toque rápido no se pierda entre fotogramas
 const tapped = {L:0, R:0, U:0, D:0};
@@ -239,6 +249,8 @@ function startRun(){
   const MIN = D.herramientas.minimoPorBajada || {puntales:0, escaleras:0};
   lamp = 100; bag = {}; props = Math.max(Pa.kit.puntales||0, MIN.puntales); ladders = Math.max(Pa.kit.escaleras||0, MIN.escaleras); llaves = Pa.kit.llaves||0; wick = 1;
   prevRecord = W.record||0; newGround = false;
+  cards = {}; spun = new Set(); carpDone = 0; chestFx = null; air = airMax();
+  ensureRoomItems();
   dead = null; deadT = 0; cashed = false; rocks = []; particles = []; floats = []; fillQ = [];
   digT = 0; moveT = 0; buried = 0; crackMsgT = 0; lockMsgT = 0; flashT = 0; maxDepth = 0;
   lastRoomFloor = SURF - 1; roomsSeen = new Set(); segSeen = 0;
@@ -250,6 +262,12 @@ function startRun(){
   else toast('Pozo 1', TRAMOS[0].n);
 }
 
+// ---------- cartas ----------
+const has = id => (cards[id]||0) > 0;
+function useCard(id){ if(!has(id)) return false; cards[id]--; if(!cards[id]) delete cards[id]; renderInv(); return true; }
+const cv_ = (id, d) => (CARD[id] && CARD[id].valor !== undefined) ? CARD[id].valor : d;
+function airMax(){ return has('pulmones') ? AI.conPulmones : AI.segundos; }
+
 // ---------- simulación de materiales ----------
 function playerCell(r,c){ return !dead && p && p.r === r && p.c === c; }
 // casilla por la que está a punto de pasar (o pasando) una piedra que cae: lo suelto espera a que pase
@@ -260,8 +278,9 @@ function fluids(top, bot){
     const R = W.rows[r], dir = (tick + r) & 1 ? 1 : -1;
     for(let i=0;i<COLS;i++){
       const c = dir > 0 ? i : COLS-1-i, v = R.t[c];
-      if((v !== SAND && v !== WATER && v !== RUBBLE) || R.mv[c] === tick) continue;
+      if((v !== SAND && v !== WATER && v !== RUBBLE && v !== MUD) || R.mv[c] === tick) continue;
       if(v === WATER){ waterStep(r, c, dir); continue; }
+      if(v === MUD){ mudStep(r, c, dir); continue; }
       const below = tAt(r+1, c);
       const can = (rr, cc) => { if(cc<0 || cc>=COLS) return false; const x = tAt(rr,cc); if(v !== WATER && playerCell(rr,cc)) return false; if(rockLane(rr, cc)) return false; return isOpen(x) || (v !== WATER && x === WATER); };
       if(can(r+1, c)){ swap(r,c,r+1,c); continue; }
@@ -284,6 +303,14 @@ function waterStep(r, c, dir){
   const R = W.rows[r];
   let L = R.lv[c];
   if(L < 0.02){ setT(r, c, AIR); return; }
+  // agua que toca arena: la arena se empapa y se vuelve barro (se gasta agua)
+  for(const [rr, cc] of [[r+1, c], [r, c-dir], [r, c+dir]]){
+    if(cc < 0 || cc >= COLS || tAt(rr, cc) !== SAND) continue;
+    setT(rr, cc, MUD); W.rows[rr].mv[cc] = tick; L -= BA.aguaQueGasta;
+    if(Math.abs(rr - p.r) < 10) burst(rr+0.3, cc+0.5, '#8f563b', 3);
+    if(L < 0.02){ setT(r, c, AIR); return; }
+    R.lv[c] = L; break;
+  }
   // abajo: si está libre cae entera; si hay agua sin llenar, la llena
   const b = tAt(r+1, c);
   if(isOpen(b)){ swap(r, c, r+1, c); return; }
@@ -319,6 +346,20 @@ function waterStep(r, c, dir){
       R.lv[c] = L - (AG.filtrado||0.15)/14;
       if(R.lv[c] < 0.02) setT(r, c, AIR);
     }
+  }
+}
+// Barro: fluido espeso. Cae y se escurre despacio, sin rampas; deja de moverse cuando queda plano.
+function mudStep(r, c, dir){
+  if(tick % BA.caeCadaTicks) return;
+  const b = tAt(r+1, c);
+  if((isOpen(b) || b === WATER) && !playerCell(r+1, c) && !rockLane(r+1, c)){ swap(r, c, r+1, c); return; }
+  if(tick % BA.escurreCadaTicks) return;
+  for(const dd of [dir, -dir]){
+    const cc = c + dd; if(cc < 0 || cc >= COLS) continue;
+    const side = tAt(r, cc); if(!isOpen(side) || playerCell(r, cc)) continue;
+    const sb = tAt(r+1, cc);
+    if(isOpen(sb) || sb === WATER){ swap(r, c, r, cc); return; }      // borde: se va por ahí
+    if(b === MUD){ swap(r, c, r, cc); return; }                       // montón: se aplana
   }
 }
 // La mochila perdida se comporta como un bloque suelto: si pierde apoyo cae, pero nunca se rompe en escombro.
@@ -398,12 +439,15 @@ function updateCracks(top, bot, dt){
 }
 function updateRocks(dt){
   for(const k of rocks){
-    k.vy = Math.min(16, k.vy + 34*dt); k.y += k.vy*dt;
+    k.vy = Math.min(16, k.vy + 34*dt);
+    if(tAt(Math.floor(k.y)+1, k.c) === MUD || tAt(Math.floor(k.y), k.c) === MUD){ k.mud = true; k.vy = Math.min(k.vy, BA.rocaEnBarro); }
+    k.y += k.vy*dt;
     const rr = Math.floor(k.y) + 1, b = tAt(rr, k.c);
     if(isSolid(b)){
       let r = rr - 1; while(r > 0 && isSolid(tAt(r, k.c))) r--;
       const fall = r - k.y0;
-      const broke = fall >= cfg.thrH || k.grp >= cfg.thrS;
+      let broke = !k.mud && (fall >= cfg.thrH || k.grp >= cfg.thrS);   // en el barro se hunde entero, sin romperse
+      if(broke && INFO[k.t].val && has('recuperador') && Math.random() < cv_('recuperador', 0.5)) broke = false;
       setT(r, k.c, broke ? RUBBLE : k.t); k.done = true;
       const nv = near(r, k.c); SND(broke ? 'escombro' : 'cae', nv); shakeKick = Math.max(shakeKick, nv*1.6);
       burst(r+0.9, k.c+0.5, broke ? '#847e87' : '#8f563b', broke ? 9 : 4);
@@ -411,9 +455,14 @@ function updateRocks(dt){
       for(const it of W.items) if(it.alive && it.k === 'oil' && it.r === r && it.c === k.c) it.alive = false;
     }
     if(!dead && k.vy > 2 && !k.spared && Math.abs(k.c - p.x) < 0.95 && k.y + 0.95 > p.y + 0.15 && k.y < p.y + 0.9){
-      if(k.c === p.c) die('crush');
+      if(k.c === p.c){
+        if(useCard('casco')){ k.done = true; burst(p.r+0.2, p.c+0.5, '#9badb7', 12); SND('escombro'); p.stun = JU.aturdidoPorLosPelos; p.act = null;
+          floats.push({x:p.c+0.5, y:p.r-0.3, txt:'¡El casco aguanta!', life:1.4, col:'#fbf236'}); }
+        else die('crush');
+      }
       else { // ya estabas saliendo de esa casilla: te salvas, pero caes al suelo aturdido
-        k.spared = true; p.stun = JU.aturdidoPorLosPelos; p.x = p.c; p.act = null; p.falling = false; SND('tropiezo');
+        k.spared = true; p.x = p.c; p.act = null; p.falling = false;
+        if(!has('reflejos')){ p.stun = JU.aturdidoPorLosPelos; SND('tropiezo'); }
         floats.push({x:p.c+0.5, y:p.r-0.3, txt:'¡Por los pelos!', life:1.2, col:'#fbf236'});
         burst(p.r+0.8, p.c+0.5, '#eec39a', 8);
       }
@@ -425,7 +474,8 @@ function updateRocks(dt){
 
 // ---------- jugador ----------
 function weight(){ let w = 0; for(const k in bag) w += bag[k]*INFO[k].val; return w; }
-function stepTime(){ return JU.tiempoPaso * (1 + weight()/JU.pesoQueFrena); }
+function stepTime(){ return JU.tiempoPaso * (1 + weight()*(has('mochila_cuero') ? cv_('mochila_cuero', 0.5) : 1)/JU.pesoQueFrena); }
+const inMud = (r, c) => tAt(r, c) === MUD;
 function canStand(r, c){ if(p.onPlat && r === SURF-2 && c === 7) return true; const below = tAt(r+1, c); return isSolid(below) || below === LADDER || tAt(r, c) === LADDER; }
 function passable(r, c){ const v = tAt(r, c); return !isSolid(v) && !rocks.some(k => k.c === c && Math.abs(k.y - r) < 1); }
 function hit(r, c, dir){
@@ -437,13 +487,14 @@ function hit(r, c, dir){
     return;
   }
   if(v === RUBBLE){ clearRubble(r, c); digT = JU.tiempoGolpe; lamp -= LA.costeGolpe; SND('escombro'); return; }
+  if(has('pico_afilado') && R.hp[c] === INFO[v].hp && INFO[v].hp > 1) R.hp[c]--;   // carta: un golpe menos
   R.hp[c]--; digT = JU.tiempoGolpe; lamp -= LA.costeGolpe;
   burst(r+0.5, c+0.5, '#d9a066', 2);
   if(R.hp[c] > 0) SND('golpe');
   if(R.hp[c] <= 0){
     setT(r, c, AIR); SND('rompe');
     burst(r+0.5, c+0.5, v === RUBBLE ? '#847e87' : '#8f563b', 7);
-    if(INFO[v].val){ bag[v] = (bag[v]||0) + 1; renderInv(v); }
+    if(INFO[v].val){ bag[v] = (bag[v]||0) + (has('codicia') ? 2 : 1); renderInv(v); }
   }
 }
 function clearRubble(r0, c0){
@@ -463,7 +514,8 @@ function updatePlayer(dt){
   for(const k in tapped) tapped[k] = Math.max(0, tapped[k] - dt);
   if(p.stun > 0){ p.stun -= dt; if(p.stun > 0){ moveT = Math.max(moveT, 0.01); } }
   // movimiento suave hacia la casilla destino
-  const sp = (p.falling ? JU.velocidadCaida : 1/stepTime()) * dt;
+  const mudHere = inMud(p.r, p.c);
+  const sp = (p.falling ? (mudHere ? BA.hundimiento : JU.velocidadCaida) : 1/(stepTime()*(mudHere ? BA.pasoMult : 1))) * dt;
   if(p.falling){
     const dx = p.c - p.x, dy = p.r - p.y, dd = Math.hypot(dx, dy);
     if(dd <= sp){ p.x = p.c; p.y = p.r; } else { p.x += dx/dd*sp; p.y += dy/dd*sp; }
@@ -484,6 +536,7 @@ function updatePlayer(dt){
       } else if(side){                              // hay suelo al lado: se agarra al saliente
         p.c += ax; p.face = ax; driftT = JU.controlEnCaida; tapped.L = tapped.R = 0;
       } else { p.r++; p.falling = true; p.fallN = (p.fallN||0) + 1; }
+      if(inMud(p.r, p.c)) p.fallN = 0;   // el barro amortigua: nada de caída larga
     }
     else {
       if(p.falling){
@@ -502,7 +555,7 @@ function updatePlayer(dt){
           p.face = ax;
           const tc = p.c + ax, v = tAt(p.r, tc);
           if(tc >= 0 && tc < COLS){
-            if(passable(p.r, tc)){ p.c = tc; moveT = stepTime(); SND('paso', 0.6); }
+            if(passable(p.r, tc)){ p.c = tc; moveT = stepTime()*(inMud(p.r, tc) || mudHere ? BA.pasoMult : 1); SND('paso', 0.6); }
             else if(v === DOOR) tryDoor(p.r, tc);
             else if(isSolid(v)) hit(p.r, tc, {x:ax, y:0});
           }
@@ -524,7 +577,13 @@ function updatePlayer(dt){
   else { p.act = null; p.anim = p.falling ? ((p.fallN||0) >= JU.caidaLargaDesde ? 'caida_larga' : 'caer') : moving ? 'andar' : 'reposo'; }
   // lámpara, agua y grisú
   const wetLv = tAt(p.r, p.c) === WATER ? W.rows[p.r].lv[p.c] : 0;
-  wet = wetLv > 0.3;
+  wet = wetLv > 0.3 || mudHere;
+  const wetMult = Math.max(1 + (LA.multMojada - 1)*wetLv, mudHere ? BA.multLuz : 1);
+  // aire: bajo la superficie (tu casilla llena y la de encima también) se gasta
+  const full = (r, c) => tAt(r, c) === MUD || (tAt(r, c) === WATER && W.rows[r].lv[c] > 0.97);
+  const under = full(p.r, p.c) && full(p.r-1, p.c);
+  if(under){ air -= dt; if(air <= 0){ air = 0; die('drown'); } }
+  else air = Math.min(airMax(), air + dt*AI.recupera);
   gasNear = false;
   const GA = PE.grisuAviso;
   for(let r=p.r-GA; r<=p.r+GA && !gasNear; r++) for(let c=p.c-GA; c<=p.c+GA; c++) if(tAt(r,c) === GAS){ gasNear = true; break; }
@@ -532,8 +591,9 @@ function updatePlayer(dt){
   if(wick && lamp > 0 && (tAt(p.r, p.c) === GAS || tAt(p.r-1, p.c) === GAS)) explode(tAt(p.r, p.c) === GAS ? p.r : p.r-1, p.c);
   const L = layout(p.r);
   const inRoom = L.part !== undefined && L.part > 0 && L.part < ROOM_H-1;
-  if(inRoom) lamp = Math.min(100, lamp + LA.recargaSala*dt);
-  else if(!L.surface) lamp -= cfg.drain*dt*(wick ? 1 : LA.multMechaBaja)*(1 + (LA.multMojada - 1)*wetLv);
+  const atFlame = inRoom && Math.abs(p.x - SA.columnaLlama) <= SA.radioLlama;
+  if(atFlame){ if(lamp < 100 && Math.random() < dt*20) burst(p.y+0.2, p.x+0.5, '#fbf236', 1); lamp = Math.min(100, lamp + LA.recargaSala*dt); }
+  else if(!L.surface && !inRoom) lamp -= cfg.drain*dt*(wick ? 1 : LA.multMechaBaja)*wetMult*(has('mecha_cera') ? cv_('mecha_cera', 0.75) : 1)*(has('codicia') ? cv_('codicia', 1.25) : 1);
   // arena encima: te va cubriendo
   if(tAt(p.r-1, p.c) === SAND && !inRoom){ buried += dt; } else buried = Math.max(0, buried - dt*1.5);
   if(buried > JU.sepultadoEn) die('buried');
@@ -545,7 +605,8 @@ function updatePlayer(dt){
       else if(it.k === 'herr'){ it.alive = false; SND('poner'); const n = RC.cantidad;
         if(it.tipo === 'puntal') props += n; else ladders += n; renderInv();
         burst(it.r+0.5, it.c+0.5, '#d9a066', 10); floats.push({x:it.c+0.5, y:it.r, txt:'+'+n+' '+(it.tipo === 'puntal' ? 'puntal' : 'escalera'), life:1.2, col:'#fbf236'}); }
-      else if(it.k === 'oil'){ it.alive = false; SND('aceite'); lamp = Math.min(100, lamp + LA.aceite); burst(it.r+0.5, it.c+0.5, '#fbf236', 14); floats.push({x:it.c+0.5, y:it.r, txt:'+'+LA.aceite+'% luz', life:1.2, col:'#fbf236'}); }
+      else if(it.k === 'oil'){ const g = LA.aceite*(has('bidon_grande') ? cv_('bidon_grande', 2) : 1); it.alive = false; SND('aceite'); lamp = Math.min(100, lamp + g); burst(it.r+0.5, it.c+0.5, '#fbf236', 14); floats.push({x:it.c+0.5, y:it.r, txt:'+'+g+'% luz', life:1.2, col:'#fbf236'}); }
+      else if(it.k === 'cofreSala' && !W.rewarded.includes(it.room)) openRoomChest(it);
       else if(it.k === 'bag'){ it.alive = false; SND('mochila'); for(const k in W.bag.items) bag[k] = (bag[k]||0) + W.bag.items[k]; W.bag = null; renderInv(); toast('Mochila recuperada', 'Todo lo que perdiste vuelve contigo'); burst(it.r+0.5, it.c+0.5, '#fbf236', 20); }
     }
   }
@@ -554,13 +615,14 @@ function updatePlayer(dt){
   if(p.r > (W.record||0)) W.record = p.r;
   if(inRoom && !roomsSeen.has(L.room)){
     roomsSeen.add(L.room); SND('sala');
-    // las herramientas de cada sala se regalan una sola vez por pozo
-    if(!W.rewarded.includes(L.room)){
-      W.rewarded.push(L.room);
-      const g = D.herramientas.porSalaSegura; props += g.puntales; ladders += g.escaleras; renderInv();
-      toast('Sala segura', 'Lámpara recargada · +'+g.puntales+' puntales · +'+g.escaleras+' escaleras');
-    } else toast('Sala segura', 'Lámpara recargada · aquí ya cogiste las herramientas');
+    const bits = ['Recarga la lámpara en la llama'];
+    if(!W.rewarded.includes(L.room)) bits.push('abre el cofre');
+    if(hasWheel(L.room) && !spun.has(L.room)) bits.push('gira la ruleta');
+    toast('Sala segura', bits.join(' · '));
   }
+  // ruleta de cartas: se gira al ponerse delante (una vez por bajada)
+  if(inRoom && settled && hasWheel(L.room) && !spun.has(L.room) && p.c === SA.columnaRuleta && p.r === ROOM_ROW[L.room] + ROOM_H - 2){ spun.add(L.room); openRuleta(); }
+  if(has('carpintero')){ const step = cv_('carpintero', 10), n = Math.floor(maxDepth/step); if(n > carpDone){ ladders += n - carpDone; carpDone = n; renderInv(); floats.push({x:p.c+0.5, y:p.r-0.4, txt:'+1 escalera (Carpintero)', life:1.2, col:'#fbf236'}); } }
   if(L.part !== undefined) lastRoomFloor = Math.max(lastRoomFloor, ROOM_ROW[L.room] + ROOM_H - 1);
   if(L.part === undefined && !L.surface && L.seg > segSeen){ segSeen = L.seg; toast('Tramo '+(L.seg+1), TRAMOS[L.seg].n); }
   if(!newGround && prevRecord > ROOM_ROW[0] && p.r > prevRecord){ newGround = true; toast('Terreno nuevo', 'Has pasado de donde llegaste la última vez'); SND('sala'); floats.push({x:p.c+0.5, y:p.r-0.4, txt:'¡Terreno nuevo!', life:1.4, col:'#fbf236'}); }
@@ -570,6 +632,10 @@ function explode(r0, c0){
   while(q.length && cells.length < 140){
     const [r,c] = q.pop(); cells.push([r,c]);
     for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){ const rr=r+dr, cc=c+dc, k=rr*16+cc; if(cc<0||cc>=COLS||seen.has(k)||tAt(rr,cc)!==GAS) continue; seen.add(k); q.push([rr,cc]); }
+  }
+  if(useCard('llama_fria')){   // carta: la bolsa de grisú se disipa sin explotar
+    for(const [r,c] of cells){ setT(r, c, AIR); if(Math.random() < 0.4) burst(r+0.5, c+0.5, '#99e550', 2); }
+    floats.push({x:c0+0.5, y:r0-0.4, txt:'Llama fría: el grisú se disipa', life:1.6, col:'#99e550'}); return;
   }
   for(const [r,c] of cells){
     setT(r,c,AIR);
@@ -586,6 +652,7 @@ function explode(r0, c0){
 function placeTool(kind){
   if(!started || dead || cashed) return;
   const v = tAt(p.r, p.c);
+  if(kind === 'prop' && v === PROP && has('plegable')){ setT(p.r, p.c, AIR); props++; SND('poner'); renderInv(); floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Puntal recogido', life:0.9, col:'#fbf236'}); return; }
   if(v !== AIR){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Aquí no cabe', life:0.9, col:'#d9a066'}); return; }
   if(kind === 'prop'){ if(props <= 0) return noTool('Sin puntales'); setT(p.r, p.c, PROP); props--; }
   else { if(ladders <= 0) return noTool('Sin escaleras'); setT(p.r, p.c, LADDER); ladders--; }
@@ -623,9 +690,20 @@ function updateMoths(dt){
 // ---------- muerte y cobro ----------
 function die(cause){
   if(dead || cashed) return;
+  if(useCard('segunda')){   // carta: vuelves a la última sala segura con la mochila
+    const r = lastRoomFloor >= ROOM_ROW[0] + ROOM_H - 1 ? lastRoomFloor - 1 : SURF - 2, c = r === SURF - 2 ? 7 : SA.columnaLlama;
+    p.r = r; p.y = r; p.c = c; p.x = c; p.sx = c; p.falling = false; p.fallN = 0; p.stun = 0; p.onPlat = r === SURF - 2; if(p.onPlat) platOpen = 0;
+    lamp = Math.max(lamp, 60); buried = 0; air = airMax(); flashT = 0.5; SND('mochila');
+    toast('¡Segunda oportunidad!', 'Vuelves a la última sala segura con tu mochila'); return;
+  }
   dead = cause; deadT = 0; SND('muerte'); shakeKick = Math.max(shakeKick, 3);
   burst(p.y+0.5, p.x+0.5, cause === 'crush' ? '#eec39a' : '#fbf236', 24);
   const lost = {props, ladders};
+  let saved = null;
+  if(has('bolsillo')){   // carta: lo que más vale de la mochila llega al almacén
+    let best = null; for(const k in bag) if(bag[k] > 0 && (!best || bag[k]*INFO[k].val > bag[best]*INFO[best].val)) best = k;
+    if(best){ saved = {n: bag[best], name: INFO[best].n}; Pa.almacen[INFO[best].key] = (Pa.almacen[INFO[best].key]||0) + bag[best]; delete bag[best]; }
+  }
   const n = Object.values(bag).reduce((a,b)=>a+b,0);
   const oldBagLost = !!W.bag;
   W.bag = n ? {r:p.r, c:p.c, items:{...bag}} : null;
@@ -633,12 +711,12 @@ function die(cause){
   // el último tramo (desde la última sala segura) se llena de escombro sin vetas
   const top = lastRoomFloor + 1, bot = p.r + 2;
   fillQ = [];
-  for(let r=top; r<=bot; r++) for(let c=0;c<COLS;c++){ const v = tAt(r,c); if(v !== ROCK && v !== BEAM) fillQ.push([r,c]); }
+  for(let r=top; r<=bot; r++) for(let c=0;c<COLS;c++){ const v = tAt(r,c); if(v !== ROCK && v !== BEAM && v !== DOOR) fillQ.push([r,c]); }
   fillQ.sort((a,b)=> a[0]-b[0] || Math.random()-0.5);
   for(const it of W.items) if(it.r >= top && it.r <= bot && (it.k === 'oil' || it.k === 'moth')) it.alive = false;
   if(D.herramientas.alMorir === 'perder'){ Pa.kit = {puntales:0, escaleras:0, llaves:0}; } else { Pa.kit = {puntales:props, escaleras:ladders, llaves:llaves}; lost.props = 0; lost.ladders = 0; }
   Pa.guardar();
-  dead = {cause, n, lost, oldBagLost};
+  dead = {cause, n, lost, oldBagLost, saved};
 }
 function fillType(r, c){ return vn(c/2.2, r/1.6, W.seed + 31) > 1 - D.muerte.piedraEnRelleno ? STONE : RUBBLE; }
 function finishCollapse(){
@@ -714,6 +792,15 @@ function drawTile(v, r, c, X, Y){
     for(let i=0;i<3;i++){ const ph = t*0.9 + i*2.1 + (hsh(r,c)&31); ctx.fillRect(X + T*(0.5+Math.sin(ph)*0.35)|0, Y + T*(0.5+Math.cos(ph*1.3)*0.35)|0, 2, 2); }
     return;
   }
+  if(v === MUD){
+    const top = tAt(r-1, c) !== MUD;
+    ctx.fillStyle = '#5a3a26'; ctx.fillRect(X, Y, T, T);
+    ctx.fillStyle = '#45283c'; for(let i=0;i<5;i++){ const h = hsh(r*7+i, c); ctx.fillRect(X + (h % 20) + 1, Y + ((h >> 5) % 20) + 2, 3, 2); }
+    ctx.fillStyle = '#8f563b'; for(let i=0;i<3;i++){ const h = hsh(c*5+i, r); ctx.fillRect(X + (h % 18) + 3, Y + ((h >> 6) % 16) + 5, 2, 1); }
+    if(top){ ctx.fillStyle = '#8f563b'; ctx.fillRect(X, Y, T, 3); ctx.fillStyle = '#d9a066'; ctx.fillRect(X + (hsh(r,c)%14) + 2, Y+1, 5, 1);
+      const ph = (t*0.7 + (hsh(c,r)%100)/37) % 3; if(ph < 0.5){ ctx.fillStyle = '#a0703f'; const bx = X + (hsh(c+3,r)%16) + 4; ctx.fillRect(bx, Y - Math.round(ph*4), 3, 2); } }
+    return;
+  }
   if(v === PROP){ ctx.drawImage(PS.puntal, X, Y); return; }
   if(v === LADDER){ ctx.drawImage(PS.escalera, X, Y); return; }
   if(v === BEAM){ ctx.drawImage(PS.viga, X, Y); return; }
@@ -780,11 +867,38 @@ function drawDoor(r, c, X, Y){
   const kx = left ? X+T-11 : X+7; ctx.fillStyle = '#000'; ctx.fillRect(kx-1, Y+11, 7, 7); ctx.fillStyle = '#fbf236'; ctx.fillRect(kx, Y+12, 5, 5); ctx.fillStyle = '#000'; ctx.fillRect(kx+2, Y+13, 1, 2);
   ctx.strokeStyle = '#fbf236'; ctx.lineWidth = 1; ctx.strokeRect(kx+0.5, Y+8.5, 4, 4);
 }
+const hasWheel = i => (i + 1) % (SA.ruletaCada||2) === 0;
+function drawWheel(i){
+  const X = SA.columnaRuleta*T, Y = Math.round((ROOM_ROW[i]+1-cam)*T), cx = X + T/2, cy = Y + 13, used = spun.has(i);
+  ctx.fillStyle = '#000'; ctx.fillRect(cx-2, cy, 5, T+10); ctx.fillStyle = '#663931'; ctx.fillRect(cx-1, cy, 3, T+10);
+  const cols = used ? ['#595652','#696a6a','#595652','#696a6a','#595652','#696a6a'] : ['#d95763','#fbf236','#639bff','#99e550','#df7126','#cbdbfc'];
+  const rot = used ? 0 : t*0.8;
+  ctx.fillStyle = '#000'; ctx.beginPath(); ctx.arc(cx+0.5, cy, 11, 0, Math.PI*2); ctx.fill();
+  for(let s=0;s<6;s++){ ctx.fillStyle = cols[s]; ctx.beginPath(); ctx.moveTo(cx+0.5, cy); ctx.arc(cx+0.5, cy, 9.5, rot + s*Math.PI/3, rot + (s+1)*Math.PI/3); ctx.fill(); }
+  ctx.fillStyle = '#000'; ctx.fillRect(cx-1, cy-1, 3, 3);
+  ctx.fillStyle = '#fbf236'; ctx.beginPath(); ctx.moveTo(cx-3, cy-14); ctx.lineTo(cx+4, cy-14); ctx.lineTo(cx+0.5, cy-9); ctx.fill();
+  if(!used && Math.floor(t*2) % 2 === 0){ ctx.fillStyle = '#fff'; ctx.fillRect(cx+8, cy-10, 2, 2); }
+}
 function drawItem(it){
   const X = it.c*T, Y = Math.round((it.r - (it.dy||0) - cam)*T);
   if(it.k === 'oil') ctx.drawImage(PS.aceite, X, Y);
   else if(it.k === 'chest') ctx.drawImage(PS.cofre, X, Y);
   else if(it.k === 'bag') ctx.drawImage(PS.mochila_suelo, X, Y);
+  else if(it.k === 'cofreSala'){
+    const opened = W.rewarded.includes(it.room), fx = chestFx && chestFx.it === it ? chestFx.t : -1;
+    if(fx >= 0 && fx < 2.2){   // rayos de luz al abrirlo
+      ctx.save(); ctx.translate(X + T/2, Y + 8); const n = 10, k = Math.min(1, fx*3)*Math.min(1, (2.2 - fx)*2);
+      for(let i=0;i<n;i++){ const a = i*Math.PI*2/n + fx*0.9; ctx.fillStyle = i%2 ? 'rgba(251,242,54,'+(0.4*k)+')' : 'rgba(255,255,255,'+(0.3*k)+')';
+        ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a-0.09)*70, Math.sin(a-0.09)*70); ctx.lineTo(Math.cos(a+0.09)*70, Math.sin(a+0.09)*70); ctx.fill(); }
+      ctx.restore();
+    }
+    if(!opened){ ctx.drawImage(PS.cofre, X, Y); if(Math.floor(t*2) % 3 === 0){ ctx.fillStyle = '#fff'; ctx.fillRect(X+18, Y+6, 2, 2); } }
+    else {   // abierto: la tapa levantada y el interior vacío
+      ctx.drawImage(PS.cofre, 0, 9, T, T-9, X, Y+9, T, T-9);
+      ctx.fillStyle = '#000'; ctx.fillRect(X+3, Y+8, T-6, 3); ctx.fillStyle = fx >= 0 && fx < 2.2 ? '#fbf236' : '#2b1b14'; ctx.fillRect(X+4, Y+9, T-8, 2);
+      ctx.drawImage(PS.cofre, 0, 0, T, 9, X, Y+1, T, 9);
+    }
+  }
   else if(it.k === 'llave'){
     const bob = Math.round(Math.sin(t*3 + it.c)*1.5), x = X + 6, y = Y + 12 + bob;
     ctx.fillStyle = 'rgba(251,242,54,0.2)'; ctx.fillRect(X+3, Y+6, T-6, T-7);
@@ -832,6 +946,20 @@ function drawHero(){
   if(pk) ctx.drawImage(PACK[pk].c, PACK[pk].x, PACK[pk].y);
   ctx.drawImage(f, 0, 0);
   ctx.restore();
+  // metido en el barro: el barro le tapa el cuerpo (entero si también hay barro encima)
+  if(tAt(p.r, p.c) === MUD){
+    const deep = tAt(p.r-1, p.c) === MUD, cellTop = Math.round((p.r - cam)*T), hgt = deep ? T : Math.round(T*0.62);
+    const y0m = cellTop + T - hgt, x0m = Math.round(p.x*T);
+    ctx.fillStyle = 'rgba(90,58,38,0.88)'; ctx.fillRect(x0m - 2, y0m, T + 4, hgt);
+    if(!deep){ ctx.fillStyle = '#8f563b'; ctx.fillRect(x0m - 2, y0m, T + 4, 2); ctx.fillStyle = '#d9a066'; ctx.fillRect(x0m + 4 + Math.round(Math.sin(t*3)*3), y0m, 6, 1); }
+  }
+  // aire: barra y burbujas mientras estás bajo la superficie o recuperándolo
+  if(air < airMax() - 0.01){
+    const k = air/airMax(), bw = 22, bx = feetX - 11, by = feetY - 36;
+    ctx.fillStyle = '#000'; ctx.fillRect(bx-1, by-1, bw+2, 5); ctx.fillStyle = '#306082'; ctx.fillRect(bx, by, bw, 3);
+    ctx.fillStyle = k < 0.3 ? '#d95763' : '#cbdbfc'; ctx.fillRect(bx, by, Math.round(bw*k), 3);
+    for(let i=0;i<3;i++){ const ph = (t*1.5 + i*0.33) % 1; ctx.fillStyle = 'rgba(203,219,252,'+(1-ph)+')'; ctx.fillRect(Math.round(feetX + Math.sin(t*4+i*2)*4), Math.round(feetY - 26 - ph*14), 2, 2); }
+  }
   // arena cubriendo
   if(buried > 0){ const k = Math.min(1, buried/JU.sepultadoEn); ctx.fillStyle = '#d9a066'; ctx.fillRect(feetX-11, feetY - Math.round(22*k), 22, Math.round(22*k)); ctx.fillStyle = '#8a6f30'; for(let i=0;i<6;i++) ctx.fillRect(feetX-10 + (i*7)%20, feetY - Math.round(22*k) + (i*5)%Math.max(1,Math.round(22*k)), 1, 1); }
 }
@@ -882,7 +1010,8 @@ function render(){
   }
   // antorchas de las salas
   for(const i of rooms){
-    const Y = Math.round((ROOM_ROW[i]+1-cam)*T), X = 2*T + 10;
+    if(hasWheel(i)) drawWheel(i);
+    const Y = Math.round((ROOM_ROW[i]+1-cam)*T), X = SA.columnaLlama*T + 10;
     ctx.fillStyle = '#663931'; ctx.fillRect(X, Y+10, 3, 14);
     const fl = Math.round(Math.sin(t*14)); ctx.fillStyle = '#df7126'; ctx.fillRect(X-2, Y+2+fl, 7, 9); ctx.fillStyle = '#fbf236'; ctx.fillRect(X, Y+5+fl, 3, 5);
   }
@@ -900,8 +1029,8 @@ function render(){
     lbuf.fill(0);
     const fade = dead ? Math.max(0, 1 - deadT*1.5) : 1, flick = 1 + (Math.random()-0.5)*(lamp < 20 ? 0.14 : 0.04);
     addLight(r0, r1, p.x+0.5, p.y+0.25, lightRadius()*flick*fade, 1, true, true);
-    for(const i of rooms) addLight(r0, r1, 2.5, ROOM_ROW[i]+1.5, 6.5, 1, true, true);
-    for(const it of W.items) if(it.alive && (it.k === 'oil' || it.k === 'chest' || it.k === 'bag' || it.k === 'herr' || it.k === 'llave') && it.r >= r0-2 && it.r <= r1+2) addLight(r0, r1, it.c+0.5, it.r+0.6, it.k === 'oil' ? 1.6 : 2.4, 0.6, false, false);
+    for(const i of rooms) addLight(r0, r1, COLS/2, ROOM_ROW[i]+1.5, 8.6, 1, true, true);
+    for(const it of W.items) if(it.alive && (it.k === 'oil' || it.k === 'chest' || it.k === 'bag' || it.k === 'herr' || it.k === 'llave' || it.k === 'cofreSala') && it.r >= r0-2 && it.r <= r1+2) addLight(r0, r1, it.c+0.5, it.r+0.6, it.k === 'oil' ? 1.6 : 2.4, 0.6, false, false);
     for(let r=Math.max(SURF,r0); r<=r1; r++) for(let c=0;c<COLS;c++){
       if(!isSolid(W.rows[r].t[c])) continue;
       const i = (r-r0)*COLS + c; let m = lbuf[i];
@@ -926,6 +1055,7 @@ function render(){
   ctx.globalAlpha = 1;
   ctx.restore();
   drawBagMarker(fx, fy);
+  if(has('zahori')) drawOilMarker(fx, fy);
   if(looking){ ctx.textAlign = 'center'; ctx.font = '900 14px Nunito, sans-serif'; ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(VW/2-70, 8, 140, 22); ctx.fillStyle = '#fbf236'; ctx.fillText('Mirando · pulsa Ver', VW/2, 24); }
   if(flashT > 0){ ctx.fillStyle = `rgba(251,242,54,${flashT})`; ctx.fillRect(0,0,VW,VH); }
 }
@@ -954,6 +1084,84 @@ function drawBagMarker(fx, fy){
     ctx.fillStyle = '#fbf236'; ctx.beginPath(); ctx.moveTo(x-5, ay-6); ctx.lineTo(x+5, ay-6); ctx.lineTo(x, ay); ctx.fill();
     ctx.fillStyle = '#000'; ctx.fillText(Math.abs(d)+' m', x+1, ay-9); ctx.fillStyle = '#fbf236'; ctx.fillText(Math.abs(d)+' m', x, ay-10);
   }
+}
+
+function drawOilMarker(fx, fy){
+  if(dead || cashed) return;
+  let best = null, bd = 1e9;
+  for(const it of W.items) if(it.alive && it.k === 'oil'){ const d = Math.hypot(it.r - p.r, (it.c - p.c)*0.7); if(d < bd && Math.abs(it.r - p.r) < 60){ bd = d; best = it; } }
+  if(!best) return;
+  let x = VW/2 + ((best.c+0.5)*T - fx)*zoom, y = VH*0.35 + ((best.r + 0.5 - cam)*T - fy)*zoom;
+  const top = 70, bot = VH*0.55, off = y < top || y > bot || x < 10 || x > VW-10;
+  if(!off) return;
+  x = Math.max(VW*0.25, Math.min(VW*0.75, x)); y = Math.max(top, Math.min(bot, y));
+  const d = best.r - p.r;
+  ctx.textAlign = 'center'; ctx.font = '900 11px Nunito, sans-serif';
+  ctx.fillStyle = 'rgba(48,96,130,.9)'; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x-30, y-10, 60, 20, 10) : ctx.rect(x-30, y-10, 60, 20); ctx.fill();
+  ctx.fillStyle = '#fbf236'; ctx.fillText((d > 0 ? '↓ ' : d < 0 ? '↑ ' : '↔ ') + '🛢️ ' + Math.abs(d) + ' m', x, y+4);
+}
+
+// ---------- cofres de las salas seguras ----------
+function openRoomChest(it){
+  W.rewarded.push(it.room); chestFx = {it, t:0}; SND('cofre'); shakeKick = Math.max(shakeKick, 1.5);
+  const C = SA.cofre, got = [];
+  const give = g => { if(g.escaleras) ladders += g.escaleras; if(g.puntales) props += g.puntales; if(g.llaves) llaves += g.llaves; };
+  give(C.base); got.push('+'+C.base.escaleras+' escaleras', '+'+C.base.puntales+' puntales');
+  for(const e of C.extras || []) if(Math.random() < e.prob){ give(e); got.push(e.texto); }
+  renderInv(); burst(it.r+0.4, it.c+0.5, '#fbf236', 26);
+  toast('¡Cofre de suministros!', got.join(' · '));
+  got.forEach((g, i) => floats.push({x:it.c+0.5, y:it.r - 0.3 - i*0.45, txt:g, life:1.6 + i*0.2, col:'#fbf236'}));
+  persist();
+}
+
+// ---------- ruleta de cartas ----------
+let ruTimers = [], ruPicks = [], wasStartedR = false;
+function cardFace(k, extra){ return `<i>${k.icono}</i><b>${k.nombre}</b><span>${k.texto}</span>${extra||''}`; }
+function pickCards(n){
+  const pool = (D.cartas||[]).filter(k => !(k.unica && has(k.id))), out = [];
+  while(out.length < n && pool.length){
+    const tot = pool.reduce((a, k) => a + (k.peso ?? 1), 0); let r = Math.random()*tot, i = 0;
+    for(; i<pool.length; i++){ r -= (pool[i].peso ?? 1); if(r <= 0) break; }
+    out.push(pool.splice(Math.min(i, pool.length-1), 1)[0]);
+  }
+  return out;
+}
+function openRuleta(){
+  ruletaOpen = true; wasStartedR = started; started = false;
+  for(const k in input){ input[k] = false; tapped[k] = 0; }
+  ruTimers.forEach(clearTimeout); ruTimers = []; ruPicks = [];
+  $('ruTitle').textContent = 'Ruleta de cartas'; $('ruText').textContent = 'Gira la ruleta y quédate con una de las tres cartas. Te duran hasta que vuelvas al principio del pozo.';
+  const slots = [...document.querySelectorAll('#ruCartas .carta')];
+  slots.forEach(el => { el.className = 'carta dorso'; el.innerHTML = '<i>?</i><b>Carta</b>'; });
+  $('ruBtn').hidden = false; $('ruBtn').disabled = false; $('ruBtn').textContent = 'Girar';
+  $('ruleta').hidden = false;
+}
+function spinRuleta(){
+  const C = SA.ruleta, all = D.cartas || [], slots = [...document.querySelectorAll('#ruCartas .carta')];
+  ruPicks = pickCards(3);
+  $('ruBtn').disabled = true; $('ruText').textContent = 'Girando…';
+  let stopped = 0;
+  slots.forEach((el, s) => {
+    if(!ruPicks[s]){ el.className = 'carta vacia'; el.innerHTML = '<b>—</b>'; stopped++; return; }
+    const steps = C.pasos + s*C.escalonado; let acc = 0, prev = null;
+    for(let i=0;i<steps;i++){
+      acc += C.msInicial + Math.pow(i/steps, C.curva)*(C.msFinal - C.msInicial);
+      let k; do { k = all[Math.floor(Math.random()*all.length)]; } while(all.length > 2 && (k === prev || k === ruPicks[s])); prev = k;
+      ruTimers.push(setTimeout(() => { el.className = 'carta gira'; el.innerHTML = cardFace(k); window.Sonido && window.Sonido.tic(i/steps); }, acc));
+    }
+    ruTimers.push(setTimeout(() => {
+      el.className = 'carta lista'; el.innerHTML = cardFace(ruPicks[s]); SND('carta');
+      if(++stopped === slots.length){ $('ruText').textContent = 'Elige una carta.'; $('ruBtn').hidden = true; }
+    }, acc + 260));
+  });
+}
+function chooseCard(s){
+  const k = ruPicks[s]; if(!k || !$('ruBtn').hidden) return;
+  cards[k.id] = (cards[k.id]||0) + 1; ruPicks = [];
+  if(k.id === 'carpintero') carpDone = Math.floor(maxDepth/cv_('carpintero', 10));   // cuenta desde ahora
+  document.querySelectorAll('#ruCartas .carta').forEach((el, i) => el.classList.add(i === s ? 'elegida' : 'descartada'));
+  SND('cofre'); $('ruText').textContent = k.nombre + ': ' + k.texto; renderInv();
+  ruTimers.push(setTimeout(() => { $('ruleta').hidden = true; ruletaOpen = false; started = wasStartedR; lastT = performance.now(); }, 1300));
 }
 
 // ---------- puertas y salas de bonus ----------
@@ -1024,6 +1232,7 @@ function renderInv(bump){
   let h = keys.length ? keys.map(k => chip(k, bag[k], +k === +bump)).join('') : '<span class="chip muted">Mochila vacía</span>';
   h += `<span class="chip">Peso <b>${weight()}</b></span>`;
   if(llaves) h += `<span class="chip warn">Llaves <b>${llaves}</b></span>`;
+  for(const id in cards){ const k = CARD[id]; if(k) h += `<span class="chip cartaChip" title="${k.texto}">${k.icono} ${k.nombre}${cards[id] > 1 ? ' <b>×'+cards[id]+'</b>' : ''}</span>`; }
   if(W && W.bag) h += `<span class="chip warn" id="bagChip">Mochila <b id="bagDist"></b></span>`;
   $('inv').innerHTML = h;
   $('nProp').textContent = props ?? 0; $('nLad').textContent = ladders ?? 0;
@@ -1059,7 +1268,7 @@ function showEnd(){
     $('ovList').innerHTML = list;
     $('ovNote').textContent = 'El pozo se queda tal cual lo has dejado: tus túneles, tus puntales y sin lo que ya has sacado.';
   } else {
-    const M = {crush:['Te aplastó un derrumbe','El techo sin apoyo crujió y se vino abajo.'], buried:['Sepultado por la arena','La arena te cubrió la cabeza y no saliste a tiempo.'], lamp:['La lámpara se apagó','A oscuras no hay forma de seguir.']}[dead.cause];
+    const M = {crush:['Te aplastó un derrumbe','El techo sin apoyo crujió y se vino abajo.'], drown:['Te quedaste sin aire','Estuviste demasiado tiempo bajo el agua o el barro.'], buried:['Sepultado por la arena','La arena te cubrió la cabeza y no saliste a tiempo.'], lamp:['La lámpara se apagó','A oscuras no hay forma de seguir.']}[dead.cause];
     $('ovEyebrow').textContent = 'Fin de la bajada · '+maxDepth+' m';
     $('ovTitle').textContent = M[0];
     $('ovText').textContent = M[1];
@@ -1067,6 +1276,7 @@ function showEnd(){
     let note = 'El último tramo se ha llenado de escombro y piedra suelta.';
     if(dead.n) note += ' Tu mochila ha quedado enterrada dentro, a '+maxDepth+' m: pica el escombro para recuperarla.';
     if(dead.oldBagLost && dead.n) note += ' La mochila que ya habías perdido antes se ha perdido para siempre.';
+    if(dead.saved) note += ' Bolsillo secreto: '+dead.saved.n+' de '+dead.saved.name+' llegan al almacén.';
     if(dead.lost.props || dead.lost.ladders) note += ' Pierdes las herramientas que llevabas ('+dead.lost.props+' puntales y '+dead.lost.ladders+' escaleras).';
     $('ovNote').textContent = note;
   }
@@ -1098,6 +1308,7 @@ function frame(now){
       if(deadT > 1.6 && $('over').hidden){ finishCollapse(); showEnd(); }
     }
     for(const it of W.items) if(it.dy) it.dy = Math.max(0, it.dy - dt*14);
+    if(chestFx){ chestFx.t += dt; if(chestFx.t > 2.4) chestFx = null; }
     for(const q of particles){ q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 18*dt; q.life -= dt; }
     particles = particles.filter(q => q.life > 0);
     for(const f of floats){ f.y -= dt*1.1; f.life -= dt; }
@@ -1133,7 +1344,7 @@ addEventListener('keydown', e => {
   else if(!e.repeat && (e.key === 'm' || e.key === 'M')) wick = wick ? 0 : 1;
 });
 function toggleLook(){
-  if(!started || dead || cashed || bonusOpen) return;
+  if(!started || dead || cashed || bonusOpen || ruletaOpen) return;
   looking = !looking;
   if(looking) $('toastHost').innerHTML = '';
   for(const kk in input){ input[kk] = false; tapped[kk] = 0; }
@@ -1153,6 +1364,8 @@ document.querySelectorAll('#pad button').forEach(b => {
 });
 $('cashBtn').addEventListener('click', cashOut);
 $('bnBtn').addEventListener('click', bonusBtn);
+$('ruBtn').addEventListener('click', spinRuleta);
+document.querySelectorAll('#ruCartas .carta').forEach((el, i) => el.addEventListener('click', () => chooseCard(i)));
 bnCv.addEventListener('click', () => { if(BN.st === 'cerrado') bonusBtn(); });
 $('ovBtn').addEventListener('click', toVillage);
 $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
@@ -1186,6 +1399,6 @@ return {
   entrar(){ activa = true; resize(); startRun(); },
   salir(){ activa = false; started = false; },
   borrar(){ save('pozoviejo-mina1', null); W = newWorld(); },
-  _dbg(){ return {p, W, rocks, setT, tAt, consts:{AIR, RUBBLE, STONE, HARD, DIRT, SURF, ROOM_ROW, ROOM_H}, get looking(){ return looking; }, get zoom(){ return zoom; }, get shake(){ return shake + shakeKick; }, get props(){ return props; }}; },
+  _dbg(){ return {p, W, rocks, setT, tAt, consts:{AIR, RUBBLE, STONE, HARD, DIRT, SURF, ROOM_ROW, ROOM_H}, get looking(){ return looking; }, get zoom(){ return zoom; }, get shake(){ return shake + shakeKick; }, get props(){ return props; }, get ladders(){ return ladders; }, get cards(){ return cards; }, set cards(v){ cards = v; }, get air(){ return air; }, get lamp(){ return lamp; }, set lamp(v){ lamp = v; }, get dead(){ return dead; }, die}; },
 };
 })();

@@ -6,15 +6,55 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.1',
+  version: '0.2',
 
   // ---------- Herramientas ----------
   herramientas: {
     inicial: { puntales: 3, escaleras: 4 },        // con lo que empieza una partida nueva
-    porSalaSegura: { puntales: 2, escaleras: 2 },  // regalo la primera vez que entras en cada sala segura (una sola vez por pozo)
     minimoPorBajada: { puntales: 2, escaleras: 2 },  // provisional hasta que haya economía: al empezar cada bajada tienes al menos esto
     alMorir: 'perder',                              // 'perder' = pierdes las que llevabas; 'conservar' = no pierdes nada
   },
+
+  // ---------- Salas seguras ----------
+  salas: {
+    radioLlama: 1.5,           // casillas alrededor de la antorcha en las que se recarga la lámpara
+    columnaLlama: 2,           // dónde está cada cosa dentro de la sala (columna 0 a 14)
+    columnaRuleta: 7,
+    columnaCofre: 12,
+    // cofre de suministros: uno por sala, se abre una vez por pozo (se vuelve a llenar cuando el pozo se regenere)
+    cofre: {
+      base: { escaleras: 2, puntales: 2 },
+      extras: [                // cada extra sale con su probabilidad
+        { prob: 0.35, llaves: 1, texto: '+1 llave' },
+        { prob: 0.3, escaleras: 2, texto: '+2 escaleras' },
+        { prob: 0.2, puntales: 2, texto: '+2 puntales' },
+      ],
+    },
+    ruletaCada: 2,             // una ruleta de cartas cada tantas salas (gira una vez por bajada)
+    // tiempos de la ruleta (milisegundos): cada carta cambia cada vez más despacio hasta pararse
+    ruleta: { pasos: 18, msInicial: 50, msFinal: 320, curva: 2.5, escalonado: 5 },
+  },
+
+  // ---------- Cartas de la ruleta ----------
+  // Se acumulan durante la bajada y se pierden al volver al principio del pozo (cobrar o morir).
+  // peso = probabilidad relativa; unica = solo se puede tener una; las demás se acumulan (cargas).
+  cartas: [
+    { id: 'mecha_cera',    icono: '🕯️', nombre: 'Mecha de cera',       texto: 'La lámpara gasta un 25 % menos.', valor: 0.75, peso: 1, unica: true },
+    { id: 'bidon_grande',  icono: '🛢️', nombre: 'Bidón grande',        texto: 'El aceite da el doble de luz.', valor: 2, peso: 1, unica: true },
+    { id: 'llama_fria',    icono: '🧊', nombre: 'Llama fría',          texto: 'La próxima explosión de grisú no ocurre.', peso: 1 },
+    { id: 'segunda',       icono: '💖', nombre: 'Segunda oportunidad', texto: 'La próxima vez que mueras, vuelves a la última sala segura con tu mochila.', peso: 0.5 },
+    { id: 'casco',         icono: '⛑️', nombre: 'Casco reforzado',     texto: 'Aguantas una piedra encima, una vez.', peso: 0.8 },
+    { id: 'pulmones',      icono: '🫧', nombre: 'Pulmones de topo',    texto: 'El aire bajo el agua o el barro dura el doble.', peso: 0.8, unica: true },
+    { id: 'reflejos',      icono: '⚡', nombre: 'Reflejos',            texto: 'Al librarte por los pelos no te quedas tumbado.', peso: 0.8, unica: true },
+    { id: 'pico_afilado',  icono: '⛏️', nombre: 'Pico afilado',        texto: 'Un golpe menos para romper cualquier cosa (mínimo uno).', peso: 1, unica: true },
+    { id: 'recuperador',   icono: '♻️', nombre: 'Recuperador',         texto: 'Lo que cae y se rompe tiene un 50 % de conservar su material.', valor: 0.5, peso: 0.8, unica: true },
+    { id: 'zahori',        icono: '🧭', nombre: 'Zahorí',              texto: 'Una flecha te indica el aceite más cercano.', peso: 0.8, unica: true },
+    { id: 'mochila_cuero', icono: '🎒', nombre: 'Mochila de cuero',    texto: 'El peso te frena la mitad.', valor: 0.5, peso: 1, unica: true },
+    { id: 'bolsillo',      icono: '👖', nombre: 'Bolsillo secreto',    texto: 'Si mueres, el material que más vale de tu mochila llega igualmente al almacén.', peso: 0.7, unica: true },
+    { id: 'carpintero',    icono: '🪜', nombre: 'Carpintero',          texto: 'Cada 10 m que bajas te dan una escalera.', valor: 10, peso: 1, unica: true },
+    { id: 'plegable',      icono: '🪵', nombre: 'Puntal plegable',     texto: 'Pulsa Puntal encima de un puntal para recogerlo.', peso: 0.8, unica: true },
+    { id: 'codicia',       icono: '💰', nombre: 'Codicia',             texto: 'Cada mineral que picas cuenta doble, pero la lámpara gasta un 25 % más.', valor: 1.25, peso: 0.6, unica: true },
+  ],
 
   // ---------- Tienda del pueblo ----------
   // precio: material -> cantidad. Materiales: arcilla, carbon, cobre, cuarzo
@@ -77,6 +117,26 @@ window.DATOS = {
     grisuAviso: 2,             // casillas de distancia a las que la llama se pone azul
     polillaLuz: 20,            // % de lámpara que roba una polilla
     polillaVelocidad: 2.4,     // casillas por segundo al perseguir tu luz
+  },
+
+  // ---------- Aire ----------
+  // Bajo la superficie del agua o del barro (tu casilla llena y la de encima también) empieza la cuenta atrás.
+  aire: {
+    segundos: 10,              // aire que tienes
+    conPulmones: 20,           // con la carta Pulmones de topo
+    recupera: 4,               // segundos de aire que recuperas por cada segundo fuera
+  },
+
+  // ---------- Barro ----------
+  // Se forma cuando el agua toca arena. No es sólido: te metes dentro, te frena y te hundes despacio.
+  barro: {
+    pasoMult: 3,               // andar dentro del barro cuesta esto (x tiempo de paso)
+    hundimiento: 0.8,          // casillas por segundo que te hundes
+    multLuz: 3,                // dentro del barro la lámpara gasta esto (x consumo)
+    aguaQueGasta: 0.5,         // agua (de 0 a 1 casilla) que se gasta en convertir una arena en barro
+    caeCadaTicks: 3,           // el barro se mueve despacio: cae una vez de cada tantos pasos de simulación
+    escurreCadaTicks: 6,       // ...y se escurre de lado una vez de cada tantos
+    rocaEnBarro: 3,            // velocidad máxima (casillas/s) de un bloque que cae dentro del barro (no se rompe)
   },
 
   // ---------- Muerte ----------

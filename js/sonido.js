@@ -64,6 +64,8 @@ window.Sonido = (()=>{
       [523.25, 659.25, 783.99, 1046.5].forEach(f => tone(t+0.45, 1.2, 0.12*v, 'triangle', f));
       tone(t, 0.35, 0.4*v, 'sine', 110, 45); tone(t+0.45, 1.0, 0.25*v, 'triangle', 131);
     },
+    // carta que sale de la ruleta (destello ascendente)
+    carta(t,v){ tone(t, 0.12, 0.2*v, 'triangle', 520, 1040); tone(t+0.05, 0.16, 0.12*v, 'sine', 1560, 2080); },
     paso(t,v){ noise(t, 0.03, 0.12*v, 'lowpass', 600); },
   };
 
@@ -74,6 +76,12 @@ window.Sonido = (()=>{
     lastAt[name] = now;
     try{ SFX[name](now, Math.min(1, v)); }catch(e){}
   }
+  // clic de la ruleta: el tono sube un poco y se alarga al frenar (p de 0 a 1), como en Just One More Chest
+  function tic(pp = 0){
+    if(!ac || !on) return;
+    const f = 760 + 380*pp + Math.random()*40;
+    try{ tone(ac.currentTime, 0.045 + 0.04*pp, 0.12, 'square', f, f*0.72); }catch(e){}
+  }
   function retumbo(k){
     if(!ac || !rumbleGain) return;
     rumbleGain.gain.setTargetAtTime(on ? Math.min(1, k)*0.7 : 0, ac.currentTime, 0.12);
@@ -82,5 +90,5 @@ window.Sonido = (()=>{
     on = !!v; try{ localStorage.setItem('pozoviejo-sonido', on ? '1' : '0'); }catch(e){}
     if(master) master.gain.value = on ? CFG.volumen : 0;
   }
-  return {tocar, retumbo, activar, get activado(){ return on; }};
+  return {tocar, tic, retumbo, activar, get activado(){ return on; }};
 })();
