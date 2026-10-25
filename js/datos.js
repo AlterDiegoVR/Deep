@@ -8,7 +8,7 @@ window.DATOS = {
   // ---------- Herramientas ----------
   herramientas: {
     inicial: { puntales: 3, escaleras: 4 },        // con lo que empieza una partida nueva
-    porSalaSegura: { puntales: 2, escaleras: 2 },  // regalo la primera vez que entras en cada sala segura
+    porSalaSegura: { puntales: 2, escaleras: 2 },  // regalo la primera vez que entras en cada sala segura (una sola vez por pozo)
     alMorir: 'perder',                              // 'perder' = pierdes las que llevabas; 'conservar' = no pierdes nada
   },
 
@@ -40,6 +40,8 @@ window.DATOS = {
     tiempoGolpe: 0.17,         // segundos entre golpes de pico
     aturdidoPorLosPelos: 0.9,  // segundos tumbado al librarse de una piedra
     sepultadoEn: 2.2,          // segundos con arena encima hasta morir
+    controlEnCaida: 0.12,      // segundos entre cada paso lateral mientras caes (0 = sin control en el aire)
+    caidaLargaDesde: 3,        // casillas cayendo a partir de las que pone cara de susto
   },
 
   // ---------- Estructura y derrumbes ----------
@@ -78,6 +80,27 @@ window.DATOS = {
     piedraEnRelleno: 0.5,      // 0 = todo escombro; 1 = todo piedra. Mezcla del tramo que se derrumba al morir
   },
 
+  // ---------- Al volver del pueblo ----------
+  // Los túneles que abriste por debajo de la primera sala segura se rellenan.
+  // Proporciones del relleno (se reparten solas aunque no sumen 1).
+  vuelta: {
+    rellenar: true,
+    relleno: { escombro: 0.45, piedra: 0.4, rocaDura: 0.15 },
+  },
+
+  // ---------- Sonido ----------
+  sonido: {
+    activado: true,
+    volumen: 0.6,              // 0 a 1
+  },
+
+  // ---------- Temblor de pantalla ----------
+  temblor: {
+    porBloque: 0.35,           // píxeles por cada bloque cayendo o crujiendo
+    maximo: 3,                 // píxeles como mucho
+    alAterrizar: 2.5,          // golpe de temblor al caer tú desde lejos
+  },
+
   // ---------- Cámara ----------
   camara: {
     zoomCerca: 3,              // en la superficie y en las salas seguras
@@ -85,6 +108,7 @@ window.DATOS = {
     velocidadAcercar: 2.5,     // cuanto mayor, más rápido se acerca
     velocidadAlejar: 0.6,      // cuanto mayor, más rápido se aleja
     seguirLateral: 5,          // suavidad del scroll lateral
+    zoomVer: 0.6,              // botón «Ver»: aleja la cámara para mirar (menos de 1 = ver más que la pantalla)
   },
 
   // ---------- Mapa: las minas alrededor del pueblo ----------

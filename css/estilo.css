@@ -122,18 +122,21 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 #pad .izq{align-items:flex-start}
 #pad .der{align-items:flex-end}
 #pad .mini{display:flex;gap:8px;align-items:flex-end}
-#pad .fila-der{display:flex;gap:8px;align-items:flex-end}
+#pad .fila-der{display:flex;gap:8px;align-items:center}
+#pad .vert{display:flex;flex-direction:column;gap:8px}
 #pad button{pointer-events:auto;touch-action:none;border:3px solid rgba(69,40,60,.9);color:var(--tinta);cursor:pointer;display:flex;align-items:center;justify-content:center;
   background:rgba(251,232,207,.78);border-radius:50%;box-shadow:0 4px 0 rgba(69,40,60,.85);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}
 #pad button.grande{width:84px;height:84px}
 #pad button.grande svg{width:42px;height:42px}
-#pad button.med{width:62px;height:62px}
+#pad button.med{width:60px;height:56px}
 #pad button.med svg{width:30px;height:30px}
 #pad button.abajo{background:rgba(251,242,54,.82)}
 #pad button.tool{width:60px;height:46px;border-radius:14px;flex-direction:column;gap:0;line-height:1;font-weight:900;font-size:11px;letter-spacing:.02em}
 #pad button.tool b{font-family:var(--f-display);font-weight:400;font-size:17px;font-variant-numeric:tabular-nums}
+#pad button.ver svg{width:18px;height:18px}
+#pad button.ver.activo{background:rgba(251,242,54,.95)}
 #pad button.wick.low{background:rgba(155,173,183,.8)}
 #pad button.on{transform:translateY(3px);box-shadow:0 1px 0 rgba(69,40,60,.85);background:rgba(251,242,54,.95)}
-@media (max-width:360px){ #pad button.grande{width:72px;height:72px} #pad button.med{width:54px;height:54px} #pad button.tool{width:52px} }
+@media (max-width:360px){ #pad button.grande{width:72px;height:72px} #pad button.med{width:52px;height:50px} #pad button.tool{width:52px} }
 @media (prefers-reduced-motion: reduce){.chip.bump b,.toast{animation:none}}
 #mapaPanel{height:auto;min-height:0;max-height:36%}

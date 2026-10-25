@@ -71,17 +71,20 @@
         <div class="lado izq">
           <div class="mini">
             <button data-k="lad" class="tool" aria-label="Poner escalera"><span>Escalera</span><b id="nLad">0</b></button>
-            <button data-k="U" class="med" aria-label="Subir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
+            <button data-k="prop" class="tool" aria-label="Poner puntal"><span>Puntal</span><b id="nProp">0</b></button>
           </div>
           <button data-k="L" class="grande" aria-label="Izquierda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
         </div>
         <div class="lado der">
           <div class="mini">
-            <button data-k="prop" class="tool" aria-label="Poner puntal"><span>Puntal</span><b id="nProp">0</b></button>
+            <button data-k="ver" id="verBtn" class="tool ver" aria-label="Alejar la cámara para mirar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M8 10.5h5"/></svg><span>Ver</span></button>
             <button data-k="wick" id="wickBtn" class="tool wick" aria-label="Subir o bajar la mecha"><span>Mecha</span><b id="wickLbl">Alta</b></button>
           </div>
           <div class="fila-der">
-            <button data-k="D" class="med abajo" aria-label="Picar abajo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
+            <div class="vert">
+              <button data-k="U" class="med" aria-label="Subir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
+              <button data-k="D" class="med abajo" aria-label="Picar abajo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
+            </div>
             <button data-k="R" class="grande" aria-label="Derecha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
           </div>
         </div>
@@ -102,6 +105,10 @@
             <li>Si la llama se pone azul hay grisú: baja la mecha o explota.</li>
             <li>El aceite no se pica: métete en su hueco. Las polillas buscan tu luz.</li>
             <li>Las salas seguras recargan la lámpara. Desde ahí puedes subir a cobrar.</li>
+            <li>Mientras caes puedes moverte un poco a los lados para agarrarte a un saliente.</li>
+            <li>El botón «Ver» aleja la cámara para mirar caminos; mientras miras no te mueves.</li>
+            <li>Cada sala segura regala herramientas una sola vez por pozo.</li>
+            <li>Al volver del pueblo, los túneles que abriste por debajo de la primera sala se rellenan de escombro y piedra.</li>
             <li>Si subes vivo, el pozo se queda como lo dejaste. Si mueres, el último tramo se derrumba con tu mochila dentro.</li>
           </ul>
           <p class="note">Teclado: flechas o WASD. P puntal, E escalera, M mecha.</p>
@@ -133,6 +140,8 @@
             <select id="s_zoom"><option value="siempre">Cerca, con scroll lateral</option><option value="salas">Ver todo el ancho</option></select></label>
           <label class="sl">Oscuridad<output></output>
             <select id="s_dark"><option value="1">Con oscuridad</option><option value="0">Sin oscuridad (para probar)</option></select></label>
+          <label class="sl">Sonido<output></output>
+            <select id="s_sound"><option value="1">Activado</option><option value="0">Silencio</option></select></label>
           <button class="btn" id="tuneClose">Seguir</button>
           <button class="btn ghost" id="helpBtn">Cómo se juega</button>
           <button class="btn ghost" id="tuneReset">Valores de datos.js</button>
@@ -145,6 +154,7 @@
 
 <script src="js/datos.js"></script>
 <script src="js/sprites.js"></script>
+  <script src="js/sonido.js"></script>
 <script src="js/partida.js"></script>
 <script src="js/mina.js"></script>
 <script src="js/pueblo.js"></script>
