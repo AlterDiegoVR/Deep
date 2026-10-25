@@ -39,7 +39,7 @@ window.DATOS = {
     velocidadCaida: 13,        // casillas por segundo al caer
     tiempoGolpe: 0.17,         // segundos entre golpes de pico
     aturdidoPorLosPelos: 0.9,  // segundos tumbado al librarse de una piedra
-    sepultadoEn: 2.2,          // segundos con arena encima hasta morir
+    sepultadoEn: 6,            // segundos con arena encima hasta morir (se recupera al salir de debajo)
     controlEnCaida: 0.12,      // segundos entre cada paso lateral mientras caes (0 = sin control en el aire)
     caidaLargaDesde: 3,        // casillas cayendo a partir de las que pone cara de susto
   },
@@ -78,6 +78,17 @@ window.DATOS = {
   // ---------- Muerte ----------
   muerte: {
     piedraEnRelleno: 0.5,      // 0 = todo escombro; 1 = todo piedra. Mezcla del tramo que se derrumba al morir
+  },
+
+  // ---------- Herramientas tiradas por la mina ----------
+  // Escaleras y puntales sueltos que se recogen al pasar por encima.
+  // Vuelven a aparecer en cada bajada nueva (si su hueco quedó tapado, salen al picarlo).
+  recogibles: {
+    cada: 9,                   // una cada tantas filas (aprox.)
+    desdeFila: 6,              // no aparecen en las primeras filas del pozo
+    probPuntal: 0.45,          // probabilidad de que sea un puntal (si no, escalera)
+    cantidad: 1,               // cuántas da cada una
+    regenerar: true,           // reaparecen al empezar otra bajada
   },
 
   // ---------- Al volver del pueblo ----------

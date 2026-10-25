@@ -59,7 +59,7 @@ let W = null; // {seed, rows:[{t,hp,sh}], items:[], bag:null}
 function newWorld(){ return {seed:(Math.random()*1e9)|0, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0}; }
 function packWorld(){
   return {seed:W.seed, rows:W.rows.map(R => String.fromCharCode(...Array.from(R.t, v => 65+v))), nat:W.rows.map(R => String.fromCharCode(...Array.from(R.nat, v => 48+v))),
-    items:W.items.filter(i=>i.alive), bag:W.bag, rewarded:W.rewarded, runs:W.runs};
+    items:W.items.filter(i=>i.alive || i.k === 'herr'), bag:W.bag, rewarded:W.rewarded, runs:W.runs, herr:true};
 }
 function unpackWorld(o){
   const w = {seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||(o.nat ? 0 : 1)};
@@ -67,6 +67,7 @@ function unpackWorld(o){
     for(let c=0;c<COLS;c++){ R.t[c] = s.charCodeAt(c)-65; R.hp[c] = INFO[R.t[c]].hp||0; R.nat[c] = n ? n.charCodeAt(c)-48 : (isSolid(R.t[c]) ? 0 : 1); }
     w.rows.push(R); });
   if(!o.nat) natFromSeed(w);
+  if(!o.herr){ const keep = W; W = w; for(let r=0;r<w.rows.length;r++) addKit(r, false); W = keep; }
   return w;
 }
 // partidas guardadas antes de existir «nat»: se regenera el pozo original con la misma semilla para saber qué huecos eran naturales
@@ -138,7 +139,27 @@ function spanOK(A, base, c){
   }
   return false;
 }
-function ensure(n){ while(W.rows.length <= n){ const r = W.rows.length; W.rows.push(genRow(r)); if(r-1 >= SURF) settleRow(r-1); } }
+function ensure(n){ while(W.rows.length <= n){ const r = W.rows.length; W.rows.push(genRow(r)); addKit(r, true); if(r-1 >= SURF) settleRow(r-1); } }
+// herramientas sueltas por la mina (posición fija según la semilla)
+const RC = D.recogibles || {cada:9, desdeFila:6, probPuntal:0.45, cantidad:1, regenerar:true};
+function addKit(r, fresh){
+  W.herr = true;
+  const L = layout(r); if(!L || L.surface || L.part !== undefined || r - SURF < RC.desdeFila) return;
+  if(h2(r, 3, W.seed + 51) > 1/RC.cada) return;
+  if(W.items.some(i => i.k === 'herr' && i.r === r)) return;
+  const c = Math.floor(h2(r, 9, W.seed + 52)*COLS);
+  if(fresh){ const R = W.rows[r]; if(R.t[c] !== WATER && R.t[c] !== GAS){ R.t[c] = AIR; R.hp[c] = 0; R.nat[c] = 1; } else return; }
+  W.items.push({k:'herr', tipo: h2(r, 11, W.seed + 53) < RC.probPuntal ? 'puntal' : 'escalera', r, c, alive:true});
+}
+// Las salas seguras se reconstruyen en cada bajada: techo y suelo de viga, dentro vacío
+function restoreRooms(){
+  for(let i=0;i<ROOM_ROW.length;i++){
+    const r0 = ROOM_ROW[i]; if(r0 + ROOM_H > W.rows.length) break;
+    for(let k=0;k<ROOM_H;k++){ const r = r0 + k; for(let c=0;c<COLS;c++){ const v = k === 0 || k === ROOM_H-1 ? BEAM : AIR; if(W.rows[r].t[c] !== v) setT(r, c, v); } }
+    for(const it of W.items) if(it.alive && it.k === 'bag' && it.r >= r0 && it.r < r0 + ROOM_H) it.alive = false;
+    if(W.bag && W.bag.r >= r0 && W.bag.r < r0 + ROOM_H){ W.bag.r = r0 + ROOM_H - 2; }   // si la mochila estaba en una sala, queda dentro, en el suelo
+  }
+}
 function tAt(r,c){ if(c<0 || c>=COLS) return ROCK; if(r<0) return AIR; ensure(r+1); return W.rows[r].t[c]; }
 function setT(r,c,v){ const R = W.rows[r]; R.t[c] = v; R.hp[c] = INFO[v].hp||0; R.sh[c] = 0; }
 
@@ -178,6 +199,11 @@ function startRun(){
   lastOil = SURF;
   ensure(SURF + 40);
   const refilled = W.runs > 0 ? refillTunnels() : 0;
+  if(W.runs > 0) restoreRooms();
+  if(W.runs > 0 && RC.regenerar) for(const it of W.items) if(it.k === 'herr') it.alive = true;
+  // que no quede ninguna pulsación de la bajada anterior
+  for(const k in input){ input[k] = false; tapped[k] = 0; }
+  document.querySelectorAll('#pad button.on').forEach(b => b.classList.remove('on'));
   W.runs = (W.runs||0) + 1;
   looking = false; $('verBtn').classList.remove('activo');
   shake = 0; shakeKick = 0; cracking = 0; driftT = 0;
@@ -353,14 +379,24 @@ function updatePlayer(dt){
   if(p.stun > 0){ p.stun -= dt; if(p.stun > 0){ moveT = Math.max(moveT, 0.01); } }
   // movimiento suave hacia la casilla destino
   const sp = (p.falling ? JU.velocidadCaida : 1/stepTime()) * dt;
-  p.x += Math.sign(p.c - p.x) * Math.min(Math.abs(p.c - p.x), sp);
-  p.y += Math.sign(p.r - p.y) * Math.min(Math.abs(p.r - p.y), sp);
+  if(p.falling){
+    const dx = p.c - p.x, dy = p.r - p.y, dd = Math.hypot(dx, dy);
+    if(dd <= sp){ p.x = p.c; p.y = p.r; } else { p.x += dx/dd*sp; p.y += dy/dd*sp; }
+  } else {
+    p.x += Math.sign(p.c - p.x) * Math.min(Math.abs(p.c - p.x), sp);
+    p.y += Math.sign(p.r - p.y) * Math.min(Math.abs(p.r - p.y), sp);
+  }
+  // posición dibujada: en el aire se suaviza para que la diagonal no vaya a saltitos
+  p.sx = p.falling && p.sx !== undefined ? p.sx + (p.x - p.sx)*Math.min(1, dt*14) : p.x;
   const settled = p.x === p.c && p.y === p.r;
   if(settled){
     if(!canStand(p.r, p.c) && passable(p.r+1, p.c)){
       // en el aire se puede uno ir un poco hacia los lados
       const ax = JU.controlEnCaida > 0 && !looking && p.stun <= 0 ? (want('R')?1:0) - (want('L')?1:0) : 0;
-      if(p.falling && ax && driftT <= 0 && p.c+ax >= 0 && p.c+ax < COLS && passable(p.r, p.c+ax)){
+      const side = p.falling && ax && driftT <= 0 && p.c+ax >= 0 && p.c+ax < COLS && passable(p.r, p.c+ax);
+      if(side && passable(p.r+1, p.c+ax)){         // en diagonal: a la vez hacia el lado y hacia abajo
+        p.c += ax; p.r++; p.face = ax; driftT = JU.controlEnCaida; tapped.L = tapped.R = 0; p.fallN = (p.fallN||0) + 1;
+      } else if(side){                              // hay suelo al lado: se agarra al saliente
         p.c += ax; p.face = ax; driftT = JU.controlEnCaida; tapped.L = tapped.R = 0;
       } else { p.r++; p.falling = true; p.fallN = (p.fallN||0) + 1; }
     }
@@ -418,7 +454,10 @@ function updatePlayer(dt){
   for(const it of W.items){
     if(!it.alive || it.k === 'moth') continue;
     if(it.r === p.r && it.c === p.c){
-      if(it.k === 'oil'){ it.alive = false; SND('aceite'); lamp = Math.min(100, lamp + LA.aceite); burst(it.r+0.5, it.c+0.5, '#fbf236', 14); floats.push({x:it.c+0.5, y:it.r, txt:'+'+LA.aceite+'% luz', life:1.2, col:'#fbf236'}); }
+      if(it.k === 'herr'){ it.alive = false; SND('poner'); const n = RC.cantidad;
+        if(it.tipo === 'puntal') props += n; else ladders += n; renderInv();
+        burst(it.r+0.5, it.c+0.5, '#d9a066', 10); floats.push({x:it.c+0.5, y:it.r, txt:'+'+n+' '+(it.tipo === 'puntal' ? 'puntal' : 'escalera'), life:1.2, col:'#fbf236'}); }
+      else if(it.k === 'oil'){ it.alive = false; SND('aceite'); lamp = Math.min(100, lamp + LA.aceite); burst(it.r+0.5, it.c+0.5, '#fbf236', 14); floats.push({x:it.c+0.5, y:it.r, txt:'+'+LA.aceite+'% luz', life:1.2, col:'#fbf236'}); }
       else if(it.k === 'bag'){ it.alive = false; SND('mochila'); for(const k in W.bag.items) bag[k] = (bag[k]||0) + W.bag.items[k]; W.bag = null; renderInv(); toast('Mochila recuperada', 'Todo lo que perdiste vuelve contigo'); burst(it.r+0.5, it.c+0.5, '#fbf236', 20); }
     }
   }
@@ -627,6 +666,12 @@ function drawItem(it){
   if(it.k === 'oil') ctx.drawImage(PS.aceite, X, Y);
   else if(it.k === 'chest') ctx.drawImage(PS.cofre, X, Y);
   else if(it.k === 'bag') ctx.drawImage(PS.mochila_suelo, X, Y);
+  else if(it.k === 'herr'){   // herramienta suelta: pequeña, apoyada en el suelo y con brillo
+    const im = it.tipo === 'puntal' ? PS.puntal : PS.escalera, s = 16, bob = Math.round(Math.sin(t*3 + it.r)*1);
+    ctx.fillStyle = 'rgba(251,242,54,0.18)'; ctx.fillRect(X+2, Y+6, T-4, T-6);
+    ctx.drawImage(im, X + (T-s)/2, Y + T - s - 1 + bob, s, s);
+    if(Math.floor(t*2 + it.c) % 3 === 0){ ctx.fillStyle = '#fff'; ctx.fillRect(X + 17, Y + 5 + bob, 2, 2); }
+  }
 }
 function drawMoth(m){
   const x = Math.round(m.x*T), y = Math.round((m.y-cam)*T), fl = Math.round(Math.abs(Math.sin(m.ph||0))*5) + 1;
@@ -639,7 +684,7 @@ function drawHero(){
   if(dead && (dead.cause === 'crush' || dead.cause === 'buried')) return;
   const st = lamp <= 0 ? 'apagada' : gasNear ? 'grisu' : wick ? 'alta' : 'baja';
   const frs = HERO[st][p.anim], f = frs[Math.floor((p.act ? p.actT : t) * ANIM_FPS[p.anim]) % frs.length];
-  const feetX = Math.round(p.x*T) + 12, feetY = Math.round((p.y - cam)*T) + T;
+  const feetX = Math.round((p.sx ?? p.x)*T) + 12, feetY = Math.round((p.y - cam)*T) + T;
   const flip = p.face < 0, x0 = flip ? feetX - 22 : feetX - 10, y0 = feetY - 26;
   const w = weight(), pk = w === 0 ? null : w < 6 ? 'ligera' : w < 16 ? 'media' : 'llena';
   ctx.save();
@@ -656,13 +701,13 @@ function drawHero(){
     return;
   }
   // caída larga: se zarandea en el aire
-  if(p.anim === 'caida_larga'){ ctx.translate(Math.round(Math.sin(t*26)*1.5), 0); }
+  if(p.anim === 'caida_larga'){ ctx.translate(Math.round(Math.sin(t*14)), 0); }
   if(flip){ ctx.translate(x0 + 32, y0); ctx.scale(-1, 1); } else ctx.translate(x0, y0);
   if(pk) ctx.drawImage(PACK[pk].c, PACK[pk].x, PACK[pk].y);
   ctx.drawImage(f, 0, 0);
   ctx.restore();
   // arena cubriendo
-  if(buried > 0){ const k = Math.min(1, buried/2.2); ctx.fillStyle = '#d9a066'; ctx.fillRect(feetX-11, feetY - Math.round(22*k), 22, Math.round(22*k)); ctx.fillStyle = '#8a6f30'; for(let i=0;i<6;i++) ctx.fillRect(feetX-10 + (i*7)%20, feetY - Math.round(22*k) + (i*5)%Math.max(1,Math.round(22*k)), 1, 1); }
+  if(buried > 0){ const k = Math.min(1, buried/JU.sepultadoEn); ctx.fillStyle = '#d9a066'; ctx.fillRect(feetX-11, feetY - Math.round(22*k), 22, Math.round(22*k)); ctx.fillStyle = '#8a6f30'; for(let i=0;i<6;i++) ctx.fillRect(feetX-10 + (i*7)%20, feetY - Math.round(22*k) + (i*5)%Math.max(1,Math.round(22*k)), 1, 1); }
 }
 
 let lbuf = new Float32Array(0), limg = null;
@@ -730,7 +775,7 @@ function render(){
     const fade = dead ? Math.max(0, 1 - deadT*1.5) : 1, flick = 1 + (Math.random()-0.5)*(lamp < 20 ? 0.14 : 0.04);
     addLight(r0, r1, p.x+0.5, p.y+0.25, lightRadius()*flick*fade, 1, true, true);
     for(const i of rooms) addLight(r0, r1, 2.5, ROOM_ROW[i]+1.5, 6.5, 1, true, true);
-    for(const it of W.items) if(it.alive && (it.k === 'oil' || it.k === 'chest' || it.k === 'bag') && it.r >= r0-2 && it.r <= r1+2) addLight(r0, r1, it.c+0.5, it.r+0.6, it.k === 'oil' ? 1.6 : 2.4, 0.6, false, false);
+    for(const it of W.items) if(it.alive && (it.k === 'oil' || it.k === 'chest' || it.k === 'bag' || it.k === 'herr') && it.r >= r0-2 && it.r <= r1+2) addLight(r0, r1, it.c+0.5, it.r+0.6, it.k === 'oil' ? 1.6 : 2.4, 0.6, false, false);
     for(let r=Math.max(SURF,r0); r<=r1; r++) for(let c=0;c<COLS;c++){
       if(!isSolid(W.rows[r].t[c])) continue;
       const i = (r-r0)*COLS + c; let m = lbuf[i];
