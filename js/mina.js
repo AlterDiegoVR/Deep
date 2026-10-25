@@ -145,7 +145,7 @@ function startRun(){
   dead = null; deadT = 0; cashed = false; rocks = []; particles = []; floats = []; fillQ = [];
   digT = 0; moveT = 0; buried = 0; crackMsgT = 0; lockMsgT = 0; flashT = 0; maxDepth = 0;
   lastRoomFloor = SURF - 1; roomsSeen = new Set(); segSeen = 0;
-  cam = p.y - (VH/T)*0.4; zoom = ZCLOSE; camX = (p.x+0.5)*T; started = true;
+  cam = p.y - (VH/T)*0.35; zoom = ZCLOSE; camX = (p.x+0.5)*T; started = true;
   renderInv(); hud(true);
   if(W.bag) toast('Tu mochila te espera', 'Bajo el escombro, a '+(W.bag.r - SURF + 1)+' m'); else toast('Pozo 1', TRAMOS[0].n);
 }
@@ -601,9 +601,9 @@ function render(){
   const pyw = (p.y + 0.4 - cam)*T;
   const half = VW/(2*zoom);
   const fx = Math.max(half, Math.min(VW - half, VW/2 + (camX - VW/2)*k));
-  const fy = VH*0.4 + (pyw - VH*0.4)*k;
+  const fy = VH*0.35 + (pyw - VH*0.35)*k;
   ctx.save();
-  ctx.translate(VW/2, VH*0.4); ctx.scale(zoom, zoom); ctx.translate(-fx, -fy);
+  ctx.translate(VW/2, VH*0.35); ctx.scale(zoom, zoom); ctx.translate(-fx, -fy);
   const r0 = Math.floor(cam)-1, r1 = Math.ceil(cam + VH/T)+1;
   ensure(r1+2);
   ctx.fillStyle = '#000'; ctx.fillRect(0, -T*2, VW, VH + T*4);
@@ -754,7 +754,7 @@ function frame(now){
     const zT = closeUp ? ZCLOSE : zBase;
     zoom += (zT - zoom)*Math.min(1, dt*(zT > zoom ? CA.velocidadAcercar : CA.velocidadAlejar));
     if(Math.abs(zoom - Math.round(zoom)) < 0.004) zoom = Math.round(zoom);
-    const target = p.y - (VH/T)*0.4;
+    const target = p.y - (VH/T)*0.35;
     cam += (Math.max(-2, target) - cam)*Math.min(1, dt*6);
   }
   if(activa && W && p){ render(); hud(); }
@@ -780,6 +780,9 @@ document.querySelectorAll('#pad button').forEach(b => {
   b.addEventListener('contextmenu', e => e.preventDefault());
 });
 $('cashBtn').addEventListener('click', cashOut);
+$('ovBtn').addEventListener('click', toVillage);
+$('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
+$('helpClose').addEventListener('click', () => { $('help').hidden = true; });
 // ajustes
 const SL = ['drain','span','crack','thrH','thrS'];
 function syncTune(){ SL.forEach(k => { $('s_'+k).value = cfg[k]; $('o_'+k).textContent = cfg[k]; }); $('s_dark').value = cfg.dark; $('s_zoom').value = cfg.zoom; }

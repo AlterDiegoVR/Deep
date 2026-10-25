@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Deep</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik+Dirt&family=Sofia+Sans+Condensed:wght@400;600;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
 <link rel="stylesheet" href="css/estilo.css">
 </head>
 <body>
@@ -66,6 +66,26 @@
       <canvas id="cv"></canvas>
       <div id="toastHost"></div>
       <button id="cashBtn" hidden>Subir a cobrar</button>
+      <!-- mandos encima del juego: un pulgar a cada lado -->
+      <div id="pad">
+        <div class="lado izq">
+          <div class="mini">
+            <button data-k="lad" class="tool" aria-label="Poner escalera"><span>Escalera</span><b id="nLad">0</b></button>
+            <button data-k="U" class="med" aria-label="Subir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
+          </div>
+          <button data-k="L" class="grande" aria-label="Izquierda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
+        </div>
+        <div class="lado der">
+          <div class="mini">
+            <button data-k="prop" class="tool" aria-label="Poner puntal"><span>Puntal</span><b id="nProp">0</b></button>
+            <button data-k="wick" id="wickBtn" class="tool wick" aria-label="Subir o bajar la mecha"><span>Mecha</span><b id="wickLbl">Alta</b></button>
+          </div>
+          <div class="fila-der">
+            <button data-k="D" class="med abajo" aria-label="Picar abajo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
+            <button data-k="R" class="grande" aria-label="Derecha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
+          </div>
+        </div>
+      </div>
 
       <div class="sheet" id="help" hidden>
         <div class="card">
@@ -120,21 +140,6 @@
       </div>
     </main>
 
-    <nav id="pad">
-      <div class="dpad">
-        <span></span>
-        <button data-k="U" aria-label="Subir"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 15l7-7 7 7"/></svg></button>
-        <span></span>
-        <button data-k="L" aria-label="Izquierda"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
-        <button data-k="D" aria-label="Abajo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg></button>
-        <button data-k="R" aria-label="Derecha"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></button>
-      </div>
-      <div class="acts">
-        <button data-k="prop" class="tool" aria-label="Poner puntal"><span>Puntal</span><b id="nProp">0</b></button>
-        <button data-k="lad" class="tool" aria-label="Poner escalera"><span>Escalera</span><b id="nLad">0</b></button>
-        <button data-k="wick" id="wickBtn" class="tool wick" aria-label="Subir o bajar la mecha"><span>Mecha</span><b id="wickLbl">Alta</b></button>
-      </div>
-    </nav>
   </section>
 </div>
 
