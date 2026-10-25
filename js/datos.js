@@ -5,10 +5,14 @@
 // =====================================================================
 window.DATOS = {
 
+  // Versión del juego: sale en el menú para saber si has cargado la última
+  version: '0.1',
+
   // ---------- Herramientas ----------
   herramientas: {
     inicial: { puntales: 3, escaleras: 4 },        // con lo que empieza una partida nueva
     porSalaSegura: { puntales: 2, escaleras: 2 },  // regalo la primera vez que entras en cada sala segura (una sola vez por pozo)
+    minimoPorBajada: { puntales: 2, escaleras: 2 },  // provisional hasta que haya economía: al empezar cada bajada tienes al menos esto
     alMorir: 'perder',                              // 'perder' = pierdes las que llevabas; 'conservar' = no pierdes nada
   },
 
@@ -75,13 +79,6 @@ window.DATOS = {
     polillaVelocidad: 2.4,     // casillas por segundo al perseguir tu luz
   },
 
-  // ---------- Agua ----------
-  // El agua conserva su volumen: si encuentra hueco se reparte y baja de nivel.
-  agua: {
-    nivelMinimo: 0.25,         // no se extiende en láminas más finas que esto (de 0 a 1 casilla)
-    diferenciaMinima: 0.02,    // diferencia de nivel por debajo de la cual deja de moverse (evita temblores)
-  },
-
   // ---------- Muerte ----------
   muerte: {
     piedraEnRelleno: 0.5,      // 0 = todo escombro; 1 = todo piedra. Mezcla del tramo que se derrumba al morir
@@ -96,6 +93,28 @@ window.DATOS = {
     probPuntal: 0.45,          // probabilidad de que sea un puntal (si no, escalera)
     cantidad: 1,               // cuántas da cada una
     regenerar: true,           // reaparecen al empezar otra bajada
+  },
+
+  // ---------- Agua ----------
+  // El agua conserva su volumen: si encuentra hueco se reparte y baja de nivel.
+  agua: {
+    nivelMinimo: 0.25,         // no se extiende en láminas más finas que esto (de 0 a 1 casilla)
+    diferenciaMinima: 0.02,    // diferencia de nivel por debajo de la cual deja de moverse (evita temblores)
+    charcoGrande: 8,           // un charco al mínimo que ocupa estas casillas o más se filtra y desaparece
+    filtrado: 0.15,            // nivel que pierde por segundo un charco que se está filtrando
+  },
+
+  // ---------- Llaves, puertas y salas de bonus ----------
+  llaves: { cada: 24, desdeFila: 10 },             // una llave suelta cada tantas filas (aprox.); no reaparecen
+  puertas: { cada: 20, desdeFila: 14 },            // una puerta en un lateral cada tantas filas (aprox.)
+  salaBonus: {
+    // lo que puede dar el cofre de la sala de bonus (sale uno al azar)
+    premios: [
+      { texto: '3 escaleras y 3 puntales', escaleras: 3, puntales: 3 },
+      { texto: 'Lámpara al máximo y 2 escaleras', luz: 100, escaleras: 2 },
+      { texto: '4 de cobre', material: { cobre: 4 } },
+      { texto: '5 de carbón y 2 puntales', material: { carbon: 5 }, puntales: 2 },
+    ],
   },
 
   // ---------- Al volver del pueblo ----------
@@ -152,7 +171,8 @@ window.DATOS = {
     ],
     altoSala: 4,                 // filas de cada sala segura (techo + 2 de aire + suelo)
     aceiteCada: 9,               // filas entre bidones de aceite (más 2 por tramo)
-    salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },  // roca maciza con cofre (hace falta taladro)
+    salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },
+    desvio: { fila: 26, entrada: 'izquierda' },  // franja de roca maciza con un pasillo: se entra por un lado y se sale bajando por el otro  // roca maciza con cofre (hace falta taladro)
     // a partir de qué tramo aparece cada cosa (0 = el primero)
     desdeTramo: { carbon: 1, cuarzo: 2, cobre: 3, cuevas: 0, gas: 1, agua: 2, polillas: 1 },
   },

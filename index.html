@@ -16,6 +16,7 @@
     <header class="barra">
       <h1>Deep</h1>
       <span class="sub">El pueblo y sus minas</span>
+      <span class="ver" id="verLbl"></span>
     </header>
     <div class="lienzo" id="mapaLienzo">
       <canvas id="mapaCv" class="px"></canvas>
@@ -90,6 +91,16 @@
         </div>
       </div>
 
+      <div class="sheet" id="bonus" hidden>
+        <div class="card">
+          <p class="eyebrow">Sala de bonus</p>
+          <h2 id="bnTitle">Una sala escondida</h2>
+          <canvas id="bnCv" class="px" width="240" height="144"></canvas>
+          <p id="bnText"></p>
+          <button class="btn" id="bnBtn">Abrir el cofre</button>
+        </div>
+      </div>
+
       <div class="sheet" id="help" hidden>
         <div class="card">
           <h2>Cómo se juega</h2>
@@ -109,6 +120,8 @@
             <li>El botón «Ver» aleja la cámara para mirar caminos; mientras miras no te mueves.</li>
             <li>Cada sala segura regala herramientas una sola vez por pozo, y se reconstruye en cada bajada. Por la mina hay escaleras y puntales sueltos que reaparecen cada vez.</li>
             <li>Al volver del pueblo, los túneles que abriste por debajo de la primera sala se rellenan de escombro y piedra.</li>
+            <li>Las llaves sueltas abren las puertas con candado de los laterales: dentro hay una sala de bonus con un cofre.</li>
+            <li>La roca con relieve es fija: sostiene a las de al lado. La de remaches no se rompe.</li>
             <li>Si subes vivo, el pozo se queda como lo dejaste. Si mueres, el último tramo se derrumba con tu mochila dentro.</li>
           </ul>
           <p class="note">Teclado: flechas o WASD. P puntal, E escalera, M mecha.</p>
@@ -145,6 +158,7 @@
           <button class="btn" id="tuneClose">Seguir</button>
           <button class="btn ghost" id="helpBtn">Cómo se juega</button>
           <button class="btn ghost" id="tuneReset">Valores de datos.js</button>
+          <p class="note">Deep · versión <b class="verTxt"></b></p>
         </div>
       </div>
     </main>

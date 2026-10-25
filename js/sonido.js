@@ -57,6 +57,13 @@ window.Sonido = (()=>{
     explosion(t,v){ noise(t, 0.9, 0.9*v, 'lowpass', 1800, 60); tone(t, 0.6, 0.6*v, 'sine', 90, 30); },
     tropiezo(t,v){ tone(t, 0.18, 0.35*v, 'square', 420, 160); noise(t+0.1, 0.1, 0.35*v, 'lowpass', 600); },
     muerte(t,v){ [392,330,262,196].forEach((f,i) => tone(t+i*0.16, 0.3, 0.2*v, 'triangle', f)); },
+    // cofre abierto: platillazo, arpegio brillante y acorde largo (adaptado de la fanfarria de Just One More Chest)
+    cofre(t,v){
+      noise(t, 0.5, 0.25*v, 'highpass', 6500);
+      [1046.5, 1318.5, 1568, 2093, 2637].forEach((f,i) => tone(t+0.05+i*0.075, 0.14, 0.12*v, 'square', f));
+      [523.25, 659.25, 783.99, 1046.5].forEach(f => tone(t+0.45, 1.2, 0.12*v, 'triangle', f));
+      tone(t, 0.35, 0.4*v, 'sine', 110, 45); tone(t+0.45, 1.0, 0.25*v, 'triangle', 131);
+    },
     paso(t,v){ noise(t, 0.03, 0.12*v, 'lowpass', 600); },
   };
 

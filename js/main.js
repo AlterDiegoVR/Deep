@@ -14,4 +14,8 @@ window.Pantallas = (()=>{
   }
   return {mostrar, get actual(){ return actual; }};
 })();
+// versión visible en el menú y en ajustes
+document.getElementById('verLbl').textContent = 'v' + window.DATOS.version;
+document.querySelectorAll('.verTxt').forEach(e => e.textContent = window.DATOS.version);
+document.title = 'Deep v' + window.DATOS.version;
 window.Pantallas.mostrar('mapa');
