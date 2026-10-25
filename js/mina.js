@@ -33,6 +33,7 @@ function layout(r){
 }
 const SECRET = {r: SURF + P1.salaSellada.fila, c0: P1.salaSellada.columna, w: P1.salaSellada.ancho, h: P1.salaSellada.alto};
 const DT = P1.desdeTramo, LA = D.lampara, JU = D.jugador, ES = D.estructura, PE = D.peligros, CA = D.camara, TB = D.temblor, VU = D.vuelta;
+const AG = D.agua || {nivelMinimo:0.25, diferenciaMinima:0.02};
 const SND = (n, v) => window.Sonido && window.Sonido.tocar(n, v);
 // volumen según la distancia al topo (en casillas)
 const near = (r, c) => p ? Math.max(0, 1 - Math.hypot(r - p.r, (c - p.c)*0.6)/14) : 0;
@@ -58,13 +59,15 @@ const Pa = window.Partida;
 let W = null; // {seed, rows:[{t,hp,sh}], items:[], bag:null}
 function newWorld(){ return {seed:(Math.random()*1e9)|0, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0}; }
 function packWorld(){
-  return {seed:W.seed, rows:W.rows.map(R => String.fromCharCode(...Array.from(R.t, v => 65+v))), nat:W.rows.map(R => String.fromCharCode(...Array.from(R.nat, v => 48+v))),
+  return {seed:W.seed, rows:W.rows.map(R => String.fromCharCode(...Array.from(R.t, v => 65+v))), nat:W.rows.map(R => String.fromCharCode(...Array.from(R.nat, v => 48+v))), lv:W.rows.map(R => String.fromCharCode(...Array.from(R.lv, v => 48+Math.round(v*40)))),
     items:W.items.filter(i=>i.alive || i.k === 'herr'), bag:W.bag, rewarded:W.rewarded, runs:W.runs, herr:true};
 }
 function unpackWorld(o){
   const w = {seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||(o.nat ? 0 : 1)};
   o.rows.forEach((s, i) => { const R = newRow(), n = o.nat && o.nat[i];
-    for(let c=0;c<COLS;c++){ R.t[c] = s.charCodeAt(c)-65; R.hp[c] = INFO[R.t[c]].hp||0; R.nat[c] = n ? n.charCodeAt(c)-48 : (isSolid(R.t[c]) ? 0 : 1); }
+    const lvS = o.lv && o.lv[i];
+    for(let c=0;c<COLS;c++){ R.t[c] = s.charCodeAt(c)-65; R.hp[c] = INFO[R.t[c]].hp||0; R.nat[c] = n ? n.charCodeAt(c)-48 : (isSolid(R.t[c]) ? 0 : 1);
+      if(R.t[c] === WATER) R.lv[c] = lvS ? Math.max(0.05, (lvS.charCodeAt(c)-48)/40) : 1; }
     w.rows.push(R); });
   if(!o.nat) natFromSeed(w);
   if(!o.herr){ const keep = W; W = w; for(let r=0;r<w.rows.length;r++) addKit(r, false); W = keep; }
@@ -77,7 +80,7 @@ function natFromSeed(w){
   try{ ensure(w.rows.length); w.rows.forEach((R, i) => { for(let c=0;c<COLS;c++) R.nat[c] = W.rows[i].nat[c]; }); }
   finally{ W = keep; lastOil = keepOil; }
 }
-function newRow(){ return {t:new Uint8Array(COLS), hp:new Uint16Array(COLS), sh:new Float32Array(COLS), mv:new Uint32Array(COLS), seen:new Uint8Array(COLS), nat:new Uint8Array(COLS)}; }
+function newRow(){ return {t:new Uint8Array(COLS), hp:new Uint16Array(COLS), sh:new Float32Array(COLS), mv:new Uint32Array(COLS), seen:new Uint8Array(COLS), nat:new Uint8Array(COLS), lv:new Float32Array(COLS)}; }
 let lastOil = SURF;
 function genRow(r){
   const R = newRow(), Tt = R.t, S = W.seed;
@@ -118,7 +121,7 @@ function genRow(r){
     }
     if(r === SECRET.r+SECRET.h-2) W.items.push({k:'chest', r, c:SECRET.c0+2, alive:true});
   }
-  for(let c=0;c<COLS;c++){ R.hp[c] = INFO[Tt[c]].hp||0; R.nat[c] = isSolid(Tt[c]) ? 0 : 1; }
+  for(let c=0;c<COLS;c++){ R.hp[c] = INFO[Tt[c]].hp||0; R.nat[c] = isSolid(Tt[c]) ? 0 : 1; R.lv[c] = Tt[c] === WATER ? 1 : 0; }
   return R;
 }
 // techos que no se sostendrían al generarse: se vuelven roca dura (arcos naturales)
@@ -161,7 +164,7 @@ function restoreRooms(){
   }
 }
 function tAt(r,c){ if(c<0 || c>=COLS) return ROCK; if(r<0) return AIR; ensure(r+1); return W.rows[r].t[c]; }
-function setT(r,c,v){ const R = W.rows[r]; R.t[c] = v; R.hp[c] = INFO[v].hp||0; R.sh[c] = 0; }
+function setT(r,c,v){ const R = W.rows[r]; R.t[c] = v; R.hp[c] = INFO[v].hp||0; R.sh[c] = 0; R.lv[c] = v === WATER ? 1 : 0; }
 
 // ---------- estado de la bajada ----------
 let platOpen = 0, p, lamp, bag, props, ladders, wick, dead, deadT, cashed, rocks, particles, floats, fillQ, digT, moveT, buried, crackMsgT, lockMsgT, flashT, maxDepth, lastRoomFloor, roomsSeen, segSeen, shake = 0, shakeKick = 0, cracking = 0, looking = false, driftT = 0, started = false, simAcc = 0, stabAcc = 0, tick = 0, t = 0, wet = false, gasNear = false;
@@ -229,6 +232,7 @@ function fluids(top, bot){
     for(let i=0;i<COLS;i++){
       const c = dir > 0 ? i : COLS-1-i, v = R.t[c];
       if((v !== SAND && v !== WATER && v !== RUBBLE) || R.mv[c] === tick) continue;
+      if(v === WATER){ waterStep(r, c, dir); continue; }
       const below = tAt(r+1, c);
       const can = (rr, cc) => { if(cc<0 || cc>=COLS) return false; const x = tAt(rr,cc); if(v !== WATER && playerCell(rr,cc)) return false; return isOpen(x) || (v !== WATER && x === WATER); };
       if(can(r+1, c)){ swap(r,c,r+1,c); continue; }
@@ -244,6 +248,37 @@ function fluids(top, bot){
       for(const dd of order){ if(isOpen(tAt(r, c+dd)) && c+dd>=0 && c+dd<COLS){ swap(r,c,r,c+dd); break; } }
     }
   }
+}
+// Agua con volumen: cada casilla tiene un nivel (0 a 1). Cae, llena lo de abajo y se reparte a los lados
+// igualando niveles; si no tiene adónde ir se queda quieta. Dos casillas en un hueco de cuatro quedan a media altura.
+function waterStep(r, c, dir){
+  const R = W.rows[r];
+  let L = R.lv[c];
+  if(L < 0.02){ setT(r, c, AIR); return; }
+  // abajo: si está libre cae entera; si hay agua sin llenar, la llena
+  const b = tAt(r+1, c);
+  if(isOpen(b)){ swap(r, c, r+1, c); return; }
+  if(b === WATER){
+    const B = W.rows[r+1], room = 1 - B.lv[c];
+    if(room > 0.001){ const m = Math.min(room, L); B.lv[c] += m; L -= m; if(L < 0.02){ if(L > 0) B.lv[c] = Math.min(1, B.lv[c] + L); setT(r, c, AIR); return; } }
+  }
+  // borde con caída al lado: se va entera por ahí
+  for(const dd of [dir, -dir]){
+    const cc = c + dd; if(cc < 0 || cc >= COLS) continue;
+    if(isOpen(tAt(r, cc)) && isOpen(tAt(r+1, cc))){ R.lv[c] = L; swap(r, c, r, cc); return; }
+  }
+  // a los lados: se iguala con el vecino más bajo (nunca deja láminas más finas que el mínimo)
+  for(const dd of [dir, -dir]){
+    const cc = c + dd; if(cc < 0 || cc >= COLS) continue;
+    const x = R.t[cc];
+    if(isOpen(x)){
+      if(L >= 2*AG.nivelMinimo){ const m = L/2; R.t[cc] = WATER; R.hp[cc] = 0; R.sh[cc] = 0; R.lv[cc] = m; R.mv[cc] = tick; L -= m; }
+    } else if(x === WATER){
+      const n = R.lv[cc];
+      if(L - n > AG.diferenciaMinima){ const m = (L - n)/2; R.lv[cc] = n + m; R.mv[cc] = tick; L -= m; }
+    }
+  }
+  R.lv[c] = L;
 }
 // La mochila perdida se comporta como un bloque suelto: si pierde apoyo cae, pero nunca se rompe en escombro.
 function updateBag(){
@@ -262,7 +297,7 @@ function updateBag(){
 }
 function swap(r1,c1,r2,c2){
   const A = W.rows[r1], B = W.rows[r2];
-  const tv = A.t[c1], th = A.hp[c1]; A.t[c1] = B.t[c2]; A.hp[c1] = B.hp[c2]; B.t[c2] = tv; B.hp[c2] = th;
+  const tv = A.t[c1], th = A.hp[c1], tl = A.lv[c1]; A.t[c1] = B.t[c2]; A.hp[c1] = B.hp[c2]; A.lv[c1] = B.lv[c2]; B.t[c2] = tv; B.hp[c2] = th; B.lv[c2] = tl;
   A.sh[c1] = 0; B.sh[c2] = 0; B.mv[c2] = tick; A.mv[c1] = tick;
 }
 function stability(top, bot){
@@ -437,7 +472,8 @@ function updatePlayer(dt){
   else if(p.act && p.actT < 0.32) p.anim = p.act;
   else { p.act = null; p.anim = p.falling ? ((p.fallN||0) >= JU.caidaLargaDesde ? 'caida_larga' : 'caer') : moving ? 'andar' : 'reposo'; }
   // lámpara, agua y grisú
-  wet = tAt(p.r, p.c) === WATER;
+  const wetLv = tAt(p.r, p.c) === WATER ? W.rows[p.r].lv[p.c] : 0;
+  wet = wetLv > 0.3;
   gasNear = false;
   const GA = PE.grisuAviso;
   for(let r=p.r-GA; r<=p.r+GA && !gasNear; r++) for(let c=p.c-GA; c<=p.c+GA; c++) if(tAt(r,c) === GAS){ gasNear = true; break; }
@@ -446,7 +482,7 @@ function updatePlayer(dt){
   const L = layout(p.r);
   const inRoom = L.part !== undefined && L.part > 0 && L.part < ROOM_H-1;
   if(inRoom) lamp = Math.min(100, lamp + LA.recargaSala*dt);
-  else if(!L.surface) lamp -= cfg.drain*dt*(wick ? 1 : LA.multMechaBaja)*(wet ? LA.multMojada : 1);
+  else if(!L.surface) lamp -= cfg.drain*dt*(wick ? 1 : LA.multMechaBaja)*(1 + (LA.multMojada - 1)*wetLv);
   // arena encima: te va cubriendo
   if(tAt(p.r-1, p.c) === SAND && !inRoom){ buried += dt; } else buried = Math.max(0, buried - dt*1.5);
   if(buried > JU.sepultadoEn) die('buried');
@@ -610,7 +646,13 @@ const hsh = (a,b) => (h2(a,b,77)*1e6)|0;
 
 function drawTile(v, r, c, X, Y){
   const R = W.rows[r];
-  if(v === WATER){ ctx.globalAlpha = 0.82; ctx.drawImage(tAt(r-1,c) !== WATER ? WS[Math.floor(t*4 + c)%4] : TS.agua[0], X, Y); ctx.globalAlpha = 1; return; }
+  if(v === WATER){
+    const lv = R ? R.lv[c] : 1, h = Math.max(2, Math.round(lv*T)), top = tAt(r-1,c) !== WATER || lv < 0.97;
+    ctx.globalAlpha = 0.82;
+    if(top) ctx.drawImage(WS[Math.floor(t*4 + c)%4], 0, 0, T, h, X, Y + T - h, T, h);
+    else ctx.drawImage(TS.agua[0], X, Y);
+    ctx.globalAlpha = 1; return;
+  }
   if(v === GAS){
     const k = gasNear ? 0.22 : 0.1;
     ctx.fillStyle = `rgba(153,229,80,${k})`; ctx.fillRect(X, Y, T, T);

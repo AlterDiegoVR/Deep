@@ -75,6 +75,13 @@ window.DATOS = {
     polillaVelocidad: 2.4,     // casillas por segundo al perseguir tu luz
   },
 
+  // ---------- Agua ----------
+  // El agua conserva su volumen: si encuentra hueco se reparte y baja de nivel.
+  agua: {
+    nivelMinimo: 0.25,         // no se extiende en láminas más finas que esto (de 0 a 1 casilla)
+    diferenciaMinima: 0.02,    // diferencia de nivel por debajo de la cual deja de moverse (evita temblores)
+  },
+
   // ---------- Muerte ----------
   muerte: {
     piedraEnRelleno: 0.5,      // 0 = todo escombro; 1 = todo piedra. Mezcla del tramo que se derrumba al morir
