@@ -6,7 +6,11 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.2',
+  version: '0.201',
+
+  // Pantalla: píxeles del lienzo por cada píxel del juego. Más = transiciones de zoom más suaves pero más pesado.
+  // 1 o 2 va sobrado para pixel art; el juego elige el valor exacto para que la ampliación sea siempre limpia.
+  pantalla: { calidad: 2 },
 
   // ---------- Herramientas ----------
   herramientas: {
@@ -231,10 +235,30 @@ window.DATOS = {
     ],
     altoSala: 4,                 // filas de cada sala segura (techo + 2 de aire + suelo)
     aceiteCada: 9,               // filas entre bidones de aceite (más 2 por tramo)
-    salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },
-    desvio: { fila: 26, entrada: 'izquierda' },  // franja de roca maciza con un pasillo: se entra por un lado y se sale bajando por el otro  // roca maciza con cofre (hace falta taladro)
+    salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },  // roca maciza con cofre (hace falta taladro)
+    // el desvío del tramo 2 ahora es una pieza hecha a mano: está en js/piezas.js
     // a partir de qué tramo aparece cada cosa (0 = el primero)
     desdeTramo: { carbon: 1, cuarzo: 2, cobre: 3, cuevas: 0, gas: 1, agua: 2, polillas: 1 },
+  },
+
+  // ---------- Ramales (tiros secundarios) ----------
+  // Un ramal es otro tiro al que se pasa por un pasadizo (con fundido a negro). Solo el tiro principal llega al fondo;
+  // los ramales son callejones con premio. fila = profundidad de la boca del pasadizo en el tiro principal.
+  ramales: [
+    { id: 'ramal1', nombre: 'Ramal del carbón', fila: 48, lado: 'izquierda', largo: 24 },
+  ],
+
+  // ---------- Objetos y colección ----------
+  // Cosas que se recogen en la mina. Van a la mochila (si mueres se quedan en ella) y al subir pasan a la colección.
+  // categoria: herbario · bestiario · mineralogia · mineria (secciones del futuro museo).
+  // suelto: aparecen sueltos por la mina, uno cada tantas filas (aprox.), a partir de desdeFila. Sin «suelto» solo salen en piezas.
+  objetos: {
+    flor_mina:      { nombre: 'Flor de mina',       categoria: 'herbario', icono: '🌸', dibujo: 'flor',     brilla: true,
+                      texto: 'Una flor que brilla en la oscuridad. Solo crece en lo hondo de las minas.' },
+    lampara_vieja:  { nombre: 'Lámpara de carburo', categoria: 'mineria',  icono: '🏮', dibujo: 'reliquia', suelto: { cada: 45, desdeFila: 16 },
+                      texto: 'Una lámpara de la época dorada de las minas. Ya no alumbra.' },
+    foto_cuadrilla: { nombre: 'Foto de una cuadrilla', categoria: 'mineria', icono: '🖼️', dibujo: 'reliquia', suelto: { cada: 70, desdeFila: 30 },
+                      texto: 'Varios topos mineros posan a la entrada del pozo. Uno se parece mucho a ti.' },
   },
 
   // ---------- Pueblo: casas de la plaza ----------

@@ -148,20 +148,28 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 /* sala de bonus */
 #bnCv{width:100%;height:auto;border:3px solid var(--madera-oo);border-radius:10px;cursor:pointer}
 
-/* ruleta de cartas */
-.ruleta-card{max-width:420px}
-.cartas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.carta{font-family:var(--f-ui);display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;min-height:150px;padding:8px 5px;border-radius:12px;
-  border:3px solid var(--madera-oo);background:#fff6e8;color:var(--tinta);box-shadow:0 4px 0 var(--madera-oo);cursor:pointer;transition:transform .15s,opacity .3s}
-.carta i{font-style:normal;font-size:28px;line-height:1.1}
-.carta b{font-family:var(--f-display);font-weight:400;font-size:15px;line-height:1.05}
-.carta span{font-size:11.5px;line-height:1.2;font-weight:700}
-.carta.dorso{background:repeating-linear-gradient(45deg,#8f563b 0 6px,#a0683f 6px 12px);color:#fbf236;justify-content:center}
-.carta.dorso i{font-family:var(--f-display);font-size:40px}
-.carta.gira{background:#fff3c4}
-.carta.lista{background:#fffbe6;animation:cartaSale .35s ease-out}
-.carta.elegida{transform:translateY(-6px) scale(1.04);background:var(--amarillo)}
-.carta.descartada{opacity:.35}
+/* ruleta de cartas: tablero de madera oscura y cartas tipo tarot minero, de tamaño fijo (no saltan al girar) */
+.ruleta-card{max-width:420px;background:linear-gradient(#3a2418,#24150e);border:4px solid #d9a066;color:#fff3c4;box-shadow:0 0 0 3px #45283c,0 10px 30px rgba(0,0,0,.6)}
+.ruleta-card h2{color:#fbf236;text-shadow:0 2px 0 #45283c}
+.ruleta-card .eyebrow{color:#d9a066}
+.ruleta-card .note{color:#eec39a;min-height:3.2em}
+.cartas{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;height:184px}
+.carta{font-family:var(--f-ui);display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:4px;text-align:center;
+  height:184px;padding:8px 5px 6px;border-radius:10px;overflow:hidden;box-sizing:border-box;
+  border:3px solid #d9a066;background:linear-gradient(#45283c,#2b1b24);color:#fff3c4;box-shadow:inset 0 0 0 2px #1a0f14,0 4px 0 #1a0f14;cursor:pointer;transition:transform .15s,opacity .3s}
+.carta i{font-style:normal;font-size:24px;line-height:44px;width:44px;height:44px;flex:none;border-radius:50%;background:#1a0f14;border:2px solid #d9a066;box-shadow:inset 0 0 8px rgba(251,242,54,.35)}
+.carta b{font-family:var(--f-display);font-weight:400;font-size:14px;line-height:1.05;color:#fbf236;height:2.1em;display:flex;align-items:center;justify-content:center}
+.carta span{font-size:11px;line-height:1.2;font-weight:700;color:#eec39a;overflow:hidden}
+.carta.dorso{background:repeating-linear-gradient(45deg,#3a2418 0 7px,#4a2e1e 7px 14px);justify-content:center}
+.carta.dorso i{font-family:var(--f-display);font-size:26px;color:#fbf236}
+.carta.dorso b{color:#d9a066}
+.carta.gira{filter:brightness(1.12)}
+.carta.lista{animation:cartaSale .35s ease-out;border-color:#fbf236}
+.carta.elegida{transform:translateY(-6px) scale(1.04);border-color:#fbf236;box-shadow:0 0 18px rgba(251,242,54,.7),0 4px 0 #1a0f14}
+.carta.descartada{opacity:.3}
 .carta.vacia{opacity:.4;cursor:default}
 @keyframes cartaSale{0%{transform:scale(.85)}60%{transform:scale(1.07)}100%{transform:scale(1)}}
 .chip.cartaChip{background:#fff3c4;border-color:#d9a066}
+
+/* capa de textos nítidos encima de la mina */
+#cvTxt{position:absolute;top:0;left:50%;transform:translateX(-50%);pointer-events:none;z-index:2;image-rendering:auto}

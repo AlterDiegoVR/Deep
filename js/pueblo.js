@@ -199,7 +199,9 @@ window.Pueblo = (()=>{
       const ks = Object.keys(Pa.almacen).filter(k => Pa.almacen[k] > 0);
       cuerpo.innerHTML = `<div class="list">${ks.length ? ks.map(k => chip(k, Pa.almacen[k])).join('') : '<span class="chip muted">Vacío</span>'}</div>
         <p class="note">${kitTxt()}.</p>
-        <div class="fila"><button class="btn ghost" id="borrarTodo">Empezar de cero (borra mina, almacén y herramientas)</button></div>`;
+        <p class="lbl">Colección · ${colTxt()}</p>
+        <div class="list">${colChips()}</div>
+        <div class="fila"><button class="btn ghost" id="borrarTodo">Empezar de cero (borra mina, almacén, colección y herramientas)</button></div>`;
       let armado = false;
       $('borrarTodo').onclick = () => {
         if(!armado){ armado = true; $('borrarTodo').textContent = 'Pulsa otra vez para borrarlo todo'; return; }
@@ -208,6 +210,12 @@ window.Pueblo = (()=>{
     } else {
       cuerpo.innerHTML = '<p>Aún no tiene nada que pedirte. Pronto vendrán aquí los encargos.</p>';
     }
+  }
+  // colección: lo encontrado en las minas (base del futuro museo)
+  function colTxt(){ const all = Object.keys(D.objetos || {}), n = all.filter(id => Pa.coleccion[id]).length; return n + ' de ' + all.length + ' objetos'; }
+  function colChips(){
+    const ids = Object.keys(D.objetos || {}).filter(id => Pa.coleccion[id]);
+    return ids.length ? ids.map(id => { const o = D.objetos[id]; return `<span class="chip" title="${o.texto}">${o.icono} ${o.nombre} <b>${Pa.coleccion[id]}</b></span>`; }).join('') : '<span class="chip muted">Aún nada</span>';
   }
   $('plazaVolver').onclick = () => window.Pantallas.mostrar('mapa');
 
