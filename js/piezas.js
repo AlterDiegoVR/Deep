@@ -5,6 +5,7 @@
 //
 //  Cada pieza:
 //    id        nombre único
+//    pozo      en qué pozo sale ('pruebas' si no se pone; el Pozo viejo no lleva piezas de momento)
 //    tiro      'principal' o el id de un ramal (por ejemplo 'ramal1'); 'ramales' = cualquier ramal
 //    colocar   dónde va. Una de estas formas:
 //                { fila: 26 }                     a esa profundidad (filas desde la boca del pozo)
@@ -17,10 +18,13 @@
 //  Leyenda de casillas:
 //    .  libre: lo decide el generador (así la pieza se funde con la mina normal)
 //    _  aire          t  tierra        p  piedra        d  roca dura (fija)
-//    m  roca maciza   a  arena         ~  agua          e  escombro
+//    m  roca maciza (azul: la romperá el taladro; solo donde haya algo detrás)
+//    x  roca madre (casi negra: el límite del mundo, no se rompe nunca)
+//    a  arena         g  arena arcillosa (con agua, barro)   ~  agua   e  escombro
 //    r  arcilla       c  carbón        u  cobre         q  cuarzo
 //    o  bidón de aceite   k  llave     h  escalera suelta   H  puntal suelto
 //    B  cofre con premio  f  flor de mina (coleccionable)   P  puerta con candado (solo en los bordes)
+//    M  montacargas (al fondo de un ramal: te sube al tiro principal)
 // =====================================================================
 window.PIEZAS = [
   {
@@ -30,25 +34,27 @@ window.PIEZAS = [
     colocar: { fila: 26 },
     reflejar: true,
     filas: [
-      '..mmmmmmmmmmmmm',
-      '_____________mm',
-      '__f___f___o__mm',
-      'mmmmmmmmmmm__mm',
-      'mmmmmmmmmmm__mm',
+      '..xxxxxxxxxxxxx',
+      '_____________xx',
+      '__f___f___o__xx',
+      'xxxxxxxxxxx__xx',
+      'xxxxxxxxxxx__xx',
       '...........__..',
     ],
   },
   {
-    // Fondo del ramal: una cámara con un cofre y una flor. El premio de haber elegido este camino.
+    // Fondo del ramal: una cámara con un cofre, una flor y el montacargas para volver. Debajo, una capa de roca
+    // maciza (azul): la promesa de que con el taladro habrá algo más abajo.
     id: 'fondo_ramal',
     tiro: 'ramales',
     colocar: { fondo: true },
     reflejar: true,
     filas: [
-      'mm___________mm',
-      'mm__f__B__o__mm',
-      'mmmmmmmmmmmmmmm',
-      'mmmmmmmmmmmmmmm',
+      'xxxxxxtttxxxxxx',
+      'xx___________xx',
+      'xxM_f__B__o__xx',
+      'xxxxxmmmmmxxxxx',
+      'xxxxxxxxxxxxxxx',
     ],
   },
 ];

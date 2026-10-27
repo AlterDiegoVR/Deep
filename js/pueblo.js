@@ -110,7 +110,7 @@ window.Pueblo = (()=>{
     $('mpEyebrow').textContent = 'Mina ' + m.id; $('mpTitulo').textContent = m.nombre; $('mpTexto').textContent = m.texto;
     btn.hidden = false; btn.disabled = !m.abierta; btn.textContent = m.abierta ? 'Bajar a la mina' : 'Cerrada por ahora';
   }
-  $('mpBoton').onclick = () => { if(mapaSel !== null && D.minas[mapaSel].abierta) window.Pantallas.mostrar('mina'); };
+  $('mpBoton').onclick = () => { if(mapaSel !== null && D.minas[mapaSel].abierta) window.Pantallas.mostrar('mina', D.minas[mapaSel].pozo || 'viejo'); };
 
   // =================== PLAZA ===================
   const PW = 200, PH = 260;

@@ -4,13 +4,13 @@
 window.Pantallas = (()=>{
   const ids = {mapa:'pantalla-mapa', plaza:'pantalla-plaza', mina:'pantalla-mina'};
   let actual = null;
-  function mostrar(nombre){
+  function mostrar(nombre, pozo){
     if(actual === 'mina' && nombre !== 'mina') window.Mina.salir();
     for(const [k, id] of Object.entries(ids)) document.getElementById(id).hidden = k !== nombre;
     actual = nombre;
     if(nombre === 'mapa'){ window.Pueblo.mapa(); }
     else if(nombre === 'plaza'){ window.Pueblo.plaza(); }
-    else { window.Pueblo.parar(); window.Mina.entrar(); }
+    else { window.Pueblo.parar(); window.Mina.entrar(pozo); }
   }
   return {mostrar, get actual(){ return actual; }};
 })();

@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.202',
+  version: '0.203',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -14,8 +14,9 @@ window.DATOS = {
 
   // ---------- Herramientas ----------
   herramientas: {
-    inicial: { puntales: 3, escaleras: 4 },        // con lo que empieza una partida nueva
-    minimoPorBajada: { puntales: 2, escaleras: 2 },  // provisional hasta que haya economía: al empezar cada bajada tienes al menos esto
+    inicial: { puntales: 10, escaleras: 6 },       // con lo que empieza una partida nueva
+    minimoPorBajada: { puntales: 10, escaleras: 4 }, // provisional hasta que haya economía: al empezar cada bajada tienes al menos esto (se cambia en ajustes)
+    recogerPuntales: true,                          // pulsar Puntal encima de un puntal (o dentro de un tablón) lo recoge. Más adelante lo enseñará el topo viejo
     alMorir: 'perder',                              // 'perder' = pierdes las que llevabas; 'conservar' = no pierdes nada
   },
 
@@ -56,7 +57,6 @@ window.DATOS = {
     { id: 'mochila_cuero', icono: '🎒', nombre: 'Mochila de cuero',    texto: 'El peso te frena la mitad.', valor: 0.5, peso: 1, unica: true },
     { id: 'bolsillo',      icono: '👖', nombre: 'Bolsillo secreto',    texto: 'Si mueres, el material que más vale de tu mochila llega igualmente al almacén.', peso: 0.7, unica: true },
     { id: 'carpintero',    icono: '🪜', nombre: 'Carpintero',          texto: 'Cada 10 m que bajas te dan una escalera.', valor: 10, peso: 1, unica: true },
-    { id: 'plegable',      icono: '🪵', nombre: 'Puntal plegable',     texto: 'Pulsa Puntal encima de un puntal para recogerlo.', peso: 0.8, unica: true },
     { id: 'codicia',       icono: '💰', nombre: 'Codicia',             texto: 'Cada mineral que picas cuenta doble, pero la lámpara gasta un 25 % más.', valor: 1.25, peso: 0.6, unica: true },
   ],
 
@@ -69,7 +69,7 @@ window.DATOS = {
 
   // ---------- Lámpara ----------
   lampara: {
-    consumo: 1.0,              // % por segundo con la mecha alta
+    consumo: 0.8,              // % por segundo con la mecha alta
     multMechaBaja: 0.5,        // la mecha baja gasta esto (x consumo)
     multMojada: 3,             // dentro del agua gasta esto (x consumo)
     costeGolpe: 0.1,           // % por cada golpe de pico
@@ -77,7 +77,8 @@ window.DATOS = {
     aceite: 35,                // % que da cada bidón de aceite
     radioMin: 1.8,             // radio de luz (casillas) con la lámpara a 0
     radioMax: 7.4,             // radio de luz (casillas) con la lámpara a 100
-    multRadioMechaBaja: 0.5,   // la mecha baja reduce el radio a esto
+    multRadioMechaBaja: 0.32,  // la mecha baja reduce el radio a esto (tiene que notarse: con la mecha baja se ve muy poco)
+    luzMechaBaja: 0.6,         // y la luz es más débil (1 = igual que con la mecha alta)
   },
 
   // ---------- Jugador ----------
@@ -94,25 +95,28 @@ window.DATOS = {
 
   // ---------- Estructura y derrumbes ----------
   estructura: {
-    anchoMaxTecho: 5,          // casillas de techo que aguantan sin apoyo
+    cornisa: 3,                // casillas que aguanta un techo en voladizo (sujeto por un lado). Sujeto por los dos lados (puente) aguanta el doble
     tiempoCrujido: 0.8,        // segundos que cruje antes de caer
-    escombroSiCaeDesde: 2,     // se rompe en escombro si cae desde estas casillas o más...
-    escombroSiCaenJuntos: 4,   // ...o si el derrumbe tiene estos bloques o más
+    escombroSiCaeDesde: 3,     // se rompe en escombro si cae desde estas casillas o más...
+    escombroSiCaenJuntos: 5,   // ...o si el derrumbe tiene estos bloques o más
+    // la roca dura, la maciza y la roca madre siempre sujetan; un puntal sujeta aunque le quiten el suelo
     maxEscombroPorGolpe: 300,  // un golpe quita como mucho este escombro conectado
   },
 
   // ---------- Materiales ----------
   // golpes: dureza. valor: peso en la mochila (0 = no vale nada, ni se cuenta)
+  // fragilidad: casillas que se suman (o restan) a la caída que lo rompe en escombro. El cuarzo se rompe con nada; el carbón aguanta
   materiales: {
     tierra:   { nombre: 'Tierra',      golpes: 1, valor: 0 },
     piedra:   { nombre: 'Piedra',      golpes: 2, valor: 0 },
     rocaDura: { nombre: 'Roca dura',   golpes: 5, valor: 0 },
     arena:    { nombre: 'Arena',       golpes: 1, valor: 0 },
+    arenaArcillosa: { nombre: 'Arena arcillosa', golpes: 1, valor: 0 },   // como la arena, pero con agua se vuelve barro
     escombro: { nombre: 'Escombro',    golpes: 1, valor: 0 },
     arcilla:  { nombre: 'Arcilla',     golpes: 1, valor: 1, color: '#d9a066' },
-    carbon:   { nombre: 'Carbón',      golpes: 2, valor: 1, color: '#3f3f74' },
-    cobre:    { nombre: 'Cobre',       golpes: 3, valor: 2, color: '#df7126' },
-    cuarzo:   { nombre: 'Cuarzo',      golpes: 2, valor: 1, color: '#cbdbfc' },
+    carbon:   { nombre: 'Carbón',      golpes: 2, valor: 1, color: '#3f3f74', fragilidad: 2 },
+    cobre:    { nombre: 'Cobre',       golpes: 3, valor: 2, color: '#df7126', fragilidad: 0 },
+    cuarzo:   { nombre: 'Cuarzo',      golpes: 2, valor: 1, color: '#cbdbfc', fragilidad: -2 },
   },
 
   // ---------- Peligros ----------
@@ -121,6 +125,8 @@ window.DATOS = {
     grisuAviso: 2,             // casillas de distancia a las que la llama se pone azul
     polillaLuz: 20,            // % de lámpara que roba una polilla
     polillaVelocidad: 2.4,     // casillas por segundo al perseguir tu luz
+    polillaMechaBaja: 0.45,    // con la mecha baja van a esta parte de su velocidad
+    polillaVista: 1.6,         // te ven si estás a menos de (radio de tu luz x esto) y en línea recta, sin nada en medio
   },
 
   // ---------- Aire ----------
@@ -132,7 +138,7 @@ window.DATOS = {
   },
 
   // ---------- Barro ----------
-  // Se forma cuando el agua toca arena. No es sólido: te metes dentro, te frena y te hundes despacio.
+  // Se forma cuando el agua toca arena arcillosa (la arena normal no). No es sólido: te metes dentro, te frena y te hundes despacio.
   barro: {
     pasoMult: 3,               // andar dentro del barro cuesta esto (x tiempo de paso)
     hundimiento: 0.8,          // casillas por segundo que te hundes
@@ -214,7 +220,7 @@ window.DATOS = {
 
   // ---------- Mapa: las minas alrededor del pueblo ----------
   minas: [
-    { id: 1, nombre: 'Pozo viejo',          abierta: true,  texto: 'Tierra, arcilla y algo de carbón. Para empezar.' },
+    { id: 1, nombre: 'Pozo viejo',          abierta: true,  pozo: 'viejo',   texto: 'Un pozo sin fondo con lo básico: picar, la lámpara, los derrumbes, los puntales y la mochila. Para probar la jugabilidad en sesiones largas.' },
     { id: 2, nombre: 'Cantera del molino',  abierta: false, texto: 'Próximamente.' },
     { id: 3, nombre: 'Galería del río',     abierta: false, texto: 'Próximamente.' },
     { id: 4, nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
@@ -222,23 +228,48 @@ window.DATOS = {
     { id: 6, nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
     { id: 7, nombre: 'Pozo del grisú',      abierta: false, texto: 'Próximamente.' },
     { id: 8, nombre: 'La sima',             abierta: false, texto: 'Próximamente.' },
+    { id: 'P', nombre: 'Pozo de pruebas',   abierta: true,  pozo: 'pruebas', texto: 'Banco de pruebas: aquí está todo lo que se va probando (agua, barro, grisú, polillas, cartas, puertas, ramal…).' },
   ],
 
-  // ---------- Pozo 1 ----------
-  pozo1: {
-    columnas: 15,
-    tramos: [
-      { nombre: 'Boca del pozo',   largo: 12 },
-      { nombre: 'Vetas de carbón', largo: 18 },
-      { nombre: 'Cuevas húmedas',  largo: 26 },
-      { nombre: 'Fondo de cobre',  largo: 999 },
-    ],
-    altoSala: 4,                 // filas de cada sala segura (techo + 2 de aire + suelo)
-    aceiteCada: 9,               // filas entre bidones de aceite (más 2 por tramo)
-    salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },  // roca maciza con cofre (hace falta taladro)
-    // el desvío del tramo 2 ahora es una pieza hecha a mano: está en js/piezas.js
-    // a partir de qué tramo aparece cada cosa (0 = el primero)
-    desdeTramo: { carbon: 1, cuarzo: 2, cobre: 3, cuevas: 0, gas: 1, agua: 2, polillas: 1 },
+  // ---------- Pozos ----------
+  // Cada mina del mapa usa uno de estos pozos (campo «pozo» de la mina).
+  //   contenido: qué cosas salen en ese pozo (false = no sale)
+  //   tramos: los tramos entre salas seguras. Si hay «salasCada», después del primero se repiten sin fin tramos de ese largo.
+  //   desdeTramo: a partir de qué tramo aparece cada cosa (0 = el primero)
+  pozos: {
+    // Vertical slice: pozo sin fondo con lo básico, para ver si la jugabilidad cruda aguanta 20 o 30 minutos
+    viejo: {
+      nombre: 'Pozo viejo',
+      guardado: 'deep-pozoviejo',
+      columnas: 15,
+      tramos: [ { nombre: 'Boca del pozo', largo: 12 } ],
+      salasCada: 16,               // filas de cada tramo después del primero (una sala segura al final de cada uno)
+      nombresTramos: ['Galerías de tierra', 'Vetas de carbón', 'Piedra vieja', 'Filón de cobre', 'Roca profunda'],
+      altoSala: 4,
+      aceiteCada: 9,
+      contenido: { agua: false, grisu: false, polillas: false, barro: false, cartas: false, puertas: false, llaves: false,
+                   ramales: false, objetos: false, salaSellada: false, piezas: false },
+      desdeTramo: { carbon: 1, cuarzo: 3, cobre: 3, cuevas: 0 },
+    },
+    // Banco de pruebas: todo lo que se va probando
+    pruebas: {
+      nombre: 'Pozo de pruebas',
+      guardado: 'pozoviejo-mina1',
+      columnas: 15,
+      tramos: [
+        { nombre: 'Boca del pozo',   largo: 12 },
+        { nombre: 'Vetas de carbón', largo: 18 },
+        { nombre: 'Cuevas húmedas',  largo: 26 },
+        { nombre: 'Fondo de cobre',  largo: 999 },
+      ],
+      altoSala: 4,                 // filas de cada sala segura (techo + 2 de aire + suelo)
+      aceiteCada: 9,               // filas entre bidones de aceite (más 2 por tramo)
+      salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },  // roca maciza con cofre (hace falta taladro)
+      arenaArcillosa: 0.5,         // parte de la arena que es arcillosa (hace barro con el agua)
+      contenido: {},               // todo
+      // el desvío del tramo 2 es una pieza hecha a mano: está en js/piezas.js
+      desdeTramo: { carbon: 1, cuarzo: 2, cobre: 3, cuevas: 0, gas: 1, agua: 2, polillas: 1 },
+    },
   },
 
   // ---------- Ramales (tiros secundarios) ----------

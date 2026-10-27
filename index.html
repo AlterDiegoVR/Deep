@@ -56,7 +56,7 @@
       <div style="min-width:0">
         <div class="lamp-top"><span class="lbl">Lámpara</span><span id="lampPct">100%</span></div>
         <div class="bar"><i id="lampFill"></i></div>
-        <span id="seg">Pozo 1</span>
+        <span id="seg">Pozo viejo</span>
       </div>
       <div class="depth"><span class="lbl">Profundidad</span><b><span id="depth">0</span><small>m</small></b><span id="next"></span></div>
       <button class="iconbtn" id="tuneBtn" aria-label="Ajustes"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg></button>
@@ -120,7 +120,9 @@
             <li>Empiezas en la jaula del pozo: pulsa abajo para abrir la trampilla y bajar.</li>
             <li>Empuja contra un bloque para picarlo, o pica hacia abajo. No se puede picar hacia arriba ni saltar.</li>
             <li>Para subir escalones, pon una escalera y sube con la flecha de arriba.</li>
-            <li>Un techo demasiado ancho sin apoyo cruje y se derrumba entero. Pon puntales.</li>
+            <li>Un techo demasiado ancho sin apoyo cruje y se derrumba entero. Pon puntales: sostienen el techo aunque luego les quites el suelo.</li>
+            <li>Si delante tienes un hueco a la altura de los pies, el puntal se pone tumbado como un tablón: puedes cruzar por encima y pasar por debajo. Un derrumbe lo rompe.</li>
+            <li>Pulsa Puntal encima de un puntal (o bajo un tablón) para recogerlo.</li>
             <li>Lo que cae desde lo alto, o un derrumbe grande, se rompe en escombro y su material se pierde. Un golpe de pico quita todo el escombro conectado.</li>
             <li>Si una piedra cae justo cuando sales de debajo, te libras por los pelos pero quedas tumbado un momento.</li>
             <li>La tierra no vale nada. Busca arcilla, carbón, cuarzo y cobre.</li>
@@ -133,11 +135,13 @@
             <li>En las salas seguras la lámpara se recarga junto a la llama. Cada sala tiene un cofre de suministros (se abre una vez por pozo) y cada dos salas hay una ruleta de cartas: gírala y quédate con una de tres. Las cartas duran hasta que vuelves al principio del pozo.</li>
             <li>Las salas se reconstruyen en cada bajada. Por la mina hay escaleras y puntales sueltos que reaparecen cada vez.</li>
             <li>El agua y el barro gastan más lámpara. Si te cubren del todo (tu casilla y la de encima), tienes 10 segundos de aire.</li>
-            <li>El agua que toca arena la convierte en barro: te frena, te hundes despacio y amortigua lo que cae en él.</li>
+            <li>El agua que toca arena arcillosa (la rojiza) la convierte en barro: te frena, te hundes despacio y amortigua lo que cae en él. La arena normal no.</li>
             <li>Al volver del pueblo, los túneles que abriste por debajo de la primera sala se rellenan de escombro y piedra.</li>
-            <li>Las llaves sueltas abren las puertas con candado de los laterales: dentro hay una sala de bonus con un cofre.</li>
-            <li>La roca con relieve es fija: sostiene a las de al lado. La de remaches no se rompe.</li>
-            <li>Las bocas de pasadizo (marco de madera con una flecha) llevan a ramales: tiros sin salida con algo al fondo.</li>
+            <li>Las llaves sueltas abren las puertas con candado de los laterales (empujando de lado o desde abajo): dentro hay una sala de bonus con un cofre.</li>
+            <li>La roca con relieve es fija: sostiene a las de al lado. La maciza (azul) solo la romperá un taladro. La roca madre (casi negra) es el límite: no se rompe nunca.</li>
+            <li>Las bocas de pasadizo (marco de madera con una flecha) llevan a ramales: tiros sin salida con algo al fondo. Al fondo hay un montacargas: pulsa arriba para volver.</li>
+            <li>Con la mecha baja ves muy poco, pero las polillas casi no te ven y van más despacio. Solo te persiguen si te ven en línea recta.</li>
+            <li>El cuarzo es frágil (se rompe con poca caída) y el carbón aguanta más.</li>
             <li>Las flores de mina y los objetos de minería van a tu mochila y, al subir, a tu colección (se ve en el almacén).</li>
             <li>Si subes vivo, el pozo se queda como lo dejaste. Si mueres, el último tramo se derrumba con tu mochila dentro.</li>
           </ul>
@@ -162,10 +166,17 @@
           <h2>Ajustes de prueba</h2>
           <p class="note">Parten de js/datos.js. Lo que cambies aquí solo vale en este navegador.</p>
           <label class="sl">Consumo de la lámpara (%/s)<output id="o_drain"></output><input type="range" id="s_drain" min="0.2" max="3" step="0.1"></label>
-          <label class="sl">Ancho máximo de techo sin apoyo<output id="o_span"></output><input type="range" id="s_span" min="3" max="9" step="2"></label>
+          <label class="sl">Aceite: luz que da cada bidón (%)<output id="o_oilGain"></output><input type="range" id="s_oilGain" min="10" max="80" step="5"></label>
+          <label class="sl">Aceite: un bidón cada (filas, aprox.)<output id="o_oilEvery"></output><input type="range" id="s_oilEvery" min="4" max="20" step="1"></label>
+          <label class="sl">Cornisa: casillas que aguanta en voladizo<output id="o_corn"></output><input type="range" id="s_corn" min="1" max="4" step="1"></label>
+          <p class="note mini">Sujeto por los dos lados (puente) aguanta el doble. La roca dura, la maciza y la roca madre siempre sujetan.</p>
           <label class="sl">Tiempo de crujido (s)<output id="o_crack"></output><input type="range" id="s_crack" min="0.2" max="2" step="0.1"></label>
           <label class="sl">Escombro si cae desde (casillas o más)<output id="o_thrH"></output><input type="range" id="s_thrH" min="1" max="8" step="1"></label>
           <label class="sl">Escombro si caen juntos (bloques o más)<output id="o_thrS"></output><input type="range" id="s_thrS" min="1" max="15" step="1"></label>
+          <label class="sl">Puntales al empezar cada bajada (mínimo)<output id="o_minP"></output><input type="range" id="s_minP" min="0" max="30" step="1"></label>
+          <label class="sl">Escaleras al empezar cada bajada (mínimo)<output id="o_minL"></output><input type="range" id="s_minL" min="0" max="20" step="1"></label>
+          <label class="sl">Recoger puntales<output></output>
+            <select id="s_recoger"><option value="1">Sí: pulsa Puntal encima de uno (o bajo un tablón)</option><option value="0">No</option></select></label>
           <label class="sl">Zoom al explorar<output></output>
             <select id="s_zoom"><option value="siempre">Cerca, con scroll lateral</option><option value="salas">Ver todo el ancho</option></select></label>
           <label class="sl">Oscuridad<output></output>
