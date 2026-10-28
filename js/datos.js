@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.205',
+  version: '0.206',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -176,10 +176,9 @@ window.DATOS = {
   // ---------- Agua ----------
   // El agua conserva su volumen: si encuentra hueco se reparte y baja de nivel.
   agua: {
-    nivelMinimo: 0.08,         // no se extiende en láminas más finas que esto (de 0 a 1 casilla): el agua siempre ocupa el hueco que tenga al lado
+    nivelMinimo: 0.05,         // se extiende hasta láminas de este grosor (de 0 a 1 casilla). El agua nunca desaparece: se conserva siempre
     diferenciaMinima: 0.02,    // diferencia de nivel por debajo de la cual deja de moverse (evita temblores)
-    secaPorDebajo: 0.22,       // una capa de agua más fina que esto (y sin agua encima) se va secando poco a poco
-    secado: 0.06,              // nivel que pierde por segundo al secarse
+    mojaLamparaDesde: 0.5,     // el agua solo gasta más lámpara cuando llega a esta altura del topo (media altura)
     ahogaDesde: 0.7,           // el aire empieza a contar cuando el agua de tu casilla llega a este nivel (te cubre la cabeza)
   },
 

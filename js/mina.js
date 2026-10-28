@@ -25,6 +25,8 @@ const isStruct = t => t===DIRT||t===STONE||t===HARD||t===CLAY||t===COAL||t===COP
 const isAnchor = t => t===HARD||t===BEAM||t===ROCK||t===DOOR||t===PASS||t===BEDROCK;
 const isLoose = t => t===SAND||t===RUBBLE||t===CSAND;
 const isSand = t => t===SAND||t===CSAND;
+// casillas que pueden tener agua además de lo que son (la escalera, el puntal o el tablón siguen ahí y el agua pasa)
+const holdsW = t => t===LADDER||t===PROP||t===PLANK;
 const isOpen = t => t===AIR || t===GAS;
 // ---------- tiros ----------
 // El pozo está hecho de tiros: el principal (con salas seguras, llega al fondo) y ramales (callejones con premio).
@@ -80,7 +82,7 @@ const near = (r, c) => p ? Math.max(0, 1 - Math.hypot(r - p.r, (c - p.c)*0.6)/14
 // Ajustes de prueba: parten de datos.js y se pueden tocar desde el menú de ajustes (se guardan en el navegador)
 const HM = D.herramientas.minimoPorBajada || {puntales:0, escaleras:0};
 const BASE = {drain:LA.consumo, corn:ES.cornisa ?? 2, crack:ES.tiempoCrujido, thrH:ES.escombroSiCaeDesde, thrS:ES.escombroSiCaenJuntos,
-  frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, resp:2, minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilGain:LA.aceite,
+  frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, resp:1, respP:80, minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilGain:LA.aceite,
   dark:'1', zoom: CA.zoomExplorar >= 2 ? 'siempre' : 'salas'};
 let cfg = {...BASE};
 try{ const s = JSON.parse(localStorage.getItem('deep-cfg')||'null'); if(s) cfg = {...BASE, ...s}; }catch(e){}
@@ -122,7 +124,8 @@ function unpackWorld(o){
   o.rows.forEach((s, i) => { const R = newRow(), n = o.nat && o.nat[i];
     const lvS = o.lv && o.lv[i];
     for(let c=0;c<COLS;c++){ R.t[c] = s.charCodeAt(c)-65; R.hp[c] = INFO[R.t[c]].hp||0; R.nat[c] = n ? n.charCodeAt(c)-48 : (isSolid(R.t[c]) ? 0 : 1);
-      if(R.t[c] === WATER) R.lv[c] = lvS ? Math.max(0.05, (lvS.charCodeAt(c)-48)/40) : 1; }
+      if(R.t[c] === WATER) R.lv[c] = lvS ? Math.max(0.05, (lvS.charCodeAt(c)-48)/40) : 1;
+      else if(holdsW(R.t[c]) && lvS) R.lv[c] = (lvS.charCodeAt(c)-48)/40; }
     w.rows.push(R); });
   if(!o.nat) natFromSeed(w);
   if(!o.herr){ const keep = W; W = w; for(let r=0;r<w.rows.length;r++) addKit(r, false); W = keep; }
@@ -327,7 +330,9 @@ function refillTunnels(){
     const R = W.rows[r];
     for(let c=0;c<COLS;c++){
       const v = R.t[c];
-      if(R.nat[c] || !(v === AIR || v === LADDER || v === PROP || v === PLANK) || keep.has(r*16 + c)) continue;
+      if(R.nat[c] || !(v === AIR || v === LADDER || v === PROP || v === PLANK)) continue;
+      // alrededor de escaleras y puntales se respeta, aunque no siempre: alguna piedra cae (las piezas en sí se quedan)
+      if(keep.has(r*16 + c) && (v !== AIR || h2(c, r, W.seed + 131 + W.runs*5)*100 < cfg.respP)) continue;
       const h = h2(c, r, W.seed + 101 + W.runs*7) * tot;
       setT(r, c, h < (mix.escombro||0) ? RUBBLE : h < (mix.escombro||0) + (mix.piedra||0) ? STONE : HARD);
       n++;
@@ -388,8 +393,9 @@ function fluids(top, bot){
     const R = W.rows[r], dir = (tick + r) & 1 ? 1 : -1;
     for(let i=0;i<COLS;i++){
       const c = dir > 0 ? i : COLS-1-i, v = R.t[c];
-      if((!isSand(v) && v !== WATER && v !== RUBBLE && v !== MUD) || R.mv[c] === tick) continue;
-      if(v === WATER){ waterStep(r, c, dir); continue; }
+      if(R.mv[c] === tick) continue;
+      if(v === WATER || (holdsW(v) && R.lv[c] > 0.004)){ waterStep(r, c, dir); continue; }
+      if(!isSand(v) && v !== RUBBLE && v !== MUD) continue;
       if(v === MUD){ mudStep(r, c, dir); continue; }
       const below = tAt(r+1, c);
       const can = (rr, cc) => { if(cc<0 || cc>=COLS) return false; const x = tAt(rr,cc); if(v !== WATER && playerCell(rr,cc)) return false; if(rockLane(rr, cc)) return false; return isOpen(x) || (v !== WATER && x === WATER); };
@@ -408,46 +414,47 @@ function fluids(top, bot){
   }
 }
 // Agua con volumen: cada casilla tiene un nivel (0 a 1). Cae, llena lo de abajo y se reparte a los lados
-// igualando niveles; si no tiene adónde ir se queda quieta. Dos casillas en un hueco de cuatro quedan a media altura.
+// igualando niveles; si no tiene adónde ir se queda quieta. Nunca desaparece: como mucho queda una lámina fina,
+// que se vuelve a juntar si luego encuentra un hueco más hondo. También ocupa casillas con escalera, puntal o tablón.
+const lvAt = (r, c) => { const v = tAt(r, c); return v === WATER || holdsW(v) ? W.rows[r].lv[c] : 0; };
+const takesW = (r, c) => { if(c < 0 || c >= COLS) return false; const v = tAt(r, c); return isOpen(v) || v === WATER || holdsW(v); };
+function addW(r, c, m){ const R = W.rows[r]; if(isOpen(R.t[c])){ setT(r, c, WATER); R.lv[c] = m; } else R.lv[c] = Math.min(1, R.lv[c] + m); R.mv[c] = tick; }
+function setW(r, c, L){ const R = W.rows[r]; if(R.t[c] === WATER){ if(L < 0.004) setT(r, c, AIR); else R.lv[c] = L; } else R.lv[c] = Math.max(0, L < 0.004 ? 0 : L); }
 function waterStep(r, c, dir){
-  const R = W.rows[r];
+  const R = W.rows[r], self = R.t[c];
   let L = R.lv[c];
-  if(L < 0.02){ setT(r, c, AIR); return; }
+  if(L < 0.004){ setW(r, c, 0); return; }
   // agua que toca arena arcillosa: se empapa y se vuelve barro (se gasta agua). La arena normal no.
   for(const [rr, cc] of [[r+1, c], [r, c-dir], [r, c+dir]]){
     if(cc < 0 || cc >= COLS || tAt(rr, cc) !== CSAND) continue;
     setT(rr, cc, MUD); W.rows[rr].mv[cc] = tick; L -= BA.aguaQueGasta;
     if(Math.abs(rr - p.r) < 10) burst(rr+0.3, cc+0.5, '#8f563b', 3);
-    if(L < 0.02){ setT(r, c, AIR); return; }
-    R.lv[c] = L; break;
+    if(L < 0.004){ setW(r, c, 0); return; }
+    break;
   }
-  // abajo: si está libre cae entera; si hay agua sin llenar, la llena
+  // abajo: si está libre cae entera; si hay agua (o escalera, puntal...) sin llenar, la llena
   const b = tAt(r+1, c);
-  if(isOpen(b)){ swap(r, c, r+1, c); return; }
-  if(b === WATER){
-    const B = W.rows[r+1], room = 1 - B.lv[c];
-    if(room > 0.001){ const m = Math.min(room, L); B.lv[c] += m; L -= m; if(L < 0.02){ if(L > 0) B.lv[c] = Math.min(1, B.lv[c] + L); setT(r, c, AIR); return; } }
+  if(isOpen(b) && self === WATER){ R.lv[c] = L; swap(r, c, r+1, c); return; }
+  if(takesW(r+1, c)){
+    const room = 1 - lvAt(r+1, c);
+    if(room > 0.001){ const m = Math.min(room, L); addW(r+1, c, m); L -= m; if(L < 0.004){ setW(r, c, 0); return; } }
   }
   // borde con caída al lado: se va entera por ahí
   for(const dd of [dir, -dir]){
     const cc = c + dd; if(cc < 0 || cc >= COLS) continue;
-    if(isOpen(tAt(r, cc)) && isOpen(tAt(r+1, cc))){ R.lv[c] = L; swap(r, c, r, cc); return; }
-  }
-  // a los lados: si hay hueco libre, el agua siempre lo ocupa (se reparte a medias); si hay agua, se iguala el nivel
-  for(const dd of [dir, -dir]){
-    const cc = c + dd; if(cc < 0 || cc >= COLS) continue;
-    const x = R.t[cc];
-    if(isOpen(x) && !rockLane(r, cc)){
-      if(L > AG.nivelMinimo){ const m = L/2; R.t[cc] = WATER; R.hp[cc] = 0; R.sh[cc] = 0; R.lv[cc] = m; R.mv[cc] = tick; R.ox[cc] = 0; R.oy[cc] = 0; L -= m; }
-    } else if(x === WATER){
-      const n = R.lv[cc];
-      if(L - n > AG.diferenciaMinima){ const m = (L - n)/2; R.lv[cc] = n + m; R.mv[cc] = tick; L -= m; }
+    if(isOpen(tAt(r, cc)) && isOpen(tAt(r+1, cc))){
+      if(self === WATER){ R.lv[c] = L; swap(r, c, r, cc); } else { addW(r, cc, L); setW(r, c, 0); }
+      return;
     }
   }
-  // capa fina sin agua encima: se va secando poco a poco (así los charcos acaban desapareciendo)
-  if(L < (AG.secaPorDebajo ?? 0.22) && tAt(r-1, c) !== WATER) L -= (AG.secado ?? 0.06)/14;
-  if(L < 0.02){ setT(r, c, AIR); return; }
-  R.lv[c] = L;
+  // a los lados: si hay hueco, el agua lo ocupa (a medias); si hay agua, se iguala el nivel
+  for(const dd of [dir, -dir]){
+    const cc = c + dd; if(!takesW(r, cc) || rockLane(r, cc)) continue;
+    const n = lvAt(r, cc);
+    if(n === 0 && isOpen(tAt(r, cc))){ if(L > AG.nivelMinimo){ const m = L/2; addW(r, cc, m); W.rows[r].ox[cc] = 0; W.rows[r].oy[cc] = 0; L -= m; } }
+    else if(L - n > AG.diferenciaMinima){ const m = (L - n)/2; addW(r, cc, m); L -= m; }
+  }
+  setW(r, c, L);
 }
 // Barro: fluido espeso. Cae y se escurre despacio, sin rampas; deja de moverse cuando queda plano.
 function mudStep(r, c, dir){
@@ -474,7 +481,7 @@ function updateBag(){
   }
   if(isSolid(tAt(it.r, it.c))){ it.alive = false; B.r = it.r; B.c = it.c; return; }   // le ha caído algo encima: vuelve a quedar enterrada
   const below = tAt(it.r+1, it.c);
-  if(!isSolid(below) && below !== PLANK && !playerCell(it.r+1, it.c) && !rocks.some(k => k.c === it.c && Math.abs(k.y - it.r - 1) < 1)){
+  if(!isSolid(below) && below !== PLANK && below !== PROP && !playerCell(it.r+1, it.c) && !rocks.some(k => k.c === it.c && Math.abs(k.y - it.r - 1) < 1)){
     it.r++; B.r = it.r; it.fall = (it.fall||0) + 1; it.dy = 1;
   } else if(it.fall){ if(it.fall >= 2) SND('aterriza', near(it.r, it.c)*0.8); it.fall = 0; }
 }
@@ -484,7 +491,7 @@ function dropItems(top, bot){
     if(!it.alive || (it.k !== 'herr' && it.k !== 'llave' && it.k !== 'oil' && it.k !== 'obj') || it.r < top || it.r > bot) continue;
     if(isSolid(tAt(it.r, it.c))) continue;   // tapada: sale al picar
     const b = tAt(it.r+1, it.c);
-    if(!isSolid(b) && b !== LADDER && b !== PLANK && !playerCell(it.r+1, it.c) && !W.items.some(o => o !== it && o.alive && o.r === it.r+1 && o.c === it.c && o.k !== 'moth')){ it.r++; it.dy = 1; }
+    if(!isSolid(b) && b !== LADDER && b !== PLANK && b !== PROP && !playerCell(it.r+1, it.c) && !W.items.some(o => o !== it && o.alive && o.r === it.r+1 && o.c === it.c && o.k !== 'moth')){ it.r++; it.dy = 1; }
   }
 }
 function swap(r1,c1,r2,c2){
@@ -597,7 +604,7 @@ function weight(){ let w = 0; for(const k in bag) if(INFO[k]) w += bag[k]*INFO[k
 function stepTime(){ return JU.tiempoPaso; }
 function capacity(){ return Math.round(cfg.cap * (has('mochila_cuero') ? cv_('mochila_cuero', 1.5) : 1)); }
 const inMud = (r, c) => tAt(r, c) === MUD;
-function canStand(r, c){ if(p.onPlat && r === SURF-2 && c === 7) return true; const below = tAt(r+1, c); return isSolid(below) || below === LADDER || below === PLANK || tAt(r, c) === LADDER; }
+function canStand(r, c){ if(p.onPlat && r === SURF-2 && c === 7) return true; const below = tAt(r+1, c); return isSolid(below) || below === LADDER || below === PLANK || below === PROP || tAt(r, c) === LADDER; }
 function passable(r, c){ const v = tAt(r, c); return !isSolid(v) && !rocks.some(k => k.c === c && Math.abs(k.y - r) < 1); }
 function hit(r, c, dir){
   const R = W.rows[r], v = R.t[c];
@@ -708,12 +715,14 @@ function updatePlayer(dt){
   else if(p.act && p.actT < 0.32) p.anim = p.act;
   else { p.act = null; p.anim = p.falling ? ((p.fallN||0) >= JU.caidaLargaDesde ? 'caida_larga' : 'caer') : moving ? 'andar' : 'reposo'; }
   // lámpara, agua y grisú
-  const wetLv = tAt(p.r, p.c) === WATER ? W.rows[p.r].lv[p.c] : 0;
-  wet = wetLv > 0.3 || mudHere;
-  const wetMult = Math.max(1 + (LA.multMojada - 1)*wetLv, mudHere ? BA.multLuz : 1);
+  const wetLv = lvAt(p.r, p.c);
+  // la lámpara solo se moja cuando el agua llega a media altura del topo (una lámina fina no la toca)
+  const mojaDesde = AG.mojaLamparaDesde ?? 0.5;
+  wet = wetLv >= mojaDesde || mudHere;
+  const wetMult = Math.max(wetLv >= mojaDesde ? LA.multMojada : 1, mudHere ? BA.multLuz : 1);
   // aire: bajo la superficie (tu casilla llena y la de encima también) se gasta
   // bajo el agua en cuanto te cubre la cabeza; en el barro, cuando te cubre del todo
-  const under = (tAt(p.r, p.c) === WATER && W.rows[p.r].lv[p.c] >= (AG.ahogaDesde ?? 0.7)) || (mudHere && (tAt(p.r-1, p.c) === MUD || tAt(p.r-1, p.c) === WATER));
+  const under = lvAt(p.r, p.c) >= (AG.ahogaDesde ?? 0.7) || (mudHere && (tAt(p.r-1, p.c) === MUD || lvAt(p.r-1, p.c) > 0.5));
   submerged = under;
   if(under && !airWarn){ airWarn = true; toast('¡Bajo el agua!', 'Tienes '+Math.round(airMax())+' s de aire: sal antes de que se acabe'); }
   if(under){ const before = Math.ceil(air); air -= dt; if(Math.ceil(air) !== before && air < 4) SND('clin'); if(air <= 0){ air = 0; die('drown'); } }
@@ -805,22 +814,17 @@ function placeTool(kind, mode){
     putTile(p.r+1, fc, PLANK); props--; SND('poner'); renderInv();
     floats.push({x:fc+0.5, y:p.r+0.6, txt:'Puente', life:0.9, col:'#fbf236'}); return;
   }
-  if(kind === 'prop' && (v === PROP || v === PLANK) && cfg.recoger === '1'){ setT(p.r, p.c, AIR); props++; SND('poner'); renderInv(); floats.push({x:p.c+0.5, y:p.r-0.2, txt: v === PLANK ? 'Tablón recogido' : 'Puntal recogido', life:0.9, col:'#fbf236'}); return; }
+  if(kind === 'prop' && (v === PROP || v === PLANK) && cfg.recoger === '1'){ takeTile(p.r, p.c); props++; SND('poner'); renderInv(); floats.push({x:p.c+0.5, y:p.r-0.2, txt: v === PLANK ? 'Tablón recogido' : 'Puntal recogido', life:0.9, col:'#fbf236'}); return; }
   if(v !== AIR && v !== WATER){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Aquí no cabe', life:0.9, col:'#d9a066'}); return; }
   if(kind === 'prop'){ if(props <= 0) return noTool('Sin puntales'); putTile(p.r, p.c, PROP); props--; }
   else { if(ladders <= 0) return noTool('Sin escaleras'); putTile(p.r, p.c, LADDER); ladders--; }
   SND('poner');
   renderInv();
 }
-// pone una pieza en una casilla; si había agua, la desplaza a la casilla de encima
-function putTile(r, c, v){
-  if(tAt(r, c) === WATER){
-    const lv = W.rows[r].lv[c], up = tAt(r-1, c);
-    if(isOpen(up)){ setT(r-1, c, WATER); W.rows[r-1].lv[c] = lv; }
-    else if(up === WATER){ W.rows[r-1].lv[c] = Math.min(1, W.rows[r-1].lv[c] + lv); }
-  }
-  setT(r, c, v);
-}
+// pone una pieza en una casilla; si había agua, el agua sigue ahí (la escalera o el puntal quedan dentro)
+function putTile(r, c, v){ const lv = lvAt(r, c); setT(r, c, v); W.rows[r].lv[c] = lv; }
+// quita una pieza (recoger un puntal): si tenía agua, queda el agua
+function takeTile(r, c){ const lv = lvAt(r, c); setT(r, c, AIR); if(lv > 0.004){ setT(r, c, WATER); W.rows[r].lv[c] = lv; } }
 // Un puente sigue la misma regla que los techos: desde una roca aguanta en voladizo tantos tablones como la cornisa,
 // y si llega de roca a roca, el doble. (r, c) es un tablón que ya está o que se va a poner.
 function bridgeOK(r, c){
@@ -998,15 +1002,30 @@ function resize(){
 new ResizeObserver(resize).observe(stage);
 const hsh = (a,b) => (h2(a,b,77)*1e6)|0;
 
+// arena en movimiento: se dibuja en cuatro trozos que llegan a destiempo, con granos sueltos, para que se vea que se derrama
+const SAND_LAG = [1.35, 1.0, 1.15, 0.8];
+function drawSandSplit(v, r, c, X, Y, ox, oy){
+  const vs = TS.arena, im = vs[hsh(r,c) % vs.length], hT = T/2;
+  for(let q=0;q<4;q++){
+    const sx = (q & 1) * hT, sy = (q >> 1) * hT, k = SAND_LAG[(q + r + c) & 3];
+    const dx = Math.max(-1.5, Math.min(1.5, ox*k)), dy = Math.max(-1.5, Math.min(1.5, oy*k));
+    ctx.drawImage(im, sx, sy, hT, hT, Math.round(X + sx + dx*T), Math.round(Y + sy + dy*T), hT, hT);
+    if(v === CSAND){ ctx.fillStyle = 'rgba(172,50,50,0.28)'; ctx.fillRect(Math.round(X + sx + dx*T), Math.round(Y + sy + dy*T), hT, hT); }
+  }
+  ctx.fillStyle = v === CSAND ? '#a0503a' : '#d9a066';
+  for(let i=0;i<5;i++){ const h = hsh(r*7+i, c*3+Math.floor(t*20)); ctx.fillRect(Math.round(X + (h % T) + ox*T*0.5), Math.round(Y + ((h >> 5) % T) + oy*T*0.5), 1, 2); }
+}
+// agua a su nivel, semitransparente (encima de lo que haya en la casilla: escalera, puntal, tablón)
+function drawWater(r, c, X, Y, lv){
+  const h = Math.max(2, Math.round(lv*T)), top = lvAt(r-1, c) < 0.004 || lv < 0.97;
+  ctx.globalAlpha = 0.82;
+  if(top) ctx.drawImage(WS[Math.floor(t*4 + c)%4], 0, 0, T, h, X, Y + T - h, T, h);
+  else ctx.drawImage(TS.agua[0], X, Y);
+  ctx.globalAlpha = 1;
+}
 function drawTile(v, r, c, X, Y){
   const R = W.rows[r];
-  if(v === WATER){
-    const lv = R ? R.lv[c] : 1, h = Math.max(2, Math.round(lv*T)), top = tAt(r-1,c) !== WATER || lv < 0.97;
-    ctx.globalAlpha = 0.82;
-    if(top) ctx.drawImage(WS[Math.floor(t*4 + c)%4], 0, 0, T, h, X, Y + T - h, T, h);
-    else ctx.drawImage(TS.agua[0], X, Y);
-    ctx.globalAlpha = 1; return;
-  }
+  if(v === WATER){ drawWater(r, c, X, Y, R ? R.lv[c] : 1); return; }
   if(v === GAS){
     const k = gasNear ? 0.22 : 0.1;
     ctx.fillStyle = `rgba(153,229,80,${k})`; ctx.fillRect(X, Y, T, T);
@@ -1023,10 +1042,10 @@ function drawTile(v, r, c, X, Y){
       const ph = (t*0.7 + (hsh(c,r)%100)/37) % 3; if(ph < 0.5){ ctx.fillStyle = '#a0703f'; const bx = X + (hsh(c+3,r)%16) + 4; ctx.fillRect(bx, Y - Math.round(ph*4), 3, 2); } }
     return;
   }
-  if(v === PROP){ const b = tAt(r+1, c); if(isSolid(b) || b === PROP || b === LADDER) ctx.drawImage(PS.puntal, X, Y); else drawFloatingProp(r, c, X, Y); return; }
-  if(v === PLANK){ drawPlank(r, c, X, Y); return; }
+  if(v === PROP){ const b = tAt(r+1, c); if(isSolid(b) || b === PROP || b === LADDER) ctx.drawImage(PS.puntal, X, Y); else drawFloatingProp(r, c, X, Y); if(R && R.lv[c] > 0.004) drawWater(r, c, X, Y, R.lv[c]); return; }
+  if(v === PLANK){ drawPlank(r, c, X, Y); if(R && R.lv[c] > 0.004) drawWater(r, c, X, Y, R.lv[c]); return; }
   if(v === BEDROCK){ drawBedrock(r, c, X, Y); return; }
-  if(v === LADDER){ ctx.drawImage(PS.escalera, X, Y); return; }
+  if(v === LADDER){ ctx.drawImage(PS.escalera, X, Y); if(R && R.lv[c] > 0.004) drawWater(r, c, X, Y, R.lv[c]); return; }
   if(v === BEAM){ ctx.drawImage(PS.viga, X, Y); return; }
   const I = INFO[v];
   let jx = 0; if(R && R.sh[c] > 0) jx = Math.round(Math.sin(t*60 + c*3)*1.5);
@@ -1348,7 +1367,7 @@ function render(){
       const v = W.rows[r].t[c], X = c*T;
       if(!isSolid(v) || v === BEAM) ctx.drawImage(TS.fondo[hsh(r,c)%2], X, Y);
       if(L.part !== undefined && L.part > 0 && L.part < ROOM_H-1 && !isSolid(v)){ ctx.fillStyle = 'rgba(143,86,59,0.35)'; ctx.fillRect(X, Y, T, T); }
-      if(v !== AIR){ const R = W.rows[r]; drawTile(v, r, c, X + Math.round(R.ox[c]*T), Y + Math.round(R.oy[c]*T)); }
+      if(v !== AIR){ const R = W.rows[r]; if(isSand(v) && (R.ox[c] || R.oy[c])) drawSandSplit(v, r, c, X, Y, R.ox[c], R.oy[c]); else drawTile(v, r, c, X + Math.round(R.ox[c]*T), Y + Math.round(R.oy[c]*T)); }
     }
   }
   // antorchas de las salas
@@ -1897,7 +1916,7 @@ $('ovBtn').addEventListener('click', toVillage);
 $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
 $('helpClose').addEventListener('click', () => { $('help').hidden = true; });
 // ajustes
-const SL = ['drain','corn','crack','thrH','thrS','minP','minL','oilEvery','oilGain','cap','resp'], SS = ['dark','zoom','recoger','frag','anim'];
+const SL = ['drain','corn','crack','thrH','thrS','minP','minL','oilEvery','oilGain','cap','resp','respP'], SS = ['dark','zoom','recoger','frag','anim'];
 function syncTune(){ const st = $('statsTxt'); if(st) st.textContent = statsText(); SL.forEach(k => { $('s_'+k).value = cfg[k]; $('o_'+k).textContent = cfg[k]; }); SS.forEach(k => { $('s_'+k).value = cfg[k]; }); $('s_sound').value = window.Sonido && !window.Sonido.activado ? '0' : '1'; }
 SL.forEach(k => $('s_'+k).addEventListener('input', e => { cfg[k] = +e.target.value; $('o_'+k).textContent = cfg[k]; save('deep-cfg', cfg); }));
 SS.forEach(k => $('s_'+k).addEventListener('change', e => { cfg[k] = e.target.value; save('deep-cfg', cfg); }));
