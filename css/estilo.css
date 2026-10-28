@@ -96,7 +96,7 @@ button:focus-visible{outline:3px solid var(--amarillo);outline-offset:2px}
 /* ---------- mina: el pozo ocupa todo y los mandos van encima ---------- */
 #stage{position:relative;flex:1;min-height:0;display:flex;justify-content:center;touch-action:none;overflow:hidden;border-radius:12px;border:3px solid var(--madera-oo);background:#000;box-shadow:0 4px 0 rgba(69,40,60,.6)}
 #cv{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
-#cashBtn{position:absolute;left:50%;top:58px;transform:translateX(-50%);z-index:3;font-family:var(--f-display);font-size:19px;
+#cashBtn,#dropBtn{position:absolute;left:50%;top:112px;transform:translateX(-50%);z-index:3;font-family:var(--f-display);font-size:19px;
   padding:9px 18px;border-radius:16px;border:3px solid var(--madera-oo);background:var(--amarillo);color:var(--tinta);cursor:pointer;box-shadow:0 4px 0 var(--madera-oo);white-space:nowrap}
 .toast{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:4;text-align:center;pointer-events:none;background:var(--perg-c);color:var(--tinta);
   border:3px solid var(--madera-oo);border-radius:12px;padding:5px 14px;white-space:nowrap;animation:toast 2.8s ease-out forwards;max-width:92%;box-shadow:0 3px 0 var(--madera-oo)}
@@ -173,3 +173,11 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 
 /* capa de textos nítidos encima de la mina */
 #cvTxt{position:absolute;top:0;left:50%;transform:translateX(-50%);pointer-events:none;z-index:2;image-rendering:auto}
+
+/* 0.205: mochila con capacidad, soltar material */
+#dropBtn{top:162px;font-size:16px;padding:6px 14px;background:var(--perg-c)}
+.chip.carga .cbar{display:inline-block;width:46px;height:9px;border-radius:5px;background:rgba(69,40,60,.18);border:1px solid rgba(0,0,0,.35);overflow:hidden;position:relative}
+.chip.carga .cbar u{position:absolute;left:0;top:0;bottom:0;text-decoration:none}
+.dropRow{display:flex;align-items:center;gap:6px;margin:4px 0}
+.dropRow .chip{flex:1}
+.btn.mini{padding:4px 10px;font-size:14px;width:auto}

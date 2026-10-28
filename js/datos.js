@@ -6,11 +6,16 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.204',
+  version: '0.205',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
   pantalla: { calidad: 0 },
+
+  // ---------- Mochila ----------
+  // Se llena según lo que vale cada material (arcilla y carbón 1, cobre 2...). No frena: el drama es no poder coger más.
+  // Con la mochila llena, lo que picas se pierde. El material se suelta solo en las salas seguras.
+  mochila: { capacidad: 20 },
 
   // ---------- Herramientas ----------
   herramientas: {
@@ -54,7 +59,7 @@ window.DATOS = {
     { id: 'pico_afilado',  icono: '⛏️', nombre: 'Pico afilado',        texto: 'Un golpe menos para romper cualquier cosa (mínimo uno).', peso: 1, unica: true },
     { id: 'recuperador',   icono: '♻️', nombre: 'Recuperador',         texto: 'Lo que cae y se rompe tiene un 50 % de conservar su material.', valor: 0.5, peso: 0.8, unica: true },
     { id: 'zahori',        icono: '🧭', nombre: 'Zahorí',              texto: 'Una flecha te indica el aceite más cercano.', peso: 0.8, unica: true },
-    { id: 'mochila_cuero', icono: '🎒', nombre: 'Mochila de cuero',    texto: 'El peso te frena la mitad.', valor: 0.5, peso: 1, unica: true },
+    { id: 'mochila_cuero', icono: '🎒', nombre: 'Mochila de cuero',    texto: 'En la mochila cabe un 50 % más.', valor: 1.5, peso: 1, unica: true },
     { id: 'bolsillo',      icono: '👖', nombre: 'Bolsillo secreto',    texto: 'Si mueres, el material que más vale de tu mochila llega igualmente al almacén.', peso: 0.7, unica: true },
     { id: 'carpintero',    icono: '🪜', nombre: 'Carpintero',          texto: 'Cada 10 m que bajas te dan una escalera.', valor: 10, peso: 1, unica: true },
     { id: 'codicia',       icono: '💰', nombre: 'Codicia',             texto: 'Cada mineral que picas cuenta doble, pero la lámpara gasta un 25 % más.', valor: 1.25, peso: 0.6, unica: true },
@@ -224,7 +229,7 @@ window.DATOS = {
 
   // ---------- Mapa: las minas alrededor del pueblo ----------
   minas: [
-    { id: 1, nombre: 'Pozo viejo',          abierta: true,  pozo: 'viejo',   texto: 'Un pozo sin fondo con lo básico: picar, la lámpara, los derrumbes, los puntales y la mochila. Para probar la jugabilidad en sesiones largas.' },
+    { id: 1, nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin grisú. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
     { id: 2, nombre: 'Cantera del molino',  abierta: false, texto: 'Próximamente.' },
     { id: 3, nombre: 'Galería del río',     abierta: false, texto: 'Próximamente.' },
     { id: 4, nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
@@ -232,6 +237,7 @@ window.DATOS = {
     { id: 6, nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
     { id: 7, nombre: 'Pozo del grisú',      abierta: false, texto: 'Próximamente.' },
     { id: 8, nombre: 'La sima',             abierta: false, texto: 'Próximamente.' },
+    { id: 'S', nombre: 'Pozo sin fondo',    abierta: true,  pozo: 'viejo',   texto: 'Vertical slice: un pozo sin fondo con lo básico (picar, la lámpara, los derrumbes, los puntales, la mochila y los montacargas) para probar la jugabilidad en sesiones largas.' },
     { id: 'P', nombre: 'Pozo de pruebas',   abierta: true,  pozo: 'pruebas', texto: 'Banco de pruebas: aquí está todo lo que se va probando (agua, barro, grisú, polillas, cartas, puertas, ramal…).' },
   ],
 
@@ -241,9 +247,34 @@ window.DATOS = {
   //   tramos: los tramos entre salas seguras. Si hay «salasCada», después del primero se repiten sin fin tramos de ese largo.
   //   desdeTramo: a partir de qué tramo aparece cada cosa (0 = el primero)
   pozos: {
+    // Simulacro del primer pozo (mina 1 del mapa): cinco tramos y un fondo con el ascensor, su pieza y el pico del padre.
+    //   conFondo: el último tramo acaba en roca madre (y ahí va la pieza «fondo» de js/piezas.js)
+    //   escasez: cuánto menos mineral sale (se suma al umbral de cada veta) · arenaUmbral / aguaUmbral: más alto = menos
+    //   sueltos: objetos que aparecen sueltos en este pozo (solo estos)
+    uno: {
+      nombre: 'Pozo viejo',
+      guardado: 'deep-pozo1',
+      columnas: 15,
+      tramos: [
+        { nombre: 'Boca del pozo',      largo: 12 },
+        { nombre: 'Galerías de arcilla', largo: 14 },
+        { nombre: 'Vetas de carbón',    largo: 16 },
+        { nombre: 'Cuevas húmedas',     largo: 18 },
+        { nombre: 'El fondo',           largo: 20 },
+      ],
+      conFondo: true,
+      altoSala: 4,
+      aceiteCada: 9,
+      escasez: 0.06,
+      arenaUmbral: 0.86,
+      aguaUmbral: 0.68,
+      sueltos: { flor_mina: { cada: 22, desdeFila: 8 } },
+      contenido: { grisu: false, barro: false, cartas: false, puertas: false, llaves: false, ramales: false, salaSellada: false },
+      desdeTramo: { carbon: 2, cobre: 3, cuevas: 0, agua: 3, polillas: 2 },
+    },
     // Vertical slice: pozo sin fondo con lo básico, para ver si la jugabilidad cruda aguanta 20 o 30 minutos
     viejo: {
-      nombre: 'Pozo viejo',
+      nombre: 'Pozo sin fondo',
       guardado: 'deep-pozoviejo',
       columnas: 15,
       tramos: [ { nombre: 'Boca del pozo', largo: 12 } ],
@@ -253,6 +284,8 @@ window.DATOS = {
       nombresTramos: ['Galerías de tierra', 'Vetas de carbón', 'Piedra vieja', 'Filón de cobre', 'Roca profunda'],
       altoSala: 4,
       aceiteCada: 9,
+      montacargasCada: 3,          // una sala de cada tantas tiene montacargas (para mandar la carga arriba y seguir bajando)
+      costeMontacargas: 4,         // carga de mineral que cuesta arreglarlo (se paga con lo que llevas)
       contenido: { agua: false, grisu: false, polillas: false, barro: false, cartas: false, puertas: false, llaves: false,
                    ramales: false, objetos: false, salaSellada: false, piezas: false },
       desdeTramo: { carbon: 1, cuarzo: 3, cobre: 3, cuevas: 0 },
@@ -272,6 +305,8 @@ window.DATOS = {
       aceiteCada: 9,               // filas entre bidones de aceite (más 2 por tramo)
       salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },  // roca maciza con cofre (hace falta taladro)
       arenaArcillosa: 0.5,         // parte de la arena que es arcillosa (hace barro con el agua)
+      montacargasCada: 2,
+      costeMontacargas: 4,
       contenido: {},               // todo
       // el desvío del tramo 2 es una pieza hecha a mano: está en js/piezas.js
       desdeTramo: { carbon: 1, cuarzo: 2, cobre: 3, cuevas: 0, gas: 1, agua: 2, polillas: 1 },
@@ -296,6 +331,10 @@ window.DATOS = {
                       texto: 'Una lámpara de la época dorada de las minas. Ya no alumbra.' },
     foto_cuadrilla: { nombre: 'Foto de una cuadrilla', categoria: 'mineria', icono: '🖼️', dibujo: 'reliquia', suelto: { cada: 70, desdeFila: 30 },
                       texto: 'Varios topos mineros posan a la entrada del pozo. Uno se parece mucho a ti.' },
+    pico_padre:     { nombre: 'Pico con un símbolo', categoria: 'mineria', icono: '⛏️', dibujo: 'pico', brilla: true,
+                      texto: 'Un pico de topo minero, gastado de tanto uso. En el mango hay un símbolo grabado.' },
+    pieza_ascensor: { nombre: 'Pieza del ascensor', categoria: 'mineria', icono: '⚙️', dibujo: 'pieza',
+                      texto: 'Un engranaje grande, viejo pero entero. Parece del mecanismo de un ascensor.' },
   },
 
   // ---------- Pueblo: casas de la plaza ----------

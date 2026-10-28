@@ -66,7 +66,8 @@
     <main id="stage">
       <canvas id="cv"></canvas>
       <div id="toastHost"></div>
-      <button id="cashBtn" hidden>Subir a cobrar</button>
+      <button id="cashBtn" hidden>Volver al pueblo</button>
+      <button id="dropBtn" hidden>Soltar material</button>
       <!-- mandos encima del juego: un pulgar a cada lado -->
       <div id="pad">
         <div class="lado izq">
@@ -126,18 +127,18 @@
             <li>Pulsa Puntal encima de un puntal (o bajo un tablón) para recogerlo.</li>
             <li>Lo que cae desde lo alto, o un derrumbe grande, se rompe en escombro y su material se pierde. Un golpe de pico quita todo el escombro conectado.</li>
             <li>Si una piedra cae justo cuando sales de debajo, te libras por los pelos pero quedas tumbado un momento.</li>
-            <li>La tierra no vale nada. Busca arcilla, carbón, cuarzo y cobre.</li>
+            <li>La tierra no vale nada. Busca arcilla, carbón, cuarzo y cobre. Cada material ocupa en la mochila lo que vale (el cobre, 2). La mochila no frena, pero se llena: con la mochila llena, lo que picas se pierde. En las salas seguras puedes soltar material.</li>
             <li>La arena cae y forma rampas; si te cubre la cabeza, sal antes de que te sepulte (tienes unos segundos). El agua moja la mecha.</li>
             <li>Si la llama se pone azul hay grisú: baja la mecha o explota.</li>
             <li>El aceite no se pica: métete en su hueco. Las polillas buscan tu luz.</li>
-            <li>Las salas seguras recargan la lámpara. Desde ahí puedes subir a cobrar.</li>
+            <li>Las salas seguras recargan la lámpara. Algunas tienen un montacargas: se arregla una vez con un poco de mineral y luego manda tu carga al almacén mientras tú sigues bajando. Para volver al pueblo hay que subir hasta la jaula (o encontrar un ascensor).</li>
             <li>Mientras caes puedes moverte un poco a los lados para agarrarte a un saliente.</li>
             <li>El botón «Ver» aleja la cámara para mirar caminos; mientras miras no te mueves.</li>
             <li>En las salas seguras la lámpara se recarga junto a la llama. Cada sala tiene un cofre de suministros (se abre una vez por pozo) y cada dos salas hay una ruleta de cartas: gírala y quédate con una de tres. Las cartas duran hasta que vuelves al principio del pozo.</li>
             <li>Las salas se reconstruyen en cada bajada. Por la mina hay escaleras y puntales sueltos que reaparecen cada vez.</li>
             <li>El agua y el barro gastan más lámpara. En cuanto el agua te cubre la cabeza (o el barro te cubre del todo), tienes 10 segundos de aire.</li>
             <li>El agua que toca arena arcillosa (la rojiza) la convierte en barro: te frena, te hundes despacio y amortigua lo que cae en él. La arena normal no.</li>
-            <li>Al volver del pueblo, los túneles que abriste por debajo de la primera sala se rellenan de escombro y piedra.</li>
+            <li>Al volver del pueblo, los túneles que abriste por debajo de la primera sala se rellenan de escombro y piedra, salvo alrededor de tus escaleras y puntales.</li>
             <li>Las llaves sueltas abren las puertas con candado de los laterales (empujando de lado o desde abajo): dentro hay una sala de bonus con un cofre.</li>
             <li>La roca con relieve es fija: sostiene a las de al lado. La maciza (azul) solo la romperá un taladro. La roca madre (casi negra) es el límite: no se rompe nunca.</li>
             <li>Las bocas de pasadizo (marco de madera con una flecha) llevan a ramales: tiros sin salida con algo al fondo. Al fondo hay un montacargas: pulsa arriba para volver.</li>
@@ -162,6 +163,15 @@
         </div>
       </div>
 
+      <div class="sheet" id="dropSheet" hidden>
+        <div class="card">
+          <h2>Soltar material</h2>
+          <p class="note" id="dropCap"></p>
+          <div id="dropList"></div>
+          <button class="btn" id="dropClose">Seguir</button>
+        </div>
+      </div>
+
       <div class="sheet" id="tuning" hidden>
         <div class="card">
           <h2>Ajustes de prueba</h2>
@@ -174,6 +184,8 @@
           <label class="sl">Tiempo de crujido (s)<output id="o_crack"></output><input type="range" id="s_crack" min="0.2" max="2" step="0.1"></label>
           <label class="sl">Escombro si cae desde (casillas o más)<output id="o_thrH"></output><input type="range" id="s_thrH" min="1" max="8" step="1"></label>
           <label class="sl">Escombro si caen juntos (bloques o más)<output id="o_thrS"></output><input type="range" id="s_thrS" min="1" max="15" step="1"></label>
+          <label class="sl">Capacidad de la mochila (carga)<output id="o_cap"></output><input type="range" id="s_cap" min="5" max="60" step="1"></label>
+          <label class="sl">Relleno: casillas que se respetan alrededor de escaleras y puntales<output id="o_resp"></output><input type="range" id="s_resp" min="0" max="5" step="1"></label>
           <label class="sl">Puntales al empezar cada bajada (mínimo)<output id="o_minP"></output><input type="range" id="s_minP" min="0" max="30" step="1"></label>
           <label class="sl">Escaleras al empezar cada bajada (mínimo)<output id="o_minL"></output><input type="range" id="s_minL" min="0" max="20" step="1"></label>
           <label class="sl">Recoger puntales<output></output>
@@ -191,6 +203,7 @@
           <button class="btn" id="tuneClose">Seguir</button>
           <button class="btn ghost" id="helpBtn">Cómo se juega</button>
           <button class="btn ghost" id="tuneReset">Valores de datos.js</button>
+          <p class="note" id="statsTxt" style="white-space:pre-line;font-size:12px"></p>
           <p class="note">Deep · versión <b class="verTxt"></b></p>
         </div>
       </div>

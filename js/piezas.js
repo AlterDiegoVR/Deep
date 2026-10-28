@@ -25,6 +25,8 @@
 //    o  bidón de aceite   k  llave     h  escalera suelta   H  puntal suelto
 //    B  cofre con premio  f  flor de mina (coleccionable)   P  puerta con candado (solo en los bordes)
 //    M  montacargas (al fondo de un ramal: te sube al tiro principal)
+//    A  ascensor viejo (roto: hace falta su pieza)   Z  pieza del ascensor   K  pico con un símbolo
+//    V  respiradero (sube aire caliente desde abajo)
 // =====================================================================
 window.PIEZAS = [
   {
@@ -55,6 +57,19 @@ window.PIEZAS = [
       'xxM_f__B__o__xx',
       'xxxxxmmmmmxxxxx',
       'xxxxxxxxxxxxxxx',
+    ],
+  },
+  {
+    // Fondo del Pozo viejo (simulacro del primer pozo): el ascensor roto, su pieza, el pico con el símbolo
+    // y una grieta por la que sube aire caliente (el corazón de la montaña).
+    id: 'fondo_pozo1',
+    pozo: 'uno',
+    tiro: 'principal',
+    colocar: { fondo: true },
+    filas: [
+      '...............',
+      'x_____________x',
+      'xA__K____V__Z_x',
     ],
   },
 ];
