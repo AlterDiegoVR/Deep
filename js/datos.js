@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.203',
+  version: '0.204',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -77,8 +77,11 @@ window.DATOS = {
     aceite: 35,                // % que da cada bidón de aceite
     radioMin: 1.8,             // radio de luz (casillas) con la lámpara a 0
     radioMax: 7.4,             // radio de luz (casillas) con la lámpara a 100
-    multRadioMechaBaja: 0.32,  // la mecha baja reduce el radio a esto (tiene que notarse: con la mecha baja se ve muy poco)
-    luzMechaBaja: 0.6,         // y la luz es más débil (1 = igual que con la mecha alta)
+    multRadioMechaBaja: 0.22,  // la mecha baja reduce el radio a esto (tiene que notarse: con la mecha baja se ve muy poco)
+    luzMechaBaja: 0.42,        // y la luz es más débil (1 = igual que con la mecha alta)
+    // brillo de lo que hay tirado por la mina (aceite, cofres, objetos…): solo se ve de cerca, no ilumina la estancia
+    brilloAceite: { radio: 0.9, intensidad: 0.3 },
+    brilloObjetos: { radio: 1.2, intensidad: 0.35 },
   },
 
   // ---------- Jugador ----------
@@ -168,10 +171,11 @@ window.DATOS = {
   // ---------- Agua ----------
   // El agua conserva su volumen: si encuentra hueco se reparte y baja de nivel.
   agua: {
-    nivelMinimo: 0.25,         // no se extiende en láminas más finas que esto (de 0 a 1 casilla)
+    nivelMinimo: 0.08,         // no se extiende en láminas más finas que esto (de 0 a 1 casilla): el agua siempre ocupa el hueco que tenga al lado
     diferenciaMinima: 0.02,    // diferencia de nivel por debajo de la cual deja de moverse (evita temblores)
-    charcoGrande: 8,           // un charco al mínimo que ocupa estas casillas o más se filtra y desaparece
-    filtrado: 0.15,            // nivel que pierde por segundo un charco que se está filtrando
+    secaPorDebajo: 0.22,       // una capa de agua más fina que esto (y sin agua encima) se va secando poco a poco
+    secado: 0.06,              // nivel que pierde por segundo al secarse
+    ahogaDesde: 0.7,           // el aire empieza a contar cuando el agua de tu casilla llega a este nivel (te cubre la cabeza)
   },
 
   // ---------- Llaves, puertas y salas de bonus ----------
@@ -243,7 +247,9 @@ window.DATOS = {
       guardado: 'deep-pozoviejo',
       columnas: 15,
       tramos: [ { nombre: 'Boca del pozo', largo: 12 } ],
-      salasCada: 16,               // filas de cada tramo después del primero (una sala segura al final de cada uno)
+      salasCada: 14,               // filas del tramo que sigue al primero (una sala segura al final de cada uno)...
+      salasCrece: 2,               // ...cada tramo tiene estas filas más que el anterior...
+      salasMax: 40,                // ...hasta este largo como mucho
       nombresTramos: ['Galerías de tierra', 'Vetas de carbón', 'Piedra vieja', 'Filón de cobre', 'Roca profunda'],
       altoSala: 4,
       aceiteCada: 9,

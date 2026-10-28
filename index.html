@@ -121,7 +121,8 @@
             <li>Empuja contra un bloque para picarlo, o pica hacia abajo. No se puede picar hacia arriba ni saltar.</li>
             <li>Para subir escalones, pon una escalera y sube con la flecha de arriba.</li>
             <li>Un techo demasiado ancho sin apoyo cruje y se derrumba entero. Pon puntales: sostienen el techo aunque luego les quites el suelo.</li>
-            <li>Si delante tienes un hueco a la altura de los pies, el puntal se pone tumbado como un tablón: puedes cruzar por encima y pasar por debajo. Un derrumbe lo rompe.</li>
+            <li>Mantén pulsado Puntal (o tecla O) para ponerlo tumbado como un tablón en el hueco que tienes delante a la altura de los pies: cruzas por encima y pasas por debajo. Aguanta como un techo: desde una roca, tantos tablones como la cornisa; de roca a roca, el doble. Un derrumbe lo rompe.</li>
+            <li>Escaleras y puntales también se pueden poner dentro del agua.</li>
             <li>Pulsa Puntal encima de un puntal (o bajo un tablón) para recogerlo.</li>
             <li>Lo que cae desde lo alto, o un derrumbe grande, se rompe en escombro y su material se pierde. Un golpe de pico quita todo el escombro conectado.</li>
             <li>Si una piedra cae justo cuando sales de debajo, te libras por los pelos pero quedas tumbado un momento.</li>
@@ -134,7 +135,7 @@
             <li>El botón «Ver» aleja la cámara para mirar caminos; mientras miras no te mueves.</li>
             <li>En las salas seguras la lámpara se recarga junto a la llama. Cada sala tiene un cofre de suministros (se abre una vez por pozo) y cada dos salas hay una ruleta de cartas: gírala y quédate con una de tres. Las cartas duran hasta que vuelves al principio del pozo.</li>
             <li>Las salas se reconstruyen en cada bajada. Por la mina hay escaleras y puntales sueltos que reaparecen cada vez.</li>
-            <li>El agua y el barro gastan más lámpara. Si te cubren del todo (tu casilla y la de encima), tienes 10 segundos de aire.</li>
+            <li>El agua y el barro gastan más lámpara. En cuanto el agua te cubre la cabeza (o el barro te cubre del todo), tienes 10 segundos de aire.</li>
             <li>El agua que toca arena arcillosa (la rojiza) la convierte en barro: te frena, te hundes despacio y amortigua lo que cae en él. La arena normal no.</li>
             <li>Al volver del pueblo, los túneles que abriste por debajo de la primera sala se rellenan de escombro y piedra.</li>
             <li>Las llaves sueltas abren las puertas con candado de los laterales (empujando de lado o desde abajo): dentro hay una sala de bonus con un cofre.</li>
@@ -177,6 +178,10 @@
           <label class="sl">Escaleras al empezar cada bajada (mínimo)<output id="o_minL"></output><input type="range" id="s_minL" min="0" max="20" step="1"></label>
           <label class="sl">Recoger puntales<output></output>
             <select id="s_recoger"><option value="1">Sí: pulsa Puntal encima de uno (o bajo un tablón)</option><option value="0">No</option></select></label>
+          <label class="sl">Fragilidad por material<output></output>
+            <select id="s_frag"><option value="1">Sí: el cuarzo se rompe antes, el carbón aguanta más</option><option value="0">No: todos igual</option></select></label>
+          <label class="sl">Animación al caer<output></output>
+            <select id="s_anim"><option value="todo">Arena, barro y escombro se deslizan</option><option value="arena">Solo arena y barro</option><option value="no">Sin animación (como antes)</option></select></label>
           <label class="sl">Zoom al explorar<output></output>
             <select id="s_zoom"><option value="siempre">Cerca, con scroll lateral</option><option value="salas">Ver todo el ancho</option></select></label>
           <label class="sl">Oscuridad<output></output>

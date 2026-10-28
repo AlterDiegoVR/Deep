@@ -37,7 +37,7 @@ function tiroCfg(id){
     if(P1.salasCada){   // pozo sin fondo: tras los tramos fijos, tramos iguales sin fin (cada uno acaba en una sala segura)
       tr = P1.tramos.map(s => ({n:s.nombre, len:s.largo}));
       const N = P1.nombresTramos || ['Galería'];
-      for(let i=0;i<400;i++) tr.push({n: N[Math.min(i, N.length-1)], len: P1.salasCada});
+      for(let i=0;i<400;i++) tr.push({n: N[Math.min(i, N.length-1)], len: Math.min(P1.salasMax || 999, P1.salasCada + i*(P1.salasCrece || 0))});
       tr.push({n: N[N.length-1], len: Infinity});
     } else tr = P1.tramos.map((s, i, a) => ({n:s.nombre, len: i === a.length-1 ? Infinity : s.largo}));
     const rr = []; { let r = SURF; for(let i=0;i<tr.length-1;i++){ r += tr[i].len; rr.push(r); r += ROOM_H; } }
@@ -77,7 +77,7 @@ const near = (r, c) => p ? Math.max(0, 1 - Math.hypot(r - p.r, (c - p.c)*0.6)/14
 // Ajustes de prueba: parten de datos.js y se pueden tocar desde el menú de ajustes (se guardan en el navegador)
 const HM = D.herramientas.minimoPorBajada || {puntales:0, escaleras:0};
 const BASE = {drain:LA.consumo, corn:ES.cornisa ?? 2, crack:ES.tiempoCrujido, thrH:ES.escombroSiCaeDesde, thrS:ES.escombroSiCaenJuntos,
-  minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilGain:LA.aceite,
+  frag:'1', anim:'todo', minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilGain:LA.aceite,
   dark:'1', zoom: CA.zoomExplorar >= 2 ? 'siempre' : 'salas'};
 let cfg = {...BASE};
 try{ const s = JSON.parse(localStorage.getItem('deep-cfg')||'null'); if(s) cfg = {...BASE, ...s}; }catch(e){}
@@ -96,7 +96,7 @@ const Pa = window.Partida;
 // ---------- mundo ----------
 let W = null;   // el tiro actual: {id, seed, rows, items, bag, ...}
 let MINA = null;   // la mina entera: {ver, seed, actual, tiros:{id: W}}
-const WORLD_VER = 4;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
+const WORLD_VER = 5;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
 function newTiroWorld(id, seed){ return {id, ver:WORLD_VER, seed, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0, record:0, doors:[], lastRun:0}; }
 function newMine(){ const seed = (Math.random()*1e9)|0; return {ver:WORLD_VER, seed, actual:'principal', tiros:{principal: newTiroWorld('principal', seed)}}; }
 function newWorld(){ return newTiroWorld('principal', (Math.random()*1e9)|0); }
@@ -166,7 +166,7 @@ function applyPieces(r, Tt){
     }
   }
 }
-function newRow(){ return {t:new Uint8Array(COLS), hp:new Uint16Array(COLS), sh:new Float32Array(COLS), mv:new Uint32Array(COLS), seen:new Uint8Array(COLS), nat:new Uint8Array(COLS), lv:new Float32Array(COLS)}; }
+function newRow(){ return {t:new Uint8Array(COLS), hp:new Uint16Array(COLS), sh:new Float32Array(COLS), mv:new Uint32Array(COLS), seen:new Uint8Array(COLS), nat:new Uint8Array(COLS), lv:new Float32Array(COLS), ox:new Float32Array(COLS), oy:new Float32Array(COLS)}; }
 let lastOil = SURF;
 function genRow(r){
   const R = newRow(), Tt = R.t, S = W.seed;
@@ -281,7 +281,7 @@ function restoreRooms(){
   }
 }
 function tAt(r,c){ if(c<0 || c>=COLS) return ROCK; if(r<0) return AIR; ensure(r+1); return W.rows[r].t[c]; }
-function setT(r,c,v){ const R = W.rows[r]; R.t[c] = v; R.hp[c] = INFO[v].hp||0; R.sh[c] = 0; R.lv[c] = v === WATER ? 1 : 0; }
+function setT(r,c,v){ const R = W.rows[r]; R.t[c] = v; R.hp[c] = INFO[v].hp||0; R.sh[c] = 0; R.lv[c] = v === WATER ? 1 : 0; R.ox[c] = 0; R.oy[c] = 0; }
 
 // ---------- estado de la bajada ----------
 let platOpen = 0, p, lamp, bag, props, ladders, wick, dead, deadT, cashed, rocks, particles, floats, fillQ, digT, moveT, buried, crackMsgT, lockMsgT, flashT, maxDepth, lastRoomFloor, roomsSeen, segSeen, llaves = 0, submerged = false, cards = {}, air = 10, spun = new Set(), carpDone = 0, chestFx = null, ruletaOpen = false, prevRecord = 0, newGround = false, bonusOpen = false, transit = null, mainLRF = 0, shake = 0, shakeKick = 0, cracking = 0, looking = false, driftT = 0, started = false, simAcc = 0, stabAcc = 0, tick = 0, t = 0, wet = false, gasNear = false;
@@ -322,7 +322,8 @@ function startRun(){
   ensure(SURF + 40);
   const refilled = W.runs > 0 ? refillTunnels() : 0;
   if(W.runs > 0) restoreRooms();
-  if(W.runs > 0 && RC.regenerar) for(const it of W.items) if(it.k === 'herr') it.alive = true;
+  if(W.runs > 0 && RC.regenerar) for(const it of W.items) if(it.k === 'herr' && !it.extra) it.alive = true;
+  W.items = W.items.filter(it => !(it.extra && !it.alive));
   // que no quede ninguna pulsación de la bajada anterior
   for(const k in input){ input[k] = false; tapped[k] = 0; }
   document.querySelectorAll('#pad button.on').forEach(b => b.classList.remove('on'));
@@ -407,30 +408,21 @@ function waterStep(r, c, dir){
     const cc = c + dd; if(cc < 0 || cc >= COLS) continue;
     if(isOpen(tAt(r, cc)) && isOpen(tAt(r+1, cc))){ R.lv[c] = L; swap(r, c, r, cc); return; }
   }
-  // a los lados: se iguala con el vecino más bajo (nunca deja láminas más finas que el mínimo)
+  // a los lados: si hay hueco libre, el agua siempre lo ocupa (se reparte a medias); si hay agua, se iguala el nivel
   for(const dd of [dir, -dir]){
     const cc = c + dd; if(cc < 0 || cc >= COLS) continue;
     const x = R.t[cc];
-    if(isOpen(x)){
-      if(L >= 2*AG.nivelMinimo){ const m = L/2; R.t[cc] = WATER; R.hp[cc] = 0; R.sh[cc] = 0; R.lv[cc] = m; R.mv[cc] = tick; L -= m; }
+    if(isOpen(x) && !rockLane(r, cc)){
+      if(L > AG.nivelMinimo){ const m = L/2; R.t[cc] = WATER; R.hp[cc] = 0; R.sh[cc] = 0; R.lv[cc] = m; R.mv[cc] = tick; R.ox[cc] = 0; R.oy[cc] = 0; L -= m; }
     } else if(x === WATER){
       const n = R.lv[cc];
       if(L - n > AG.diferenciaMinima){ const m = (L - n)/2; R.lv[cc] = n + m; R.mv[cc] = tick; L -= m; }
     }
   }
+  // capa fina sin agua encima: se va secando poco a poco (así los charcos acaban desapareciendo)
+  if(L < (AG.secaPorDebajo ?? 0.22) && tAt(r-1, c) !== WATER) L -= (AG.secado ?? 0.06)/14;
+  if(L < 0.02){ setT(r, c, AIR); return; }
   R.lv[c] = L;
-  // charco al nivel mínimo (sin agua encima): si tiene hueco a un lado o es muy largo, se filtra poco a poco
-  if(L <= AG.nivelMinimo + 0.03 && tAt(r-1, c) !== WATER){
-    let a = c, b = c;
-    while(a > 0 && R.t[a-1] === WATER) a--;
-    while(b < COLS-1 && R.t[b+1] === WATER) b++;
-    const openSide = (a > 0 && isOpen(R.t[a-1])) || (b < COLS-1 && isOpen(R.t[b+1]));
-    let thin = true; for(let i=a;i<=b;i++) if(R.lv[i] > AG.nivelMinimo + 0.03 || tAt(r-1, i) === WATER){ thin = false; break; }
-    if(thin && (openSide || b - a + 1 >= (AG.charcoGrande||8))){
-      R.lv[c] = L - (AG.filtrado||0.15)/14;
-      if(R.lv[c] < 0.02) setT(r, c, AIR);
-    }
-  }
 }
 // Barro: fluido espeso. Cae y se escurre despacio, sin rampas; deja de moverse cuando queda plano.
 function mudStep(r, c, dir){
@@ -474,6 +466,18 @@ function swap(r1,c1,r2,c2){
   const A = W.rows[r1], B = W.rows[r2];
   const tv = A.t[c1], th = A.hp[c1], tl = A.lv[c1]; A.t[c1] = B.t[c2]; A.hp[c1] = B.hp[c2]; A.lv[c1] = B.lv[c2]; B.t[c2] = tv; B.hp[c2] = th; B.lv[c2] = tl;
   A.sh[c1] = 0; B.sh[c2] = 0; B.mv[c2] = tick; A.mv[c1] = tick;
+  // arena, escombro y barro se deslizan hasta su casilla nueva (se dibujan desde donde estaban)
+  const v = B.t[c2];
+  const animOn = cfg.anim === 'todo' ? (isLoose(v) || v === MUD) : cfg.anim === 'arena' ? (isSand(v) || v === MUD) : false;
+  if(animOn){ B.ox[c2] = A.ox[c1] + (c1 - c2); B.oy[c2] = A.oy[c1] + (r1 - r2); B.ox[c2] = Math.max(-1.5, Math.min(1.5, B.ox[c2])); B.oy[c2] = Math.max(-1.5, Math.min(1.5, B.oy[c2])); }
+  else { B.ox[c2] = 0; B.oy[c2] = 0; }
+  A.ox[c1] = 0; A.oy[c1] = 0;
+}
+// el deslizamiento: el desplazamiento dibujado vuelve a cero a la velocidad de la simulación
+function slideAnim(top, bot, dt){
+  const k = 14*dt;
+  for(let r=top; r<=bot; r++){ const R = W.rows[r]; if(!R) continue;
+    for(let c=0;c<COLS;c++){ const x = R.ox[c], y = R.oy[c]; if(x){ R.ox[c] = Math.abs(x) <= k ? 0 : x - Math.sign(x)*k; } if(y){ R.oy[c] = Math.abs(y) <= k ? 0 : y - Math.sign(y)*k; } } }
 }
 function stability(top, bot){
   let below = null;
@@ -534,7 +538,7 @@ function updateRocks(dt){
       let r = rr - 1; while(r > 0 && isSolid(tAt(r, k.c))) r--;
       const fall = r - k.y0;
       // fragilidad del material: el cuarzo se rompe con menos caída, el carbón aguanta más
-      const fr = (INFO[k.t].key && M[INFO[k.t].key] && M[INFO[k.t].key].fragilidad) || 0;
+      const fr = cfg.frag === '1' ? ((INFO[k.t].key && M[INFO[k.t].key] && M[INFO[k.t].key].fragilidad) || 0) : 0;
       let broke = !k.mud && (fall >= Math.max(1, cfg.thrH + fr) || k.grp >= Math.max(1, cfg.thrS + fr));   // en el barro se hunde entero, sin romperse
       if(broke && INFO[k.t].val && has('recuperador') && Math.random() < cv_('recuperador', 0.5)) broke = false;
       setT(r, k.c, broke ? RUBBLE : k.t); k.done = true;
@@ -674,8 +678,8 @@ function updatePlayer(dt){
   wet = wetLv > 0.3 || mudHere;
   const wetMult = Math.max(1 + (LA.multMojada - 1)*wetLv, mudHere ? BA.multLuz : 1);
   // aire: bajo la superficie (tu casilla llena y la de encima también) se gasta
-  const full = (r, c) => tAt(r, c) === MUD || (tAt(r, c) === WATER && W.rows[r].lv[c] > 0.97);
-  const under = full(p.r, p.c) && full(p.r-1, p.c);
+  // bajo el agua en cuanto te cubre la cabeza; en el barro, cuando te cubre del todo
+  const under = (tAt(p.r, p.c) === WATER && W.rows[p.r].lv[p.c] >= (AG.ahogaDesde ?? 0.7)) || (mudHere && (tAt(p.r-1, p.c) === MUD || tAt(p.r-1, p.c) === WATER));
   submerged = under;
   if(under && !airWarn){ airWarn = true; toast('¡Bajo el agua!', 'Tienes '+Math.round(airMax())+' s de aire: sal antes de que se acabe'); }
   if(under){ const before = Math.ceil(air); air -= dt; if(Math.ceil(air) !== before && air < 4) SND('clin'); if(air <= 0){ air = 0; die('drown'); } }
@@ -748,32 +752,60 @@ function explode(r0, c0){
   lamp -= PE.grisuLuz; flashT = 0.45; SND('explosion'); shakeKick = Math.max(shakeKick, 4);
   floats.push({x:c0+0.5, y:r0-0.4, txt:'¡Grisú!', life:1.4, col:'#fbf236'}, {x:p.c+0.5, y:p.r+0.3, txt:'-'+PE.grisuLuz+'% luz', life:1.2, col:'#d95763'});
 }
-// Puntal: en tu casilla sostiene el techo (aunque luego le quiten el suelo).
-// Si delante tienes un hueco a la altura de tus pies, se pone tumbado como un tablón (puente) para cruzarlo.
+// Puntal (toque corto): en tu casilla sostiene el techo, aunque luego le quiten el suelo.
+// Puntal (mantener pulsado): se pone tumbado como un tablón en el hueco que tienes delante a la altura de los pies (puente).
 // Con «recoger puntales», pulsar Puntal encima de un puntal (o debajo de un tablón) lo recoge.
-function placeTool(kind){
+// Escaleras y puntales también se pueden poner dentro del agua: el agua de esa casilla sube a la de encima.
+function placeTool(kind, mode){
   if(!started || dead || cashed) return;
   const v = tAt(p.r, p.c);
-  if(kind === 'prop'){
-    if((v === PROP || v === PLANK) && cfg.recoger === '1'){ setT(p.r, p.c, AIR); props++; SND('poner'); renderInv(); floats.push({x:p.c+0.5, y:p.r-0.2, txt: v === PLANK ? 'Tablón recogido' : 'Puntal recogido', life:0.9, col:'#fbf236'}); return; }
-    const fc = p.c + p.face, gap = fc >= 0 && fc < COLS && isOpen(tAt(p.r, fc)) && isOpen(tAt(p.r+1, fc)) && canStand(p.r, p.c);
-    if(gap){
-      if(props <= 0) return noTool('Sin puntales');
-      if(!plankHold(p.r+1, fc)) return noTool('No hay dónde sujetarlo');
-      setT(p.r+1, fc, PLANK); props--; SND('poner'); renderInv();
-      floats.push({x:fc+0.5, y:p.r+0.6, txt:'Puente', life:0.9, col:'#fbf236'}); return;
-    }
+  if(kind === 'prop' && mode === 'puente'){
+    const fc = p.c + p.face;
+    const gap = fc >= 0 && fc < COLS && !isSolid(tAt(p.r, fc)) && (isOpen(tAt(p.r+1, fc)) || tAt(p.r+1, fc) === WATER);
+    if(!gap) return noTool('No hay hueco delante');
+    if(props <= 0) return noTool('Sin puntales');
+    if(!bridgeOK(p.r+1, fc)) return noTool('Demasiado largo: no aguantaría');
+    putTile(p.r+1, fc, PLANK); props--; SND('poner'); renderInv();
+    floats.push({x:fc+0.5, y:p.r+0.6, txt:'Puente', life:0.9, col:'#fbf236'}); return;
   }
-  if(v !== AIR){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Aquí no cabe', life:0.9, col:'#d9a066'}); return; }
-  if(kind === 'prop'){ if(props <= 0) return noTool('Sin puntales'); setT(p.r, p.c, PROP); props--; }
-  else { if(ladders <= 0) return noTool('Sin escaleras'); setT(p.r, p.c, LADDER); ladders--; }
+  if(kind === 'prop' && (v === PROP || v === PLANK) && cfg.recoger === '1'){ setT(p.r, p.c, AIR); props++; SND('poner'); renderInv(); floats.push({x:p.c+0.5, y:p.r-0.2, txt: v === PLANK ? 'Tablón recogido' : 'Puntal recogido', life:0.9, col:'#fbf236'}); return; }
+  if(v !== AIR && v !== WATER){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Aquí no cabe', life:0.9, col:'#d9a066'}); return; }
+  if(kind === 'prop'){ if(props <= 0) return noTool('Sin puntales'); putTile(p.r, p.c, PROP); props--; }
+  else { if(ladders <= 0) return noTool('Sin escaleras'); putTile(p.r, p.c, LADDER); ladders--; }
   SND('poner');
   renderInv();
 }
-// un tablón se sujeta a lo que tenga a los lados (roca, otro tablón) o encima de algo
-function plankHold(r, c){
-  const ok = x => isSolid(x) || x === PLANK || x === PROP || x === LADDER;
-  return ok(tAt(r, c-1)) || ok(tAt(r, c+1)) || ok(tAt(r+1, c));
+// pone una pieza en una casilla; si había agua, la desplaza a la casilla de encima
+function putTile(r, c, v){
+  if(tAt(r, c) === WATER){
+    const lv = W.rows[r].lv[c], up = tAt(r-1, c);
+    if(isOpen(up)){ setT(r-1, c, WATER); W.rows[r-1].lv[c] = lv; }
+    else if(up === WATER){ W.rows[r-1].lv[c] = Math.min(1, W.rows[r-1].lv[c] + lv); }
+  }
+  setT(r, c, v);
+}
+// Un puente sigue la misma regla que los techos: desde una roca aguanta en voladizo tantos tablones como la cornisa,
+// y si llega de roca a roca, el doble. (r, c) es un tablón que ya está o que se va a poner.
+function bridgeOK(r, c){
+  let a = c - 1, b = c + 1;
+  while(a >= 0 && tAt(r, a) === PLANK) a--;
+  while(b < COLS && tAt(r, b) === PLANK) b++;
+  for(let k=a+1; k<b; k++) if(isSolid(tAt(r+1, k))) return true;   // algún tablón apoyado en algo
+  const la = isSolid(tAt(r, a)), lb = isSolid(tAt(r, b)), n = b - a - 1;
+  if(la && lb) return n <= 2*cfg.corn;
+  if(la || lb) return n <= cfg.corn;
+  return false;
+}
+// tablones que se quedan sin sujeción (se picó la roca de al lado, por ejemplo): se caen y el puntal queda suelto
+function checkPlanks(top, bot){
+  for(let r=top; r<=bot; r++){ const R = W.rows[r]; if(!R) continue;
+    for(let c=0;c<COLS;c++){
+      if(R.t[c] !== PLANK || bridgeOK(r, c)) continue;
+      setT(r, c, AIR); burst(r+0.2, c+0.5, '#d9a066', 6); SND('cae', near(r, c)*0.6);
+      W.items.push({k:'herr', tipo:'puntal', r, c, alive:true, extra:true});
+      if(Math.abs(r - p.r) < 10 && crackMsgT <= 0){ floats.push({x:c+0.5, y:r, txt:'Se cae el tablón', life:1, col:'#eec39a'}); crackMsgT = 0.6; }
+    }
+  }
 }
 function noTool(msg){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:msg, life:1, col:'#d95763'}); }
 
@@ -945,7 +977,7 @@ function drawTile(v, r, c, X, Y){
       const ph = (t*0.7 + (hsh(c,r)%100)/37) % 3; if(ph < 0.5){ ctx.fillStyle = '#a0703f'; const bx = X + (hsh(c+3,r)%16) + 4; ctx.fillRect(bx, Y - Math.round(ph*4), 3, 2); } }
     return;
   }
-  if(v === PROP){ ctx.drawImage(PS.puntal, X, Y); if(!isSolid(tAt(r+1, c)) && tAt(r+1, c) !== PROP) drawBrackets(r, c, X, Y + T - 6); return; }
+  if(v === PROP){ const b = tAt(r+1, c); if(isSolid(b) || b === PROP || b === LADDER) ctx.drawImage(PS.puntal, X, Y); else drawFloatingProp(r, c, X, Y); return; }
   if(v === PLANK){ drawPlank(r, c, X, Y); return; }
   if(v === BEDROCK){ drawBedrock(r, c, X, Y); return; }
   if(v === LADDER){ ctx.drawImage(PS.escalera, X, Y); return; }
@@ -973,33 +1005,42 @@ function drawTile(v, r, c, X, Y){
     else if(dmg > 0 && I.hp < 999) ctx.drawImage(GS[Math.min(2, Math.floor(dmg / Math.max(1, I.hp) * 3))], X, Y);
   }
 }
-// escuadras de madera: sujetan un puntal o un tablón a los lados donde hay roca
-function drawBrackets(r, c, X, Y){
-  for(const dc of [-1, 1]){
-    const n = tAt(r, c+dc); if(!isSolid(n)) continue;
-    const x0 = dc < 0 ? X : X + T - 8;
-    ctx.fillStyle = '#000'; ctx.fillRect(x0, Y - 1, 8, 4); ctx.fillRect(dc < 0 ? X : X + T - 3, Y - 1, 3, 9);
-    ctx.fillStyle = '#8f563b'; ctx.fillRect(x0 + 1, Y, 6, 2); ctx.fillRect(dc < 0 ? X + 1 : X + T - 2, Y, 1, 7);
-    ctx.fillStyle = '#663931'; ctx.beginPath(); ctx.moveTo(dc < 0 ? X + 2 : X + T - 2, Y + 6); ctx.lineTo(dc < 0 ? X + 7 : X + T - 7, Y + 2); ctx.lineTo(dc < 0 ? X + 3 : X + T - 3, Y + 2); ctx.fill();
+// barra de madera en diagonal (en píxeles, para que quede nítida)
+function strut(x0, y0, x1, y1){
+  const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+  ctx.fillStyle = '#000'; for(let i=0;i<=n;i++){ const x = Math.round(x0 + (x1 - x0)*i/n), y = Math.round(y0 + (y1 - y0)*i/n); ctx.fillRect(x - 1, y - 1, 4, 4); }
+  ctx.fillStyle = '#8f563b'; for(let i=0;i<=n;i++){ const x = Math.round(x0 + (x1 - x0)*i/n), y = Math.round(y0 + (y1 - y0)*i/n); ctx.fillRect(x, y, 2, 2); }
+  ctx.fillStyle = '#d9a066'; for(let i=1;i<n;i+=3){ const x = Math.round(x0 + (x1 - x0)*i/n), y = Math.round(y0 + (y1 - y0)*i/n); ctx.fillRect(x, y, 1, 1); }
+}
+// puntal sin suelo: más corto, sujeto a la pared del fondo (y con una barra en diagonal hasta la roca de al lado, si la hay)
+function drawFloatingProp(r, c, X, Y){
+  const H = 15;
+  ctx.drawImage(PS.puntal, 0, 0, T, H, X, Y, T, H);
+  let side = false;
+  for(const dc of [-1, 1]){ if(!isSolid(tAt(r, c+dc))) continue; side = true; strut(dc < 0 ? X + 1 : X + T - 3, Y + T - 5, X + 11 + (dc < 0 ? -1 : 2), Y + 8); }
+  if(!side){   // anclaje a la pared del fondo: una placa con dos clavos
+    ctx.fillStyle = '#000'; ctx.fillRect(X + 7, Y + H - 1, 10, 6); ctx.fillStyle = '#696a6a'; ctx.fillRect(X + 8, Y + H, 8, 4);
+    ctx.fillStyle = '#cbdbfc'; ctx.fillRect(X + 9, Y + H + 1, 1, 1); ctx.fillRect(X + 14, Y + H + 1, 1, 1);
   }
 }
-// tablón: un puntal tumbado arriba de la casilla; se anda por encima y se pasa por debajo
+// tablón: un puntal tumbado arriba de la casilla; se anda por encima y se pasa por debajo.
+// Donde toca roca a un lado, una barra en diagonal lo sujeta desde la pared.
 function drawPlank(r, c, X, Y){
+  for(const dc of [-1, 1]){ if(!isSolid(tAt(r, c+dc))) continue; strut(dc < 0 ? X + 1 : X + T - 3, Y + T - 4, dc < 0 ? X + 12 : X + T - 14, Y + 4); }
   ctx.fillStyle = '#000'; ctx.fillRect(X, Y - 1, T, 7);
   ctx.fillStyle = '#d9a066'; ctx.fillRect(X, Y, T, 4); ctx.fillStyle = '#8f563b'; ctx.fillRect(X, Y + 4, T, 1);
   ctx.fillStyle = '#8f563b'; for(let i=0;i<3;i++) ctx.fillRect(X + 3 + i*8 + (hsh(r, c+i) % 3), Y + 1, 3, 1);
   ctx.fillStyle = '#663931'; ctx.fillRect(X + 2, Y + 2, 1, 1); ctx.fillRect(X + T - 3, Y + 2, 1, 1);
-  drawBrackets(r, c, X, Y + 5);
 }
 // roca madre: el límite del mundo. Casi negra, con vetas apagadas: se lee como «aquí no hay nada»
 function drawBedrock(r, c, X, Y){
-  ctx.fillStyle = '#16121a'; ctx.fillRect(X, Y, T, T);
-  ctx.fillStyle = '#221c26';
-  for(let i=0;i<4;i++){ const h = hsh(r*5+i, c*3); ctx.fillRect(X + (h % 18), Y + ((h >> 5) % 20), 6 + (h >> 11) % 5, 3); }
-  ctx.fillStyle = '#0a080c'; for(let i=0;i<3;i++){ const h = hsh(c*7+i, r); ctx.fillRect(X + (h % 20) + 1, Y + ((h >> 6) % 20) + 1, 3, 1); }
+  // piedra con un velo gris violáceo: se lee como roca vieja y muerta, no como un agujero negro
+  const vs = TS.piedra; ctx.drawImage(vs[hsh(r,c) % vs.length], X, Y);
+  ctx.fillStyle = 'rgba(52,40,66,0.62)'; ctx.fillRect(X, Y, T, T);
+  ctx.fillStyle = 'rgba(155,140,175,0.14)'; for(let i=0;i<3;i++){ const h = hsh(r*5+i, c*3); ctx.fillRect(X + (h % 18), Y + ((h >> 5) % 20), 5 + (h >> 11) % 4, 1); }
   const open = (rr, cc) => !isSolid(tAt(rr, cc));
-  ctx.fillStyle = '#2f2833'; if(open(r-1, c)) ctx.fillRect(X, Y, T, 2);
-  ctx.fillStyle = '#000'; if(open(r+1, c)) ctx.fillRect(X, Y+T-2, T, 2); if(open(r, c-1)) ctx.fillRect(X, Y, 2, T); if(open(r, c+1)) ctx.fillRect(X+T-2, Y, 2, T);
+  ctx.fillStyle = 'rgba(203,219,252,0.18)'; if(open(r-1, c)) ctx.fillRect(X, Y, T, 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; if(open(r+1, c)) ctx.fillRect(X, Y+T-2, T, 2); if(open(r, c-1)) ctx.fillRect(X, Y, 2, T); if(open(r, c+1)) ctx.fillRect(X+T-2, Y, 2, T);
 }
 // montacargas viejo: jaula de madera colgada de una cuerda que sube hacia la oscuridad
 function drawLift(it, X, Y){
@@ -1220,7 +1261,7 @@ function render(){
       const v = W.rows[r].t[c], X = c*T;
       if(!isSolid(v) || v === BEAM) ctx.drawImage(TS.fondo[hsh(r,c)%2], X, Y);
       if(L.part !== undefined && L.part > 0 && L.part < ROOM_H-1 && !isSolid(v)){ ctx.fillStyle = 'rgba(143,86,59,0.35)'; ctx.fillRect(X, Y, T, T); }
-      if(v !== AIR) drawTile(v, r, c, X, Y);
+      if(v !== AIR){ const R = W.rows[r]; drawTile(v, r, c, X + Math.round(R.ox[c]*T), Y + Math.round(R.oy[c]*T)); }
     }
   }
   // antorchas de las salas
@@ -1245,7 +1286,7 @@ function render(){
     const fade = dead ? Math.max(0, 1 - deadT*1.5) : 1, flick = 1 + (Math.random()-0.5)*(lamp < 20 ? 0.14 : 0.04);
     addLight(r0, r1, p.x+0.5, p.y+0.25, lightRadius()*flick*fade, wick ? 1 : (LA.luzMechaBaja ?? 1), true, true);
     for(const i of rooms) addLight(r0, r1, COLS/2, ROOM_ROW[i]+1.5, 8.6, 1, true, true);
-    for(const it of W.items) if(it.alive && (it.k === 'oil' || it.k === 'chest' || it.k === 'bag' || it.k === 'herr' || it.k === 'llave' || it.k === 'cofreSala' || it.k === 'cofrePieza' || it.k === 'obj' || it.k === 'lift') && it.r >= r0-2 && it.r <= r1+2) addLight(r0, r1, it.c+0.5, it.r+0.6, it.k === 'oil' ? 1.6 : 2.4, 0.6, false, false);
+    for(const it of W.items) if(it.alive && (it.k === 'oil' || it.k === 'chest' || it.k === 'bag' || it.k === 'herr' || it.k === 'llave' || it.k === 'cofreSala' || it.k === 'cofrePieza' || it.k === 'obj' || it.k === 'lift') && it.r >= r0-2 && it.r <= r1+2) { const B = it.k === 'oil' ? (LA.brilloAceite || {radio:1.6, intensidad:0.6}) : (LA.brilloObjetos || {radio:2.4, intensidad:0.6}); addLight(r0, r1, it.c+0.5, it.r+0.6, B.radio, B.intensidad, false, false); }
     for(let r=Math.max(rTop,r0); r<=r1; r++) for(let c=0;c<COLS;c++){
       if(!isSolid(W.rows[r].t[c])) continue;
       const i = (r-r0)*COLS + c; let m = lbuf[i];
@@ -1618,8 +1659,9 @@ function frame(now){
     ensure(bot + 30);
     simAcc += dt; stabAcc += dt; crackMsgT -= dt; lockMsgT -= dt; flashT = Math.max(0, flashT - dt);
     while(simAcc > 1/14){ simAcc -= 1/14; fluids(top, bot); updateBag(); dropItems(top, bot); }
-    if(stabAcc > 0.1){ stabAcc = 0; stability(top, bot); }
+    if(stabAcc > 0.1){ stabAcc = 0; stability(top, bot); checkPlanks(top, bot); }
     updateCracks(top, bot, dt);
+    slideAnim(top, bot, dt);
     updateRocks(dt);
     if(!dead){
       updatePlayer(dt);
@@ -1664,6 +1706,7 @@ const KEYS = {ArrowLeft:'L', a:'L', A:'L', ArrowRight:'R', d:'R', D:'R', ArrowDo
 addEventListener('keydown', e => {
   if(KEYS[e.key]){ e.preventDefault(); if(looking){ if(!e.repeat) toggleLook(); return; } if(!e.repeat) press(KEYS[e.key]); else input[KEYS[e.key]] = true; }
   else if(!e.repeat && (e.key === 'v' || e.key === 'V' || e.key === 'z' || e.key === 'Z')) toggleLook();
+  else if(!e.repeat && (e.key === 'o' || e.key === 'O' || ((e.key === 'p' || e.key === 'P') && e.shiftKey))) placeTool('prop', 'puente');
   else if(!e.repeat && (e.key === 'p' || e.key === 'P')) placeTool('prop');
   else if(!e.repeat && (e.key === 'e' || e.key === 'E')) placeTool('lad');
   else if(!e.repeat && (e.key === 'm' || e.key === 'M')) wick = wick ? 0 : 1;
@@ -1681,8 +1724,11 @@ document.querySelectorAll('#pad button').forEach(b => {
   const down = e => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); b.classList.add('on');
     if(k === 'ver') toggleLook();
     else if(looking && (k in input)) toggleLook();            // al tocar una flecha se deja de mirar (sin moverse)
-    else if(k === 'prop') placeTool('prop'); else if(k === 'lad') placeTool('lad'); else if(k === 'wick') wick = wick ? 0 : 1; else press(k); };
-  const up = () => { b.classList.remove('on'); if(k in input) input[k] = false; if(k === 'ver') b.classList.toggle('activo', looking); };
+    else if(k === 'prop'){ b._held = false; clearTimeout(b._hold); b._down = true; b._hold = setTimeout(() => { if(b._down){ b._held = true; placeTool('prop', 'puente'); } }, 350); }
+    else if(k === 'lad') placeTool('lad'); else if(k === 'wick') wick = wick ? 0 : 1; else press(k); };
+  // Puntal: toque corto = puntal normal; mantener pulsado = puente
+  const up = () => { b.classList.remove('on'); if(k in input) input[k] = false; if(k === 'ver') b.classList.toggle('activo', looking);
+    if(k === 'prop' && b._down){ b._down = false; clearTimeout(b._hold); if(!b._held) placeTool('prop'); } };
   b.addEventListener('pointerdown', down);
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev => b.addEventListener(ev, up));
   b.addEventListener('contextmenu', e => e.preventDefault());
@@ -1696,7 +1742,7 @@ $('ovBtn').addEventListener('click', toVillage);
 $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
 $('helpClose').addEventListener('click', () => { $('help').hidden = true; });
 // ajustes
-const SL = ['drain','corn','crack','thrH','thrS','minP','minL','oilEvery','oilGain'], SS = ['dark','zoom','recoger'];
+const SL = ['drain','corn','crack','thrH','thrS','minP','minL','oilEvery','oilGain'], SS = ['dark','zoom','recoger','frag','anim'];
 function syncTune(){ SL.forEach(k => { $('s_'+k).value = cfg[k]; $('o_'+k).textContent = cfg[k]; }); SS.forEach(k => { $('s_'+k).value = cfg[k]; }); $('s_sound').value = window.Sonido && !window.Sonido.activado ? '0' : '1'; }
 SL.forEach(k => $('s_'+k).addEventListener('input', e => { cfg[k] = +e.target.value; $('o_'+k).textContent = cfg[k]; save('deep-cfg', cfg); }));
 SS.forEach(k => $('s_'+k).addEventListener('change', e => { cfg[k] = e.target.value; save('deep-cfg', cfg); }));
