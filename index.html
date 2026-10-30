@@ -6,7 +6,7 @@
 <title>Deep</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
-<link rel="stylesheet" href="css/estilo.css">
+<link rel="stylesheet" href="css/estilo.css?v=0.207b">
 </head>
 <body>
 <div id="app">
@@ -120,7 +120,7 @@
           <ul>
             <li>Empiezas en la jaula del pozo: pulsa abajo para abrir la trampilla y bajar.</li>
             <li>Empuja contra un bloque para picarlo, o pica hacia abajo. No se puede picar hacia arriba ni saltar.</li>
-            <li>Para subir escalones, pon una escalera y sube con la flecha de arriba.</li>
+            <li>Para subir escalones, pon una escalera y sube con la flecha de arriba. Las escaleras son desplegables: si no hay suelo debajo, otro toque la despliega hacia abajo (hasta 4 casillas más); el siguiente toque la guarda entera. Con suelo debajo, el segundo toque ya la guarda.</li>
             <li>Un techo demasiado ancho sin apoyo cruje y se derrumba entero. Pon puntales: sostienen el techo aunque luego les quites el suelo.</li>
             <li>Mantén pulsado Puntal (o tecla O) para ponerlo tumbado como un tablón en el hueco que tienes delante a la altura de los pies: cruzas por encima y pasas por debajo. Aguanta como un techo: desde una roca, tantos tablones como la cornisa; de roca a roca, el doble. Un derrumbe lo rompe.</li>
             <li>Escaleras y puntales también se pueden poner dentro del agua: el agua sigue ahí (no te da aire), pero puedes subir por la escalera para salir. Puedes andar por encima de un puntal que no sujeta nada.</li>
@@ -197,6 +197,8 @@
           <label class="sl">Caída: cuánto aumenta por casilla (%)<output id="o_caidaCrece"></output><input type="range" id="s_caidaCrece" min="0" max="20" step="1"></label>
           <label class="sl">Puntales al empezar cada bajada (mínimo)<output id="o_minP"></output><input type="range" id="s_minP" min="0" max="30" step="1"></label>
           <label class="sl">Escaleras al empezar cada bajada (mínimo)<output id="o_minL"></output><input type="range" id="s_minL" min="0" max="20" step="1"></label>
+          <label class="sl">Escaleras (prueba de la 0.207b)<output></output>
+            <select id="s_escala"><option value="1">Desplegables: 2.º toque despliega hacia abajo o guarda; 3.º guarda</option><option value="0">Normales (como antes)</option></select></label>
           <label class="sl">Recoger puntales<output></output>
             <select id="s_recoger"><option value="1">Sí: pulsa Puntal encima de uno (o bajo un tablón)</option><option value="0">No</option></select></label>
           <label class="sl">Fragilidad por material<output></output>
@@ -221,13 +223,13 @@
   </section>
 </div>
 
-<script src="js/datos.js"></script>
-  <script src="js/piezas.js"></script>
-<script src="js/sprites.js"></script>
-  <script src="js/sonido.js"></script>
-<script src="js/partida.js"></script>
-<script src="js/mina.js"></script>
-<script src="js/pueblo.js"></script>
-<script src="js/main.js"></script>
+<script src="js/datos.js?v=0.207b"></script>
+  <script src="js/piezas.js?v=0.207b"></script>
+<script src="js/sprites.js?v=0.207b"></script>
+  <script src="js/sonido.js?v=0.207b"></script>
+<script src="js/partida.js?v=0.207b"></script>
+<script src="js/mina.js?v=0.207b"></script>
+<script src="js/pueblo.js?v=0.207b"></script>
+<script src="js/main.js?v=0.207b"></script>
 </body>
 </html>
