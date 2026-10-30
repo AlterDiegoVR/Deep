@@ -828,6 +828,7 @@ function placeTool(kind, mode){
     floats.push({x:fc+0.5, y:p.r+0.6, txt:'Puente', life:0.9, col:'#fbf236'}); return;
   }
   if(kind === 'prop' && (v === PROP || v === PLANK) && cfg.recoger === '1'){ takeTile(p.r, p.c); props++; SND('poner'); renderInv(); floats.push({x:p.c+0.5, y:p.r-0.2, txt: v === PLANK ? 'Tablón recogido' : 'Puntal recogido', life:0.9, col:'#fbf236'}); return; }
+  if(kind === 'lad' && mode === 'lado') return ladderSide();
   if(kind === 'lad' && v === LADDER && cfg.escala === '1') return ladderTap();
   if(v !== AIR && v !== WATER){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Aquí no cabe', life:0.9, col:'#d9a066'}); return; }
   if(kind === 'prop'){ if(props <= 0) return noTool('Sin puntales'); putTile(p.r, p.c, PROP); props--; }
@@ -856,6 +857,18 @@ function ladderTap(){
   W.escalas = W.escalas.filter(x => x !== e);
   ladders++; SND('poner'); renderInv();
   floats.push({x:e.c+0.5, y:p.r-0.2, txt:'Escalera recogida', life:0.9, col:'#fbf236'});
+}
+// mantener pulsado Escalera: la pone en la casilla de al lado (hacia donde miras). Si debajo no hay suelo, se despliega sola
+function ladderSide(){
+  if(unroll) return;
+  const fc = p.c + p.face;
+  if(fc < 0 || fc >= COLS || !unrollFree(p.r, fc)) return noTool('No hay hueco al lado');
+  if(ladders <= 0) return noTool('Sin escaleras');
+  putTile(p.r, fc, LADDER); ladders--; SND('poner'); renderInv();
+  if(cfg.escala === '1'){
+    const e = {r:p.r, c:fc, len:1, abierta:false}; if(!W.escalas) W.escalas = []; W.escalas.push(e);
+    if(unrollFree(p.r + 1, fc)){ e.abierta = true; unroll = {e, left:ESC_MAX, t:0.12}; floats.push({x:fc+0.5, y:p.r+0.6, txt:'¡Escala!', life:0.9, col:'#fbf236'}); }
+  }
 }
 function updateUnroll(dt){
   if(!unroll) return;
@@ -1942,8 +1955,10 @@ addEventListener('keydown', e => {
   if(KEYS[e.key]){ e.preventDefault(); if(looking){ if(!e.repeat) toggleLook(); return; } if(!e.repeat) press(KEYS[e.key]); else input[KEYS[e.key]] = true; }
   else if(!e.repeat && (e.key === 'v' || e.key === 'V' || e.key === 'z' || e.key === 'Z')) toggleLook();
   else if(!e.repeat && (e.key === 'o' || e.key === 'O' || ((e.key === 'p' || e.key === 'P') && e.shiftKey))) placeTool('prop', 'puente');
-  else if(!e.repeat && (e.key === 'p' || e.key === 'P')) placeTool('prop');
-  else if(!e.repeat && (e.key === 'e' || e.key === 'E')) placeTool('lad');
+  else if(!e.repeat && (e.key === 'e' || e.key === 'E') && e.shiftKey) placeTool('lad', 'lado');
+  // mantener P = puente; mantener E = escalera al lado (igual que en el móvil)
+  else if(!e.repeat && (e.key === 'p' || e.key === 'P')) keyHoldStart('p', () => placeTool('prop'), () => placeTool('prop', 'puente'));
+  else if(!e.repeat && (e.key === 'e' || e.key === 'E')) keyHoldStart('e', () => placeTool('lad'), () => placeTool('lad', 'lado'));
   else if(!e.repeat && (e.key === 'm' || e.key === 'M')) wick = wick ? 0 : 1;
 });
 function toggleLook(){
@@ -1953,17 +1968,25 @@ function toggleLook(){
   for(const kk in input){ input[kk] = false; tapped[kk] = 0; }
   $('verBtn').classList.toggle('activo', looking);
 }
-addEventListener('keyup', e => { if(KEYS[e.key]) input[KEYS[e.key]] = false; });
+const keyHold = {};
+function keyHoldStart(k, corto, largo){ const h = keyHold[k] = {held:false, corto}; h.tm = setTimeout(() => { h.held = true; largo(); }, 350); }
+addEventListener('keyup', e => {
+  if(KEYS[e.key]) input[KEYS[e.key]] = false;
+  const k = e.key.toLowerCase(), h = keyHold[k];
+  if(h){ clearTimeout(h.tm); if(!h.held) h.corto(); delete keyHold[k]; }
+});
 document.querySelectorAll('#pad button').forEach(b => {
   const k = b.dataset.k;
   const down = e => { e.preventDefault(); b.setPointerCapture?.(e.pointerId); b.classList.add('on');
     if(k === 'ver') toggleLook();
     else if(looking && (k in input)) toggleLook();            // al tocar una flecha se deja de mirar (sin moverse)
     else if(k === 'prop'){ b._held = false; clearTimeout(b._hold); b._down = true; b._hold = setTimeout(() => { if(b._down){ b._held = true; placeTool('prop', 'puente'); } }, 350); }
-    else if(k === 'lad') placeTool('lad'); else if(k === 'wick') wick = wick ? 0 : 1; else press(k); };
+    else if(k === 'lad'){ b._held = false; clearTimeout(b._hold); b._down = true; b._hold = setTimeout(() => { if(b._down){ b._held = true; placeTool('lad', 'lado'); } }, 350); }
+    else if(k === 'wick') wick = wick ? 0 : 1; else press(k); };
   // Puntal: toque corto = puntal normal; mantener pulsado = puente
   const up = () => { b.classList.remove('on'); if(k in input) input[k] = false; if(k === 'ver') b.classList.toggle('activo', looking);
-    if(k === 'prop' && b._down){ b._down = false; clearTimeout(b._hold); if(!b._held) placeTool('prop'); } };
+    if(k === 'prop' && b._down){ b._down = false; clearTimeout(b._hold); if(!b._held) placeTool('prop'); }
+    if(k === 'lad' && b._down){ b._down = false; clearTimeout(b._hold); if(!b._held) placeTool('lad'); } };
   b.addEventListener('pointerdown', down);
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev => b.addEventListener(ev, up));
   b.addEventListener('contextmenu', e => e.preventDefault());
