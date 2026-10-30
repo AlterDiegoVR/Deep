@@ -6,11 +6,14 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.206',
+  version: '0.207',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
   pantalla: { calidad: 0 },
+
+  // ---------- Arena ----------
+  arena: { caeCadaTicks: 2 },  // la arena se mueve un paso de cada tantos de la simulación (más despacio = se ve derramarse)
 
   // ---------- Mochila ----------
   // Se llena según lo que vale cada material (arcilla y carbón 1, cobre 2...). No frena: el drama es no poder coger más.
@@ -28,9 +31,9 @@ window.DATOS = {
   // ---------- Salas seguras ----------
   salas: {
     radioLlama: 1.5,           // casillas alrededor de la antorcha en las que se recarga la lámpara
-    columnaLlama: 2,           // dónde está cada cosa dentro de la sala (columna 0 a 14)
+    columnasLlama: [1, 13],    // dónde está cada cosa dentro de la sala (columna 0 a 14): una antorcha a cada lado
     columnaRuleta: 7,
-    columnaCofre: 12,
+    columnaCofre: 11,          // (el montacargas, si hay, va en la columna 14: al borde de la sala)
     // cofre de suministros: uno por sala, se abre una vez por pozo (se vuelve a llenar cuando el pozo se regenere)
     cofre: {
       base: { escaleras: 2, puntales: 2 },
@@ -178,7 +181,8 @@ window.DATOS = {
   agua: {
     nivelMinimo: 0.05,         // se extiende hasta láminas de este grosor (de 0 a 1 casilla). El agua nunca desaparece: se conserva siempre
     diferenciaMinima: 0.02,    // diferencia de nivel por debajo de la cual deja de moverse (evita temblores)
-    mojaLamparaDesde: 0.5,     // el agua solo gasta más lámpara cuando llega a esta altura del topo (media altura)
+    mojaLamparaDesde: 0.5,
+    salasSecan: 0.3,           // nivel que pierde por segundo el agua dentro de una sala segura (no pasa de un tramo al siguiente)     // el agua solo gasta más lámpara cuando llega a esta altura del topo (media altura)
     ahogaDesde: 0.7,           // el aire empieza a contar cuando el agua de tu casilla llega a este nivel (te cubre la cabeza)
   },
 
@@ -284,7 +288,7 @@ window.DATOS = {
       altoSala: 4,
       aceiteCada: 9,
       montacargasCada: 3,          // una sala de cada tantas tiene montacargas (para mandar la carga arriba y seguir bajando)
-      costeMontacargas: 4,         // carga de mineral que cuesta arreglarlo (se paga con lo que llevas)
+      costeMontacargas: { carbon: 4, cobre: 2 },   // materiales que cuesta arreglarlo (se paga con lo que llevas)
       contenido: { agua: false, grisu: false, polillas: false, barro: false, cartas: false, puertas: false, llaves: false,
                    ramales: false, objetos: false, salaSellada: false, piezas: false },
       desdeTramo: { carbon: 1, cuarzo: 3, cobre: 3, cuevas: 0 },
@@ -305,7 +309,8 @@ window.DATOS = {
       salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },  // roca maciza con cofre (hace falta taladro)
       arenaArcillosa: 0.5,         // parte de la arena que es arcillosa (hace barro con el agua)
       montacargasCada: 2,
-      costeMontacargas: 4,
+      costeMontacargas: { carbon: 3, cobre: 2 },
+      aguaUltimaSeccion: true,     // en el banco de pruebas sí hay agua en la última sección
       contenido: {},               // todo
       // el desvío del tramo 2 es una pieza hecha a mano: está en js/piezas.js
       desdeTramo: { carbon: 1, cuarzo: 2, cobre: 3, cuevas: 0, gas: 1, agua: 2, polillas: 1 },
@@ -341,8 +346,8 @@ window.DATOS = {
     { id: 'tienda',   nombre: 'Tienda',          dueno: 'Señora Rita',   tipo: 'tienda',  color: '#ac3232' },
     { id: 'almacen',  nombre: 'Almacén',         dueno: 'Tu almacén',    tipo: 'almacen', color: '#8f563b' },
     { id: 'herreria', nombre: 'Herrería',        dueno: 'Don Ernesto',   tipo: 'vecino',  color: '#595652' },
-    { id: 'panaderia',nombre: 'Panadería',       dueno: 'Lola',          tipo: 'vecino',  color: '#df7126' },
+    { id: 'taller',   nombre: 'Taller del tejón', dueno: 'El tejón',     tipo: 'vecino',  color: '#df7126' },
     { id: 'alcaldia', nombre: 'Ayuntamiento',    dueno: 'El alcalde',    tipo: 'vecino',  color: '#3f3f74' },
-    { id: 'casa',     nombre: 'Casa del topo',   dueno: 'Tu casa',       tipo: 'vecino',  color: '#37946e' },
+    { id: 'casa',     nombre: 'Casa de Deep',   dueno: 'Tu casa',       tipo: 'vecino',  color: '#37946e' },
   ],
 };

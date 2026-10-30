@@ -82,7 +82,7 @@ const near = (r, c) => p ? Math.max(0, 1 - Math.hypot(r - p.r, (c - p.c)*0.6)/14
 // Ajustes de prueba: parten de datos.js y se pueden tocar desde el menú de ajustes (se guardan en el navegador)
 const HM = D.herramientas.minimoPorBajada || {puntales:0, escaleras:0};
 const BASE = {drain:LA.consumo, corn:ES.cornisa ?? 2, crack:ES.tiempoCrujido, thrH:ES.escombroSiCaeDesde, thrS:ES.escombroSiCaenJuntos,
-  frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, resp:1, respP:80, minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilGain:LA.aceite,
+  frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, resp:1, respP:90, rubMax:ES.maxEscombroPorGolpe, caida:'0', caidaDesde:4, caidaDanio:10, caidaModo:'fijo', caidaCrece:5, minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilGain:LA.aceite,
   dark:'1', zoom: CA.zoomExplorar >= 2 ? 'siempre' : 'salas'};
 let cfg = {...BASE};
 try{ const s = JSON.parse(localStorage.getItem('deep-cfg')||'null'); if(s) cfg = {...BASE, ...s}; }catch(e){}
@@ -115,16 +115,18 @@ function statsText(){
 }
 function newWorld(){ return newTiroWorld('principal', (Math.random()*1e9)|0); }
 function packWorld(W){
-  return {id:W.id, lastRun:W.lastRun, seed:W.seed, rows:W.rows.map(R => String.fromCharCode(...Array.from(R.t, v => 65+v))), nat:W.rows.map(R => String.fromCharCode(...Array.from(R.nat, v => 48+v))), lv:W.rows.map(R => String.fromCharCode(...Array.from(R.lv, v => 48+Math.round(v*40)))),
+  return {id:W.id, lastRun:W.lastRun, seed:W.seed, rows:W.rows.map(R => String.fromCharCode(...Array.from(R.t, v => 65+v))), nat:W.rows.map(R => String.fromCharCode(...Array.from(R.nat, v => 48+v))), lvx:W.rows.reduce((o, R, i) => { if(R.lv.some(v => v > 0)) o[i] = Array.from(R.lv, v => +v.toFixed(4)); return o; }, {}),
     items:W.items.filter(i=>i.alive || i.k === 'herr'), bag:W.bag, rewarded:W.rewarded, runs:W.runs, herr:true, ver:W.ver, record:W.record, doors:W.doors, cargaOk:W.cargaOk||[], ascUsado:!!W.ascUsado};
 }
 function unpackWorld(o){
   if(o.ver !== WORLD_VER) return null;   // pozo de una versión anterior: se empieza uno nuevo
   const w = {id:o.id||'principal', lastRun:o.lastRun||0, ver:WORLD_VER, seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||0, record:o.record||0, doors:o.doors||[], cargaOk:o.cargaOk||[], ascUsado:!!o.ascUsado};
   o.rows.forEach((s, i) => { const R = newRow(), n = o.nat && o.nat[i];
-    const lvS = o.lv && o.lv[i];
+    const lvS = o.lv && o.lv[i], lvX = o.lvx && o.lvx[i];
     for(let c=0;c<COLS;c++){ R.t[c] = s.charCodeAt(c)-65; R.hp[c] = INFO[R.t[c]].hp||0; R.nat[c] = n ? n.charCodeAt(c)-48 : (isSolid(R.t[c]) ? 0 : 1);
-      if(R.t[c] === WATER) R.lv[c] = lvS ? Math.max(0.05, (lvS.charCodeAt(c)-48)/40) : 1;
+      // nivel del agua exacto (sin redondeos: el agua no crece al guardar y cargar)
+      if(lvX){ if(R.t[c] === WATER || holdsW(R.t[c])) R.lv[c] = lvX[c] || 0; if(R.t[c] === WATER && !R.lv[c]) R.t[c] = AIR; }
+      else if(R.t[c] === WATER) R.lv[c] = lvS ? Math.max(0.05, (lvS.charCodeAt(c)-48)/40) : 1;
       else if(holdsW(R.t[c]) && lvS) R.lv[c] = (lvS.charCodeAt(c)-48)/40; }
     w.rows.push(R); });
   if(!o.nat) natFromSeed(w);
@@ -213,7 +215,9 @@ function genRow(r){
     if(d > 3 && vn(c/3, r/3, S+6) > 0.84) v = HARD;
     if(sg >= DT.cuevas && d > 6 && L.d > 1 && vn(c/4, r/3, S+7) > 0.7){
       v = AIR;
-      if(ON('agua') && sg >= DT.agua && vn(c/5, r/5, S+8) > (P1.aguaUmbral ?? 0.58)) v = WATER;
+      // norma: no hay agua en la última sección (tras la última sala segura), salvo que el pozo diga lo contrario
+      const ultima = TC.principal && sg === TRAMOS.length-1 && !P1.aguaUltimaSeccion;
+      if(ON('agua') && !ultima && sg >= DT.agua && vn(c/5, r/5, S+8) > (P1.aguaUmbral ?? 0.58)) v = WATER;
       else if(ON('grisu') && sg >= DT.gas && vn(c/4, r/4, S+9) > 0.6) v = GAS;
       else if(ON('polillas') && sg >= DT.polillas && h2(c, r, S+13) < 0.025) W.items.push({k:'moth', x:c+0.5, y:r+0.5, alive:true});
     }
@@ -287,7 +291,8 @@ function addKit(r, fresh){
 // Las salas seguras se reconstruyen en cada bajada: techo y suelo de viga, dentro vacío
 // partidas de antes: cofres en las salas que ya existían
 // montacargas: una sala de cada tantas (según el pozo). Se arreglan una vez con mineral y mandan la carga arriba.
-const COL_CARGA = 5;
+const COL_CARGA = 14;
+const LLAMAS = SA.columnasLlama || [SA.columnaLlama ?? 2];   // antorchas de las salas (una a cada lado)   // al borde de la sala, como si bajara por un hueco paralelo a la mina
 const hasLift = i => !!(TC && TC.principal && P1.montacargasCada) && (i + 1) % P1.montacargasCada === 0;
 function ensureRoomItems(){
   for(let i=0;i<ROOM_ROW.length;i++){
@@ -396,6 +401,7 @@ function fluids(top, bot){
       if(R.mv[c] === tick) continue;
       if(v === WATER || (holdsW(v) && R.lv[c] > 0.004)){ waterStep(r, c, dir); continue; }
       if(!isSand(v) && v !== RUBBLE && v !== MUD) continue;
+      if(isSand(v) && cfg.anim !== 'no' && tick % (D.arena && D.arena.caeCadaTicks || 2)) continue;   // la arena cae más despacio para que se vea derramarse
       if(v === MUD){ mudStep(r, c, dir); continue; }
       const below = tAt(r+1, c);
       const can = (rr, cc) => { if(cc<0 || cc>=COLS) return false; const x = tAt(rr,cc); if(v !== WATER && playerCell(rr,cc)) return false; if(rockLane(rr, cc)) return false; return isOpen(x) || (v !== WATER && x === WATER); };
@@ -423,6 +429,8 @@ function setW(r, c, L){ const R = W.rows[r]; if(R.t[c] === WATER){ if(L < 0.004)
 function waterStep(r, c, dir){
   const R = W.rows[r], self = R.t[c];
   let L = R.lv[c];
+  // en las salas seguras el agua se va perdiendo poco a poco (así no baja de un tramo al siguiente)
+  { const Lr = layout(r); if(Lr && Lr.part !== undefined) L -= (AG.salasSecan ?? 0.3)/14; }
   if(L < 0.004){ setW(r, c, 0); return; }
   // agua que toca arena arcillosa: se empapa y se vuelve barro (se gasta agua). La arena normal no.
   for(const [rr, cc] of [[r+1, c], [r, c-dir], [r, c+dir]]){
@@ -507,9 +515,9 @@ function swap(r1,c1,r2,c2){
 }
 // el deslizamiento: el desplazamiento dibujado vuelve a cero a la velocidad de la simulación
 function slideAnim(top, bot, dt){
-  const k = 14*dt;
+  const ks = 14/(D.arena && D.arena.caeCadaTicks || 2)*dt, k0 = 14*dt;
   for(let r=top; r<=bot; r++){ const R = W.rows[r]; if(!R) continue;
-    for(let c=0;c<COLS;c++){ const x = R.ox[c], y = R.oy[c]; if(x){ R.ox[c] = Math.abs(x) <= k ? 0 : x - Math.sign(x)*k; } if(y){ R.oy[c] = Math.abs(y) <= k ? 0 : y - Math.sign(y)*k; } } }
+    for(let c=0;c<COLS;c++){ const x = R.ox[c], y = R.oy[c]; if(!x && !y) continue; const k = isSand(R.t[c]) ? ks : k0; if(x){ R.ox[c] = Math.abs(x) <= k ? 0 : x - Math.sign(x)*k; } if(y){ R.oy[c] = Math.abs(y) <= k ? 0 : y - Math.sign(y)*k; } } }
 }
 function stability(top, bot){
   let below = null;
@@ -632,7 +640,7 @@ function hit(r, c, dir){
 }
 function clearRubble(r0, c0){
   const seen = new Set([r0*16+c0]), q = [[r0,c0]], cells = [];
-  while(q.length && cells.length < ES.maxEscombroPorGolpe){
+  while(q.length && cells.length < cfg.rubMax){
     const [r,c] = q.pop(); cells.push([r,c]);
     for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){ const rr=r+dr, cc=c+dc, k=rr*16+cc; if(cc<0||cc>=COLS||rr<SURF||seen.has(k)||tAt(rr,cc)!==RUBBLE) continue; seen.add(k); q.push([rr,cc]); }
   }
@@ -677,6 +685,11 @@ function updatePlayer(dt){
         const n = p.fallN||0;
         if(n >= 2) SND('aterriza', Math.min(1, 0.4 + n*0.08));
         if(n >= JU.caidaLargaDesde){ shakeKick = Math.max(shakeKick, TB.alAterrizar); burst(p.r+0.95, p.c+0.5, '#8f563b', 8); }
+        // daño por caída: quita lámpara (fijo, o más por cada casilla de más)
+        if(cfg.caida === '1' && n >= cfg.caidaDesde){
+          const dmg = Math.round(cfg.caidaDanio + (cfg.caidaModo === 'crece' ? (n - cfg.caidaDesde)*cfg.caidaCrece : 0));
+          lamp -= dmg; SND('tropiezo'); floats.push({x:p.c+0.5, y:p.r-0.2, txt:'¡Caída! -' + dmg + '% luz', life:1.3, col:'#d95763'});
+        }
       }
       p.fallN = 0;
       if(p.onPlat && want('D')){ tapped.D = 0; p.onPlat = false; platOpen = 1; SND('trampilla'); floats.push({x:p.c+0.5, y:p.r-0.3, txt:'¡Allá voy!', life:0.9, col:'#fbf236'}); }
@@ -734,7 +747,7 @@ function updatePlayer(dt){
   if(wick && lamp > 0 && (tAt(p.r, p.c) === GAS || tAt(p.r-1, p.c) === GAS)) explode(tAt(p.r, p.c) === GAS ? p.r : p.r-1, p.c);
   const L = layout(p.r);
   const inRoom = L.part !== undefined && L.part > 0 && L.part < ROOM_H-1;
-  const atFlame = inRoom && Math.abs(p.x - SA.columnaLlama) <= SA.radioLlama;
+  const atFlame = inRoom && LLAMAS.some(cl => Math.abs(p.x - cl) <= SA.radioLlama);
   if(atFlame){ if(lamp < 100 && Math.random() < dt*20) burst(p.y+0.2, p.x+0.5, '#fbf236', 1); lamp = Math.min(100, lamp + LA.recargaSala*dt); }
   else if(!L.surface && !inRoom) lamp -= cfg.drain*dt*(wick ? 1 : LA.multMechaBaja)*wetMult*(has('mecha_cera') ? cv_('mecha_cera', 0.75) : 1)*(has('codicia') ? cv_('codicia', 1.25) : 1);
   // arena encima: te va cubriendo
@@ -886,7 +899,7 @@ function updateMoths(dt){
 function die(cause){
   if(dead || cashed) return;
   if(useCard('segunda')){   // carta: vuelves a la última sala segura con la mochila
-    const r = lastRoomFloor >= ROOM_ROW[0] + ROOM_H - 1 ? lastRoomFloor - 1 : SURF - 2, c = r === SURF - 2 ? 7 : SA.columnaLlama;
+    const r = lastRoomFloor >= ROOM_ROW[0] + ROOM_H - 1 ? lastRoomFloor - 1 : SURF - 2, c = r === SURF - 2 ? 7 : LLAMAS[0];
     p.r = r; p.y = r; p.c = c; p.x = c; p.sx = c; p.falling = false; p.fallN = 0; p.stun = 0; p.onPlat = r === SURF - 2; if(p.onPlat) platOpen = 0;
     lamp = Math.max(lamp, 60); buried = 0; air = airMax(); flashT = 0.5; SND('mochila');
     toast('¡Segunda oportunidad!', 'Vuelves a la última sala segura con tu mochila'); return;
@@ -1003,7 +1016,7 @@ new ResizeObserver(resize).observe(stage);
 const hsh = (a,b) => (h2(a,b,77)*1e6)|0;
 
 // arena en movimiento: se dibuja en cuatro trozos que llegan a destiempo, con granos sueltos, para que se vea que se derrama
-const SAND_LAG = [1.35, 1.0, 1.15, 0.8];
+const SAND_LAG = [1.6, 1.0, 1.3, 0.7];
 function drawSandSplit(v, r, c, X, Y, ox, oy){
   const vs = TS.arena, im = vs[hsh(r,c) % vs.length], hT = T/2;
   for(let q=0;q<4;q++){
@@ -1013,7 +1026,7 @@ function drawSandSplit(v, r, c, X, Y, ox, oy){
     if(v === CSAND){ ctx.fillStyle = 'rgba(172,50,50,0.28)'; ctx.fillRect(Math.round(X + sx + dx*T), Math.round(Y + sy + dy*T), hT, hT); }
   }
   ctx.fillStyle = v === CSAND ? '#a0503a' : '#d9a066';
-  for(let i=0;i<5;i++){ const h = hsh(r*7+i, c*3+Math.floor(t*20)); ctx.fillRect(Math.round(X + (h % T) + ox*T*0.5), Math.round(Y + ((h >> 5) % T) + oy*T*0.5), 1, 2); }
+  for(let i=0;i<10;i++){ const h = hsh(r*7+i, c*3+Math.floor(t*20)); ctx.fillRect(Math.round(X + (h % T) + ox*T*(0.3 + (i%4)*0.3)), Math.round(Y + ((h >> 5) % T) + oy*T*(0.3 + (i%3)*0.35)), 2, 2); }
 }
 // agua a su nivel, semitransparente (encima de lo que haya en la casilla: escalera, puntal, tablón)
 function drawWater(r, c, X, Y, lv){
@@ -1042,7 +1055,7 @@ function drawTile(v, r, c, X, Y){
       const ph = (t*0.7 + (hsh(c,r)%100)/37) % 3; if(ph < 0.5){ ctx.fillStyle = '#a0703f'; const bx = X + (hsh(c+3,r)%16) + 4; ctx.fillRect(bx, Y - Math.round(ph*4), 3, 2); } }
     return;
   }
-  if(v === PROP){ const b = tAt(r+1, c); if(isSolid(b) || b === PROP || b === LADDER) ctx.drawImage(PS.puntal, X, Y); else drawFloatingProp(r, c, X, Y); if(R && R.lv[c] > 0.004) drawWater(r, c, X, Y, R.lv[c]); return; }
+  if(v === PROP){ const b = tAt(r+1, c); if(isSolid(b) || b === PROP || b === LADDER) ctx.drawImage(PS.puntal, X, Y); else drawFloatingProp(r, c, X, Y); drawMudBoards(r, c, X, Y); if(R && R.lv[c] > 0.004) drawWater(r, c, X, Y, R.lv[c]); return; }
   if(v === PLANK){ drawPlank(r, c, X, Y); if(R && R.lv[c] > 0.004) drawWater(r, c, X, Y, R.lv[c]); return; }
   if(v === BEDROCK){ drawBedrock(r, c, X, Y); return; }
   if(v === LADDER){ ctx.drawImage(PS.escalera, X, Y); if(R && R.lv[c] > 0.004) drawWater(r, c, X, Y, R.lv[c]); return; }
@@ -1068,6 +1081,17 @@ function drawTile(v, r, c, X, Y){
     const dmg = (I.hp||0) - R.hp[c];
     if(R.sh[c] > 0) ctx.drawImage(GS[2], X+jx, Y);
     else if(dmg > 0 && I.hp < 999) ctx.drawImage(GS[Math.min(2, Math.floor(dmg / Math.max(1, I.hp) * 3))], X, Y);
+  }
+}
+// puntal que contiene barro: tablas en el lado del barro (entibación), para que se vea qué lo frena
+function drawMudBoards(r, c, X, Y){
+  for(const dc of [-1, 1]){
+    if(tAt(r, c+dc) !== MUD) continue;
+    const x0 = dc < 0 ? X : X + T - 6;
+    ctx.fillStyle = '#000'; ctx.fillRect(x0, Y, 6, T);
+    for(let i=0;i<4;i++){ ctx.fillStyle = i % 2 ? '#8f563b' : '#a0703f'; ctx.fillRect(x0 + 1, Y + 1 + i*6, 4, 5); ctx.fillStyle = '#663931'; ctx.fillRect(x0 + 1, Y + 5 + i*6, 4, 1); }
+    ctx.fillStyle = '#000'; ctx.fillRect(dc < 0 ? X + 6 : X + T - 12, Y + 6, 6, 2); ctx.fillRect(dc < 0 ? X + 6 : X + T - 12, Y + T - 8, 6, 2);
+    ctx.fillStyle = '#8f563b'; ctx.fillRect(dc < 0 ? X + 6 : X + T - 12, Y + 6, 5, 1); ctx.fillRect(dc < 0 ? X + 6 : X + T - 12, Y + T - 8, 5, 1);
   }
 }
 // barra de madera en diagonal (en píxeles, para que quede nítida)
@@ -1373,9 +1397,9 @@ function render(){
   // antorchas de las salas
   for(const i of rooms){
     if(hasWheel(i)) drawWheel(i);
-    const Y = Math.round((ROOM_ROW[i]+1-cam)*T), X = SA.columnaLlama*T + 10;
-    ctx.fillStyle = '#663931'; ctx.fillRect(X, Y+10, 3, 14);
-    const fl = Math.round(Math.sin(t*14)); ctx.fillStyle = '#df7126'; ctx.fillRect(X-2, Y+2+fl, 7, 9); ctx.fillStyle = '#fbf236'; ctx.fillRect(X, Y+5+fl, 3, 5);
+    for(const cl of LLAMAS){ const Y = Math.round((ROOM_ROW[i]+1-cam)*T), X = cl*T + 10;
+      ctx.fillStyle = '#663931'; ctx.fillRect(X, Y+10, 3, 14);
+      const fl = Math.round(Math.sin(t*14 + cl)); ctx.fillStyle = '#df7126'; ctx.fillRect(X-2, Y+2+fl, 7, 9); ctx.fillStyle = '#fbf236'; ctx.fillRect(X, Y+5+fl, 3, 5); }
   }
   for(const it of W.items) if(it.alive && it.k !== 'moth' && it.r >= r0 && it.r <= r1 && !isSolid(tAt(it.r, it.c))) drawItem(it);
   for(const k of rocks){ ctx.drawImage((TS[INFO[k.t].tile]||TS.piedra)[0], k.c*T, Math.round((k.y-cam)*T)); if(INFO[k.t].veta) ctx.drawImage(VS[INFO[k.t].veta][0], k.c*T, Math.round((k.y-cam)*T)); }
@@ -1700,19 +1724,20 @@ function actionHere(){
   if(L.surface && maxDepth > 2 && TC.principal) return {txt:'Volver al pueblo', fn: () => cashOut()};
   const mc = itemHere('carga');
   if(mc){
-    if(!W.cargaOk.includes(mc.room)) return {txt:'Arreglar el montacargas (' + (P1.costeMontacargas||4) + ' de carga)', fn: () => fixLift(mc)};
+    if(!W.cargaOk.includes(mc.room)) return {txt:'Arreglar el montacargas (' + costTxt() + ')', fn: () => fixLift(mc)};
     return {txt:'Mandar la carga arriba', fn: () => sendCargo(mc)};
   }
   const as = itemHere('ascensor');
   if(as && !W.ascUsado && bag['o:pieza_ascensor']) return {txt:'Poner la pieza y subir', fn: useElevator};
   return null;
 }
+// coste del montacargas: materiales concretos según el pozo (datos.pozos.X.costeMontacargas)
+function liftCost(){ return P1.costeMontacargas || {carbon:4, cobre:2}; }
+function costTxt(){ return Object.entries(liftCost()).map(([m, n]) => n + ' ' + M[m].nombre.toLowerCase()).join(', '); }
 function fixLift(mc){
-  const cost = P1.costeMontacargas || 4;
-  if(weight() < cost){ toast('Montacargas roto', 'Para arreglarlo hace falta ' + cost + ' de carga de mineral, y llevas ' + weight()); SND('clin'); return; }
-  // se paga con lo que menos vale primero
-  let left = cost; const ks = Object.keys(bag).filter(k => INFO[k] && bag[k] > 0).sort((a, b) => INFO[a].val - INFO[b].val);
-  for(const k of ks){ while(left > 0 && bag[k] > 0){ bag[k]--; left -= INFO[k].val; } if(!bag[k]) delete bag[k]; }
+  const cost = liftCost(), falta = Object.entries(cost).filter(([m, n]) => (bag[KEY2T[m]]||0) < n);
+  if(falta.length){ toast('Montacargas roto', 'Para arreglarlo hace falta ' + costTxt() + '. Te falta ' + falta.map(([m, n]) => (n - (bag[KEY2T[m]]||0)) + ' ' + M[m].nombre.toLowerCase()).join(', ')); SND('clin'); return; }
+  for(const [m, n] of Object.entries(cost)){ const k = KEY2T[m]; bag[k] -= n; if(!bag[k]) delete bag[k]; }
   W.cargaOk.push(mc.room); SND('trampilla'); shakeKick = Math.max(shakeKick, 1.2); burst(mc.r+0.4, mc.c+0.5, '#d9a066', 18);
   toast('¡Montacargas arreglado!', 'Desde aquí puedes mandar la carga al almacén y seguir bajando'); renderInv(); persist();
 }
@@ -1733,6 +1758,7 @@ function useElevator(){
 }
 let wasStartedD = false;
 function openDrop(){
+  if(!$('dropSheet').hidden) return;
   wasStartedD = started; started = false;
   for(const k in input){ input[k] = false; tapped[k] = 0; }
   renderDrop(); $('dropSheet').hidden = false;
@@ -1916,13 +1942,14 @@ $('ovBtn').addEventListener('click', toVillage);
 $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
 $('helpClose').addEventListener('click', () => { $('help').hidden = true; });
 // ajustes
-const SL = ['drain','corn','crack','thrH','thrS','minP','minL','oilEvery','oilGain','cap','resp','respP'], SS = ['dark','zoom','recoger','frag','anim'];
+const SL = ['drain','corn','crack','thrH','thrS','minP','minL','oilEvery','oilGain','cap','resp','respP','rubMax','caidaDesde','caidaDanio','caidaCrece'], SS = ['dark','zoom','recoger','frag','anim','caida','caidaModo'];
 function syncTune(){ const st = $('statsTxt'); if(st) st.textContent = statsText(); SL.forEach(k => { $('s_'+k).value = cfg[k]; $('o_'+k).textContent = cfg[k]; }); SS.forEach(k => { $('s_'+k).value = cfg[k]; }); $('s_sound').value = window.Sonido && !window.Sonido.activado ? '0' : '1'; }
 SL.forEach(k => $('s_'+k).addEventListener('input', e => { cfg[k] = +e.target.value; $('o_'+k).textContent = cfg[k]; save('deep-cfg', cfg); }));
 SS.forEach(k => $('s_'+k).addEventListener('change', e => { cfg[k] = e.target.value; save('deep-cfg', cfg); }));
 $('s_sound').addEventListener('change', e => { window.Sonido && window.Sonido.activar(e.target.value === '1'); });
 let wasStarted = false;
-$('tuneBtn').addEventListener('click', () => { syncTune(); wasStarted = started; started = false; $('tuning').hidden = false; });
+// (si ya está abierto, no se vuelve a guardar el estado: un doble toque dejaba el juego en pausa al pulsar Seguir)
+$('tuneBtn').addEventListener('click', () => { if(!$('tuning').hidden) return; syncTune(); wasStarted = started; started = false; $('tuning').hidden = false; });
 $('tuneClose').addEventListener('click', () => { $('tuning').hidden = true; started = wasStarted; lastT = performance.now(); });
 $('tuneReset').addEventListener('click', () => { cfg = {...BASE}; save('deep-cfg', null); syncTune(); });
 
@@ -1949,6 +1976,6 @@ return {
   salir(){ activa = false; started = false; },
   borrar(){ for(const k in POZOS) save(POZOS[k].guardado, null); cargarMundo(PK); },
   get pozo(){ return PK; },
-  _dbg(){ return {p, W, get MINA(){ return MINA; }, get TC(){ return TC; }, get PLACED(){ return PLACED; }, get transit(){ return transit; }, get bag(){ return bag; }, rocks, setT, tAt, consts:{AIR, RUBBLE, STONE, HARD, DIRT, SURF, get ROOM_ROW(){ return ROOM_ROW; }, ROOM_H, PROP, PLANK, BEDROCK, CSAND, SAND, WATER, MUD, ROCK, DOOR, PASS}, get cfg(){ return cfg; }, placeTool, get llaves(){ return llaves; }, set llaves(v){ llaves = v; }, get wick(){ return wick; }, set wick(v){ wick = v; }, get looking(){ return looking; }, get zoom(){ return zoom; }, get shake(){ return shake + shakeKick; }, get props(){ return props; }, get ladders(){ return ladders; }, get cards(){ return cards; }, set cards(v){ cards = v; }, get air(){ return air; }, get lamp(){ return lamp; }, set lamp(v){ lamp = v; }, get dead(){ return dead; }, die}; },
+  _dbg(){ return {p, W, get MINA(){ return MINA; }, get TC(){ return TC; }, get PLACED(){ return PLACED; }, get transit(){ return transit; }, get bag(){ return bag; }, rocks, setT, tAt, consts:{AIR, RUBBLE, STONE, HARD, DIRT, SURF, get ROOM_ROW(){ return ROOM_ROW; }, ROOM_H, PROP, PLANK, BEDROCK, CSAND, SAND, WATER, MUD, ROCK, DOOR, PASS}, get cfg(){ return cfg; }, placeTool, persist, get llaves(){ return llaves; }, set llaves(v){ llaves = v; }, get wick(){ return wick; }, set wick(v){ wick = v; }, get looking(){ return looking; }, get zoom(){ return zoom; }, get shake(){ return shake + shakeKick; }, get props(){ return props; }, get ladders(){ return ladders; }, get cards(){ return cards; }, set cards(v){ cards = v; }, get air(){ return air; }, get lamp(){ return lamp; }, set lamp(v){ lamp = v; }, get dead(){ return dead; }, die}; },
 };
 })();

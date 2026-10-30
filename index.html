@@ -131,7 +131,7 @@
             <li>La arena cae y forma rampas; si te cubre la cabeza, sal antes de que te sepulte (tienes unos segundos). El agua moja la mecha.</li>
             <li>Si la llama se pone azul hay grisú: baja la mecha o explota.</li>
             <li>El aceite no se pica: métete en su hueco. Las polillas buscan tu luz.</li>
-            <li>Las salas seguras recargan la lámpara. Algunas tienen un montacargas: se arregla una vez con un poco de mineral y luego manda tu carga al almacén mientras tú sigues bajando. Para volver al pueblo hay que subir hasta la jaula (o encontrar un ascensor).</li>
+            <li>Las salas seguras recargan la lámpara junto a sus dos antorchas, y el agua que entra en ellas se va perdiendo. Algunas tienen un montacargas: se arregla una vez con unos materiales concretos (carbón y cobre) y luego manda tu carga al almacén mientras tú sigues bajando. Para volver al pueblo hay que subir hasta la jaula (o encontrar un ascensor).</li>
             <li>Mientras caes puedes moverte un poco a los lados para agarrarte a un saliente.</li>
             <li>El botón «Ver» aleja la cámara para mirar caminos; mientras miras no te mueves.</li>
             <li>En las salas seguras la lámpara se recarga junto a la llama. Cada sala tiene un cofre de suministros (se abre una vez por pozo) y cada dos salas hay una ruleta de cartas: gírala y quédate con una de tres. Las cartas duran hasta que vuelves al principio del pozo.</li>
@@ -187,6 +187,14 @@
           <label class="sl">Capacidad de la mochila (carga)<output id="o_cap"></output><input type="range" id="s_cap" min="5" max="60" step="1"></label>
           <label class="sl">Relleno: casillas que se respetan alrededor de escaleras y puntales<output id="o_resp"></output><input type="range" id="s_resp" min="0" max="5" step="1"></label>
           <label class="sl">Relleno: probabilidad de respetar esas casillas (%)<output id="o_respP"></output><input type="range" id="s_respP" min="0" max="100" step="5"></label>
+          <label class="sl">Escombro que quita un golpe de pico (casillas conectadas)<output id="o_rubMax"></output><input type="range" id="s_rubMax" min="1" max="300" step="1"></label>
+          <label class="sl">Daño por caída<output></output>
+            <select id="s_caida"><option value="0">Apagado</option><option value="1">Encendido: las caídas largas quitan lámpara</option></select></label>
+          <label class="sl">Caída: hace daño desde (casillas)<output id="o_caidaDesde"></output><input type="range" id="s_caidaDesde" min="2" max="15" step="1"></label>
+          <label class="sl">Caída: lámpara que quita (%)<output id="o_caidaDanio"></output><input type="range" id="s_caidaDanio" min="1" max="60" step="1"></label>
+          <label class="sl">Caída: tipo de daño<output></output>
+            <select id="s_caidaModo"><option value="fijo">El mismo, caigas lo que caigas</option><option value="crece">Aumenta con cada casilla de más</option></select></label>
+          <label class="sl">Caída: cuánto aumenta por casilla (%)<output id="o_caidaCrece"></output><input type="range" id="s_caidaCrece" min="0" max="20" step="1"></label>
           <label class="sl">Puntales al empezar cada bajada (mínimo)<output id="o_minP"></output><input type="range" id="s_minP" min="0" max="30" step="1"></label>
           <label class="sl">Escaleras al empezar cada bajada (mínimo)<output id="o_minL"></output><input type="range" id="s_minL" min="0" max="20" step="1"></label>
           <label class="sl">Recoger puntales<output></output>

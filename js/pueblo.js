@@ -30,6 +30,12 @@ window.Pueblo = (()=>{
     return c;
   })();
 
+  // topo andando (para la plaza): fotogramas de andar y de reposo
+  const frameCv = f => { const c = document.createElement('canvas'); c.width = 32; c.height = 31; const x = c.getContext('2d');
+    f.forEach((row, y) => { for(let i=0;i<row.length;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = S.topo.pal[ch]; x.fillRect(i, y, 1, 1); } }); return c; };
+  const TOPO_ANDAR = (S.topo.anims.andar || S.topo.anims.reposo).map(frameCv);
+  const TOPO_REPOSO = S.topo.anims.reposo.map(frameCv);
+
   // =================== MAPA ===================
   const MW = 200, MH = 300;
   const mapaCv = $('mapaCv'), mx = mapaCv.getContext('2d');
@@ -155,9 +161,34 @@ window.Pueblo = (()=>{
     R(x, C.tostado, 150, 212, 50, 30); for(let i=0;i<6;i++) R(x, C.marronC, 152 + i*8, 216 + (i%2)*10, 4, 2);
     R(x, C.neg, 172, 196, 3, 26); R(x, C.marron, 173, 197, 1, 24); R(x, C.neg, 160, 196, 26, 9); R(x, C.marronC, 161, 197, 24, 7);
     R(x, C.crema, 164, 199, 3, 3); R(x, C.crema, 170, 199, 10, 1); R(x, C.crema, 170, 202, 8, 1);
-    // el topo junto a la fuente
-    const bob = Math.floor(t*2) % 2;
-    x.drawImage(topoCv, fx + 22, fy - 8 + bob);
+    // Deep: junto a la fuente o andando hacia la puerta de la casa que elegiste
+    moverTopo(t);
+    const andando = topo.camino.length > 0, frs = andando ? TOPO_ANDAR : TOPO_REPOSO;
+    const fr = frs[Math.floor(t*(andando ? 9 : 2)) % frs.length];
+    x.save();
+    if(topo.cara < 0){ x.translate(Math.round(topo.x) + 32, Math.round(topo.y)); x.scale(-1, 1); x.drawImage(fr, 0, 0); }
+    else x.drawImage(fr, Math.round(topo.x), Math.round(topo.y));
+    x.restore();
+  }
+  // Deep camina por la plaza: rodea la fuente por abajo y llega a la puerta de la casa; al llegar se abre el panel
+  const INICIO = {x: 122, y: 116};
+  const topo = {x: INICIO.x, y: INICIO.y, cara: 1, camino: [], alLlegar: null, tPaso: 0, tUlt: 0};
+  const puerta = i => { const h = HUECOS[i % HUECOS.length]; return {x: h.x + 24 - 16, y: h.y + 44 - 30}; };
+  function irA(dest, alLlegar){
+    // pasa por el pasillo de debajo de la fuente si hay que cruzar de un lado a otro
+    const ruta = [], bajo = 158;
+    if(Math.abs(dest.x - topo.x) > 40){ ruta.push({x: topo.x, y: bajo}, {x: dest.x, y: bajo}); }
+    ruta.push(dest);
+    topo.camino = ruta; topo.alLlegar = alLlegar;
+  }
+  function moverTopo(t){
+    const dt = Math.min(0.05, Math.max(0, t - topo.tUlt)); topo.tUlt = t;
+    if(!topo.camino.length) return;
+    const p = topo.camino[0], dx = p.x - topo.x, dy = p.y - topo.y, d = Math.hypot(dx, dy), v = 70*dt;
+    if(Math.abs(dx) > 0.5) topo.cara = Math.sign(dx);
+    if(d <= v){ topo.x = p.x; topo.y = p.y; topo.camino.shift(); if(!topo.camino.length && topo.alLlegar){ const f = topo.alLlegar; topo.alLlegar = null; f(); } }
+    else { topo.x += dx/d*v; topo.y += dy/d*v; }
+    topo.tPaso += dt; if(topo.tPaso > 0.22){ topo.tPaso = 0; window.Sonido && window.Sonido.tocar('pasoPlaza', 0.7); }
   }
   function montarPuntosPlaza(){
     const cont = $('plazaPuntos'); cont.innerHTML = '';
@@ -168,7 +199,9 @@ window.Pueblo = (()=>{
       b.style.transform = `translate(-50%, -${24*g.css}px)`;
       b.innerHTML = `<span class="zona" style="width:${50*g.css}px;height:${46*g.css}px"></span><span class="etq">${c.nombre}</span>`;
       b.setAttribute('aria-label', c.nombre);
-      b.onclick = () => { plazaSel = i; panelCasa(); };
+      b.onclick = () => { plazaSel = i; document.querySelectorAll('#plazaPuntos .punto').forEach((bb, j) => bb.classList.toggle('sel', j === i));
+        $('ppEyebrow').textContent = D.casas[i].dueno; $('ppTitulo').textContent = D.casas[i].nombre; $('ppCuerpo').innerHTML = '<p class="note">Deep va hacia la puerta…</p>';
+        irA(puerta(i), () => { if(plazaSel === i) panelCasa(); }); };
       cont.appendChild(b);
     });
     const salida = document.createElement('button'); salida.className = 'punto';
@@ -176,7 +209,7 @@ window.Pueblo = (()=>{
     salida.style.transform = `translate(-50%, -${16*g.css}px)`;
     salida.innerHTML = `<span class="zona" style="width:${34*g.css}px;height:${30*g.css}px"></span><span class="etq">Al mapa</span>`;
     salida.setAttribute('aria-label', 'Salir al mapa');
-    salida.onclick = () => window.Pantallas.mostrar('mapa');
+    salida.onclick = () => { plazaSel = null; panelCasa(); irA({x: 158, y: 196}, () => window.Pantallas.mostrar('mapa')); };
     cont.appendChild(salida);
   }
   const MAT = D.materiales;
@@ -236,7 +269,7 @@ window.Pueblo = (()=>{
   ro.observe($('mapaLienzo')); ro.observe($('plazaLienzo'));
   return {
     mapa(){ activa = 'mapa'; requestAnimationFrame(recolocar); },
-    plaza(){ activa = 'plaza'; plazaSel = null; requestAnimationFrame(recolocar); },
+    plaza(){ activa = 'plaza'; plazaSel = null; topo.x = INICIO.x; topo.y = INICIO.y; topo.camino = []; topo.alLlegar = null; requestAnimationFrame(recolocar); },
     parar(){ activa = null; },
   };
 })();

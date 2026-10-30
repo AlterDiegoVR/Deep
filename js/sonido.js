@@ -67,6 +67,10 @@ window.Sonido = (()=>{
     // carta que sale de la ruleta (destello ascendente)
     carta(t,v){ tone(t, 0.12, 0.2*v, 'triangle', 520, 1040); tone(t+0.05, 0.16, 0.12*v, 'sine', 1560, 2080); },
     paso(t,v){ noise(t, 0.03, 0.12*v, 'lowpass', 600); },
+    // clic de los menús: un toque de madera corto y suave
+    clic(t,v){ tone(t, 0.05, 0.16*v, 'triangle', 880, 620); noise(t, 0.025, 0.12*v, 'bandpass', 2400, 0, 2); },
+    // pasos en la plaza (sobre adoquines)
+    pasoPlaza(t,v){ noise(t, 0.04, 0.1*v, 'bandpass', 1300 + Math.random()*400, 0, 1.5); },
   };
 
   function tocar(name, v = 1){
