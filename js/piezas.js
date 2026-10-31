@@ -5,7 +5,7 @@
 //
 //  Cada pieza:
 //    id        nombre único
-//    pozo      en qué pozo sale ('pruebas' si no se pone; el Pozo viejo no lleva piezas de momento)
+//    pozo      en qué pozo sale ('pruebas' si no se pone), o una lista de pozos: ['pruebas', 'dos']
 //    tiro      'principal' o el id de un ramal (por ejemplo 'ramal1'); 'ramales' = cualquier ramal
 //    colocar   dónde va. Una de estas formas:
 //                { fila: 26 }                     a esa profundidad (filas desde la boca del pozo)
@@ -48,6 +48,7 @@ window.PIEZAS = [
     // Fondo del ramal: una cámara con un cofre, una flor y el montacargas para volver. Debajo, una capa de roca
     // maciza (azul): la promesa de que con el taladro habrá algo más abajo.
     id: 'fondo_ramal',
+    pozo: ['pruebas', 'dos'],
     tiro: 'ramales',
     colocar: { fondo: true },
     reflejar: true,
@@ -70,6 +71,18 @@ window.PIEZAS = [
       '...............',
       'x_____________x',
       'xA__K____V__Z_x',
+    ],
+  },
+  {
+    // Fondo de la Cantera del molino (prototipo del pozo 2): un respiradero, un cofre y una flor.
+    id: 'fondo_pozo2',
+    pozo: 'dos',
+    tiro: 'principal',
+    colocar: { fondo: true },
+    filas: [
+      '...............',
+      'x_____________x',
+      'x_f___B___V__ox',
     ],
   },
 ];

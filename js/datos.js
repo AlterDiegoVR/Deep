@@ -6,11 +6,18 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.207c',
+  version: '0.208',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
   pantalla: { calidad: 0 },
+
+  // ---------- Aceite ----------
+  // Los bidones se reparten por tramos: en los tramos cortos no hay; en los largos, entre «minimo» y «maximo» al azar.
+  aceite: { desdeLargo: 20, minimo: 1, maximo: 2 },
+
+  // ---------- Daño por caída ----------
+  caida: { arena: 0.25 },      // caer sobre arena hace esta parte del daño; caer en agua o barro (media casilla o más) no hace daño
 
   // ---------- Arena ----------
   arena: { caeCadaTicks: 2 },  // la arena se mueve un paso de cada tantos de la simulación (más despacio = se ve derramarse)
@@ -233,7 +240,8 @@ window.DATOS = {
   // ---------- Mapa: las minas alrededor del pueblo ----------
   minas: [
     { id: 1, nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin grisú. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
-    { id: 2, nombre: 'Cantera del molino',  abierta: false, texto: 'Próximamente.' },
+    { id: 2, nombre: 'Cantera del molino',  abierta: false, pozo: 'dos', desbloqueo: { arcilla: 25, carbon: 25, cobre: 12 },
+      texto: 'Prototipo del segundo pozo: más grande y más enrevesado, con dos ramales, grisú, barro, puertas con llave y cuarzo. Está cerrada: se abre con materiales del Pozo viejo.' },
     { id: 3, nombre: 'Galería del río',     abierta: false, texto: 'Próximamente.' },
     { id: 4, nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
     { id: 5, nombre: 'Socavón de cobre',    abierta: false, texto: 'Próximamente.' },
@@ -260,10 +268,10 @@ window.DATOS = {
       columnas: 15,
       tramos: [
         { nombre: 'Boca del pozo',      largo: 12 },
-        { nombre: 'Galerías de arcilla', largo: 14 },
-        { nombre: 'Vetas de carbón',    largo: 16 },
-        { nombre: 'Cuevas húmedas',     largo: 18 },
-        { nombre: 'El fondo',           largo: 20 },
+        { nombre: 'Galerías de arcilla', largo: 16 },
+        { nombre: 'Vetas de carbón',    largo: 20 },
+        { nombre: 'Cuevas húmedas',     largo: 24 },
+        { nombre: 'El fondo',           largo: 28 },
       ],
       conFondo: true,
       altoSala: 4,
@@ -288,32 +296,74 @@ window.DATOS = {
       altoSala: 4,
       aceiteCada: 9,
       montacargasCada: 3,          // una sala de cada tantas tiene montacargas (para mandar la carga arriba y seguir bajando)
-      costeMontacargas: { carbon: 4, cobre: 2 },   // materiales que cuesta arreglarlo (se paga con lo que llevas)
+      costeMontacargas: { arcilla: 4, carbon: 3 },   // materiales que cuesta arreglarlo (se paga con lo que llevas; siempre de lo que ya sale más arriba)
       contenido: { agua: false, grisu: false, polillas: false, barro: false, cartas: false, puertas: false, llaves: false,
                    ramales: false, objetos: false, salaSellada: false, piezas: false },
       desdeTramo: { carbon: 1, cuarzo: 3, cobre: 3, cuevas: 0 },
     },
-    // Banco de pruebas: todo lo que se va probando
+    // Banco de pruebas: todo lo que se va probando. Salas sin fin y, a partir del cuarto tramo, tramos temáticos exagerados
+    //   temas: se van turnando desde el tramo «temasDesde» (0 = el primero). Cada tema cambia umbrales del generador:
+    //     arena (más bajo = más arena) · arcillosa (parte de la arena que hace barro) · cuevas (más bajo = más huecos)
+    //     agua / gas (más bajo = más agua o grisú en los huecos) · polillas (probabilidad por hueco)
     pruebas: {
       nombre: 'Pozo de pruebas',
       guardado: 'pozoviejo-mina1',
       columnas: 15,
       tramos: [
         { nombre: 'Boca del pozo',   largo: 12 },
-        { nombre: 'Vetas de carbón', largo: 18 },
-        { nombre: 'Cuevas húmedas',  largo: 26 },
-        { nombre: 'Fondo de cobre',  largo: 999 },
+        { nombre: 'Vetas de carbón', largo: 16 },
+        { nombre: 'Cuevas húmedas',  largo: 20 },
+      ],
+      salasCada: 24, salasCrece: 4, salasMax: 80,
+      temasDesde: 3,
+      temas: [
+        { nombre: 'Tramo de arena',      arena: 0.5, arcillosa: 0 },
+        { nombre: 'Tramo de barro',      arena: 0.58, arcillosa: 1, cuevas: 0.6, agua: 0.4 },
+        { nombre: 'Tramo inundado',      cuevas: 0.5, agua: 0.25 },
+        { nombre: 'Tramo de grisú',      cuevas: 0.55, gas: 0.3, agua: 0.9 },
+        { nombre: 'Tramo de polillas',   cuevas: 0.45, agua: 0.9, gas: 0.9, polillas: 0.08 },
+        { nombre: 'Tramo de cuevas',     cuevas: 0.4 },
       ],
       altoSala: 4,                 // filas de cada sala segura (techo + 2 de aire + suelo)
-      aceiteCada: 9,               // filas entre bidones de aceite (más 2 por tramo)
       salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },  // roca maciza con cofre (hace falta taladro)
       arenaArcillosa: 0.5,         // parte de la arena que es arcillosa (hace barro con el agua)
       montacargasCada: 2,
-      costeMontacargas: { carbon: 3, cobre: 2 },
+      costeMontacargas: { arcilla: 3, carbon: 2 },
       aguaUltimaSeccion: true,     // en el banco de pruebas sí hay agua en la última sección
+      ramales: [ { id: 'ramal1', nombre: 'Ramal del carbón', fila: 48, lado: 'izquierda', largo: 24 } ],
       contenido: {},               // todo
       // el desvío del tramo 2 es una pieza hecha a mano: está en js/piezas.js
       desdeTramo: { carbon: 1, cuarzo: 2, cobre: 3, cuevas: 0, gas: 1, agua: 2, polillas: 1 },
+    },
+    // Prototipo del segundo pozo (mina 2, la Cantera del molino): más grande y más complejo que el primero.
+    // Siete tramos que crecen 4 filas, dos ramales (pozos paralelos) con su montacargas al fondo, grisú, barro,
+    // puertas con llave, ruleta de cartas, montacargas y cuarzo. Se abre en el mapa pagando materiales del Pozo viejo.
+    dos: {
+      nombre: 'Cantera del molino',
+      guardado: 'deep-pozo2',
+      columnas: 15,
+      tramos: [
+        { nombre: 'Boca de la cantera',  largo: 16 },
+        { nombre: 'Galerías del molino', largo: 20 },
+        { nombre: 'Vetas negras',        largo: 24 },
+        { nombre: 'Cuevas de barro',     largo: 28 },
+        { nombre: 'Bolsas de grisú',     largo: 32 },
+        { nombre: 'Cuarzo y cobre',      largo: 36 },
+        { nombre: 'Lo más hondo',        largo: 40 },
+      ],
+      conFondo: true,
+      altoSala: 4,
+      escasez: 0.02,
+      arenaArcillosa: 0.35,
+      montacargasCada: 2,
+      costeMontacargas: { arcilla: 5, carbon: 4 },
+      sueltos: { flor_mina: { cada: 30, desdeFila: 20 }, lampara_vieja: { cada: 60, desdeFila: 30 }, foto_cuadrilla: { cada: 90, desdeFila: 60 } },
+      ramales: [
+        { id: 'molino_a', nombre: 'Galería de los carros', fila: 30, lado: 'izquierda', largo: 30 },
+        { id: 'molino_b', nombre: 'Tiro de los cuervos',   fila: 85, lado: 'derecha',   largo: 40 },
+      ],
+      contenido: { salaSellada: false },
+      desdeTramo: { carbon: 0, cobre: 2, cuarzo: 3, cuevas: 0, agua: 1, polillas: 1, gas: 4 },
     },
   },
 
@@ -343,7 +393,7 @@ window.DATOS = {
 
   // ---------- Pueblo: casas de la plaza ----------
   casas: [
-    { id: 'tienda',   nombre: 'Tienda',          dueno: 'Señora Rita',   tipo: 'tienda',  color: '#ac3232' },
+    { id: 'tienda',   nombre: 'Tienda',          dueno: 'Señora Coneja',   tipo: 'tienda',  color: '#ac3232' },
     { id: 'almacen',  nombre: 'Almacén',         dueno: 'Tu almacén',    tipo: 'almacen', color: '#8f563b' },
     { id: 'herreria', nombre: 'Herrería',        dueno: 'Don Ernesto',   tipo: 'vecino',  color: '#595652' },
     { id: 'taller',   nombre: 'Taller del tejón', dueno: 'El tejón',     tipo: 'vecino',  color: '#df7126' },

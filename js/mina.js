@@ -39,7 +39,8 @@ function tiroCfg(id){
     if(P1.salasCada){   // pozo sin fondo: tras los tramos fijos, tramos iguales sin fin (cada uno acaba en una sala segura)
       tr = P1.tramos.map(s => ({n:s.nombre, len:s.largo}));
       const N = P1.nombresTramos || ['Galería'];
-      for(let i=0;i<400;i++) tr.push({n: N[Math.min(i, N.length-1)], len: Math.min(P1.salasMax || 999, P1.salasCada + i*(P1.salasCrece || 0))});
+      for(let i=0;i<400;i++){ const k = tr.length, tm = temaDe(k);
+        tr.push({n: tm ? tm.nombre : N[Math.min(i, N.length-1)], len: Math.min(P1.salasMax || 999, P1.salasCada + i*(P1.salasCrece || 0))}); }
       tr.push({n: N[N.length-1], len: Infinity});
     } else tr = P1.tramos.map((s, i, a) => ({n:s.nombre, len: i === a.length-1 && !P1.conFondo ? Infinity : s.largo}));
     const rr = []; let r = SURF; for(let i=0;i<tr.length-1;i++){ r += tr[i].len; rr.push(r); r += ROOM_H; }
@@ -51,6 +52,8 @@ function tiroCfg(id){
   return {id, principal:false, nombre:ra.nombre, ramal:ra, tramos:[{n:ra.nombre, len:Infinity}], rooms:[], base:ra.fila,
           fondo: SURF + ra.largo, salida: ra.lado === 'izquierda' ? COLS-1 : 0};
 }
+// tramos temáticos (pozo de pruebas): desde «temasDesde» se van turnando los temas
+function temaDe(seg){ if(!P1.temas || seg < (P1.temasDesde ?? 3)) return null; return P1.temas[(seg - (P1.temasDesde ?? 3)) % P1.temas.length]; }
 function setTiro(id){ TC = tiroCfg(id); TRAMOS = TC.tramos; ROOM_ROW = TC.rooms; PLACED = placePieces(); }
 const hashStr = s => { let h = 7; for(const ch of String(s)) h = (h*31 + ch.charCodeAt(0)) | 0; return Math.abs(h); };
 function layout(r){
@@ -66,7 +69,7 @@ function layout(r){
 let SECRET = null, DT = {};
 function setPozo(key){
   PK = POZOS[key] ? key : 'viejo'; P1 = POZOS[PK];
-  RAMALES = ON('ramales') ? (D.ramales || []) : [];
+  RAMALES = ON('ramales') ? (P1.ramales || []) : [];
   DT = P1.desdeTramo || {};
   const S = P1.salaSellada; SECRET = ON('salaSellada') && S ? {r: SURF + S.fila, c0: S.columna, w: S.ancho, h: S.alto} : null;
 }
@@ -82,7 +85,7 @@ const near = (r, c) => p ? Math.max(0, 1 - Math.hypot(r - p.r, (c - p.c)*0.6)/14
 // Ajustes de prueba: parten de datos.js y se pueden tocar desde el menú de ajustes (se guardan en el navegador)
 const HM = D.herramientas.minimoPorBajada || {puntales:0, escaleras:0};
 const BASE = {drain:LA.consumo, corn:ES.cornisa ?? 2, crack:ES.tiempoCrujido, thrH:ES.escombroSiCaeDesde, thrS:ES.escombroSiCaenJuntos,
-  frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, escala:'1', resp:1, respP:90, rubMax:ES.maxEscombroPorGolpe, caida:'0', caidaDesde:4, caidaDanio:10, caidaModo:'fijo', caidaCrece:5, minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilGain:LA.aceite,
+  frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, escala:'1', resp:1, respP:90, rubMax:ES.maxEscombroPorGolpe, caida:'0', caidaDesde:4, caidaDanio:10, caidaModo:'fijo', caidaCrece:5, minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilMin:(D.aceite && D.aceite.desdeLargo) || 20, oilGain:LA.aceite,
   dark:'1', zoom: CA.zoomExplorar >= 2 ? 'siempre' : 'salas'};
 let cfg = {...BASE};
 try{ const s = JSON.parse(localStorage.getItem('deep-cfg')||'null'); if(s) cfg = {...BASE, ...s}; }catch(e){}
@@ -101,7 +104,7 @@ const Pa = window.Partida;
 // ---------- mundo ----------
 let W = null;   // el tiro actual: {id, seed, rows, items, bag, ...}
 let MINA = null;   // la mina entera: {ver, seed, actual, tiros:{id: W}}
-const WORLD_VER = 6;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
+const WORLD_VER = 7;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
 function newTiroWorld(id, seed){ return {id, ver:WORLD_VER, seed, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0, record:0, doors:[], lastRun:0, cargaOk:[], ascUsado:false, escalas:[]}; }
 function newMine(){ const seed = (Math.random()*1e9)|0; return {ver:WORLD_VER, seed, actual:'principal', tiros:{principal: newTiroWorld('principal', seed)}, stats:{ext:{}, per:{}}}; }
 // contador de materiales del pozo: extraído (llegó al almacén) y perdido (escombro, mochila llena, soltado, explosiones, derrumbes)
@@ -147,7 +150,7 @@ function placePieces(){
   const out = [], seed = W ? W.seed : 0;
   if(!ON('piezas')) return out;
   for(const pz of (window.PIEZAS || [])){
-    if((pz.pozo || 'pruebas') !== PK) continue;
+    { const pp = pz.pozo || 'pruebas'; if(Array.isArray(pp) ? !pp.includes(PK) : pp !== PK) continue; }
     const tiro = pz.tiro || 'principal';
     if(!(tiro === TC.id || (tiro === 'ramales' && !TC.principal))) continue;
     const h = pz.filas.length, C = pz.colocar || {}, hid = hashStr(pz.id);
@@ -189,6 +192,13 @@ function applyPieces(r, Tt){
 }
 function newRow(){ return {t:new Uint8Array(COLS), hp:new Uint16Array(COLS), sh:new Float32Array(COLS), mv:new Uint32Array(COLS), seen:new Uint8Array(COLS), nat:new Uint8Array(COLS), lv:new Float32Array(COLS), ox:new Float32Array(COLS), oy:new Float32Array(COLS)}; }
 let lastOil = SURF;
+function oilRowsOf(sg, len){
+  const AC = D.aceite || {desdeLargo:20, minimo:1, maximo:2};
+  if(len < cfg.oilMin) return [];
+  const S = W.seed, n = AC.minimo + Math.floor(h2(sg, 41, S+17)*(AC.maximo - AC.minimo + 1)), out = [];
+  for(let i=0;i<n;i++) out.push(2 + Math.floor(h2(sg, 43+i, S+18)*Math.max(1, len - 3)));
+  return out;
+}
 function genRow(r){
   const R = newRow(), Tt = R.t, S = W.seed;
   const L = layout(r);
@@ -202,29 +212,34 @@ function genRow(r){
     for(let c=0;c<COLS;c++) R.hp[c] = INFO[Tt[c]].hp||0;
     return R;
   }
-  const d = r - SURF, sg = L.seg;
+  const d = r - SURF, sg = L.seg, TM = (TC.principal && temaDe(sg)) || {};
   for(let c=0;c<COLS;c++){
     let v = DIRT;
     if(vn(c/5, r/5, S+1) < 0.15 + Math.min(0.55, d*0.008)) v = STONE;
     const esc = P1.escasez || 0;
-    if(d > 3 && vn(c/5, r/2.2, S+2) > (P1.arenaUmbral ?? 0.78)) v = P1.arenaArcillosa && ON('barro') && vn(c/6, r/6, S+15) < P1.arenaArcillosa ? CSAND : SAND;
+    if(d > 3 && vn(c/5, r/2.2, S+2) > (TM.arena ?? P1.arenaUmbral ?? 0.78)) v = ON('barro') && vn(c/6, r/6, S+15) < (TM.arcillosa ?? P1.arenaArcillosa ?? 0) ? CSAND : SAND;
     if(vn(c/2.6, r/2.6, S+3) > 0.73 + esc + Math.min(sg, 6)*0.03) v = CLAY;
     if(sg >= DT.carbon && !isSand(v) && vn(c/2.2, r/2.2, S+4) > 0.74 + esc) v = COAL;
     if(sg >= DT.cobre && !isSand(v) && vn(c/2, r/2, S+5) > 0.75 + esc) v = COPPER;
     if(sg >= DT.cuarzo && v === STONE && h2(c, r, S+12) < 0.008) v = QUARTZ;
     if(d > 3 && vn(c/3, r/3, S+6) > 0.84) v = HARD;
-    if(sg >= DT.cuevas && d > 6 && L.d > 1 && vn(c/4, r/3, S+7) > 0.7){
+    if(sg >= DT.cuevas && d > 6 && L.d > 1 && vn(c/4, r/3, S+7) > (TM.cuevas ?? 0.7)){
       v = AIR;
       // norma: no hay agua en la última sección (tras la última sala segura), salvo que el pozo diga lo contrario
       const ultima = TC.principal && sg === TRAMOS.length-1 && !P1.aguaUltimaSeccion;
-      if(ON('agua') && !ultima && sg >= DT.agua && vn(c/5, r/5, S+8) > (P1.aguaUmbral ?? 0.58)) v = WATER;
-      else if(ON('grisu') && sg >= DT.gas && vn(c/4, r/4, S+9) > 0.6) v = GAS;
-      else if(ON('polillas') && sg >= DT.polillas && h2(c, r, S+13) < 0.025) W.items.push({k:'moth', x:c+0.5, y:r+0.5, alive:true});
+      if(ON('agua') && !ultima && sg >= DT.agua && vn(c/5, r/5, S+8) > (TM.agua ?? P1.aguaUmbral ?? 0.58)) v = WATER;
+      else if(ON('grisu') && sg >= DT.gas && vn(c/4, r/4, S+9) > (TM.gas ?? 0.6)) v = GAS;
+      else if(ON('polillas') && sg >= DT.polillas && h2(c, r, S+13) < (TM.polillas ?? 0.025)) W.items.push({k:'moth', x:c+0.5, y:r+0.5, alive:true});
     }
     if(r === SURF) v = DIRT;
     Tt[c] = v;
   }
-  if(L.d > 2 && r - lastOil >= cfg.oilEvery + Math.min(sg, 4)*2){
+  // aceite: en tramos de largo fijo, 1 o 2 bidones al azar si el tramo es largo (en los cortos, ninguno);
+  // en los tramos sin fin (ramales), uno cada tantas filas
+  const lenT = TRAMOS[sg] ? TRAMOS[sg].len : Infinity;
+  if(isFinite(lenT)){
+    if(oilRowsOf(sg, lenT).includes(L.d)){ const c = Math.floor(h2(r, 7, S+14)*COLS); Tt[c] = AIR; W.items.push({k:'oil', r, c, alive:true}); }
+  } else if(L.d > 2 && r - lastOil >= cfg.oilEvery + Math.min(sg, 4)*2){
     const c = Math.floor(h2(r, 7, S+14)*COLS); Tt[c] = AIR; W.items.push({k:'oil', r, c, alive:true}); lastOil = r;
   }
   // pasadizos: en el principal, la boca hacia cada ramal; en un ramal, la salida de vuelta junto a la llegada
@@ -677,7 +692,7 @@ function updatePlayer(dt){
       } else if(side){                              // hay suelo al lado: se agarra al saliente
         p.c += ax; p.face = ax; driftT = JU.controlEnCaida; tapped.L = tapped.R = 0;
       } else { p.r++; p.falling = true; p.fallN = (p.fallN||0) + 1; }
-      if(inMud(p.r, p.c)) p.fallN = 0;   // el barro amortigua: nada de caída larga
+      if(inMud(p.r, p.c) || lvAt(p.r, p.c) >= 0.5) p.fallN = 0;   // el barro y el agua (media casilla o más) amortiguan: dentro no hay caída larga
     }
     else {
       if(p.falling){
@@ -687,7 +702,9 @@ function updatePlayer(dt){
         if(n >= JU.caidaLargaDesde){ shakeKick = Math.max(shakeKick, TB.alAterrizar); burst(p.r+0.95, p.c+0.5, '#8f563b', 8); }
         // daño por caída: quita lámpara (fijo, o más por cada casilla de más)
         if(cfg.caida === '1' && n >= cfg.caidaDesde){
-          const dmg = Math.round(cfg.caidaDanio + (cfg.caidaModo === 'crece' ? (n - cfg.caidaDesde)*cfg.caidaCrece : 0));
+          // caer sobre arena apenas hace daño
+          const sobreArena = isSand(tAt(p.r+1, p.c)), k = sobreArena ? ((D.caida && D.caida.arena) ?? 0.25) : 1;
+          const dmg = Math.round(k*(cfg.caidaDanio + (cfg.caidaModo === 'crece' ? (n - cfg.caidaDesde)*cfg.caidaCrece : 0)));
           lamp -= dmg; SND('tropiezo'); floats.push({x:p.c+0.5, y:p.r-0.2, txt:'¡Caída! -' + dmg + '% luz', life:1.3, col:'#d95763'});
         }
       }
@@ -2002,7 +2019,7 @@ $('ovBtn').addEventListener('click', toVillage);
 $('helpBtn').addEventListener('click', () => { $('help').hidden = false; });
 $('helpClose').addEventListener('click', () => { $('help').hidden = true; });
 // ajustes
-const SL = ['drain','corn','crack','thrH','thrS','minP','minL','oilEvery','oilGain','cap','resp','respP','rubMax','caidaDesde','caidaDanio','caidaCrece'], SS = ['dark','zoom','recoger','frag','anim','caida','caidaModo','escala'];
+const SL = ['drain','corn','crack','thrH','thrS','minP','minL','oilEvery','oilMin','oilGain','cap','resp','respP','rubMax','caidaDesde','caidaDanio','caidaCrece'], SS = ['dark','zoom','recoger','frag','anim','caida','caidaModo','escala'];
 function syncTune(){ const st = $('statsTxt'); if(st) st.textContent = statsText(); SL.forEach(k => { $('s_'+k).value = cfg[k]; $('o_'+k).textContent = cfg[k]; }); SS.forEach(k => { $('s_'+k).value = cfg[k]; }); $('s_sound').value = window.Sonido && !window.Sonido.activado ? '0' : '1'; }
 SL.forEach(k => $('s_'+k).addEventListener('input', e => { cfg[k] = +e.target.value; $('o_'+k).textContent = cfg[k]; save('deep-cfg', cfg); }));
 SS.forEach(k => $('s_'+k).addEventListener('change', e => { cfg[k] = e.target.value; save('deep-cfg', cfg); }));

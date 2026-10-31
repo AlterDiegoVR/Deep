@@ -36,6 +36,10 @@ window.Pueblo = (()=>{
   const TOPO_ANDAR = (S.topo.anims.andar || S.topo.anims.reposo).map(frameCv);
   const TOPO_REPOSO = S.topo.anims.reposo.map(frameCv);
 
+  // una mina está abierta si lo está en datos.js o si ya la desbloqueaste pagando materiales
+  const MAT = D.materiales;
+  const abierta = m => !!(m.abierta || Pa.bandera('mina_' + m.id + '_abierta'));
+
   // =================== MAPA ===================
   const MW = 200, MH = 300;
   const mapaCv = $('mapaCv'), mx = mapaCv.getContext('2d');
@@ -64,7 +68,7 @@ window.Pueblo = (()=>{
     for(const [i, p] of POS.entries()){
       const n = Math.ceil(Math.hypot(p.x-CENTRO.x, p.y-CENTRO.y));
       for(let k=0;k<n;k+=1){ const px = CENTRO.x + (p.x-CENTRO.x)*k/n, py = CENTRO.y + (p.y-CENTRO.y)*k/n;
-        R(x, D.minas[i].abierta ? C.tostado : C.oliva, px-1, py-1, 3, 3); }
+        R(x, abierta(D.minas[i]) ? C.tostado : C.oliva, px-1, py-1, 3, 3); }
     }
     // pueblo
     R(x, C.oliva, CENTRO.x-26, CENTRO.y-18, 52, 36); R(x, C.marronC, CENTRO.x-24, CENTRO.y-16, 48, 32);
@@ -76,10 +80,10 @@ window.Pueblo = (()=>{
     // minas
     D.minas.forEach((m, i) => {
       const p = POS[i], X = p.x, Y = p.y;
-      R(x, C.neg, X-9, Y-5, 18, 12); R(x, m.abierta ? C.piedra : C.grisO, X-8, Y-4, 16, 10);
+      R(x, C.neg, X-9, Y-5, 18, 12); R(x, abierta(m) ? C.piedra : C.grisO, X-8, Y-4, 16, 10);
       R(x, C.neg, X-4, Y-1, 8, 7);                                       // boca
-      R(x, m.abierta ? C.marronC : C.marron, X-6, Y-10, 2, 9); R(x, m.abierta ? C.marronC : C.marron, X+4, Y-10, 2, 9); R(x, m.abierta ? C.marronC : C.marron, X-7, Y-11, 14, 2);   // castillete
-      if(m.abierta){ R(x, C.amarillo, X-1, Y+1, 2, 2); }
+      R(x, abierta(m) ? C.marronC : C.marron, X-6, Y-10, 2, 9); R(x, abierta(m) ? C.marronC : C.marron, X+4, Y-10, 2, 9); R(x, abierta(m) ? C.marronC : C.marron, X-7, Y-11, 14, 2);   // castillete
+      if(abierta(m)){ R(x, C.amarillo, X-1, Y+1, 2, 2); }
       else { R(x, C.grisM, X-2, Y+1, 4, 3); R(x, C.grisM, X-1, Y-1, 2, 2); }   // candado
       if(mapaSel === i){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(X-11.5, Y-13.5, 23, 22); }
     });
@@ -95,7 +99,7 @@ window.Pueblo = (()=>{
     pueblo.setAttribute('aria-label', 'Entrar al pueblo');
     cont.appendChild(pueblo);
     D.minas.forEach((m, i) => {
-      const b = document.createElement('button'); b.className = 'punto' + (m.abierta ? '' : ' cerrada');
+      const b = document.createElement('button'); b.className = 'punto' + (abierta(m) ? '' : ' cerrada');
       const q = at(POS[i].x, POS[i].y); b.style.left = q.left+'px'; b.style.top = q.top+'px';
       b.style.transform = `translate(-50%, -${12*g.css}px)`;
       b.innerHTML = `<span class="zona" style="width:${26*g.css}px;height:${24*g.css}px"></span><span class="etq">${m.id}</span>`;
@@ -114,9 +118,30 @@ window.Pueblo = (()=>{
     }
     const m = D.minas[mapaSel];
     $('mpEyebrow').textContent = 'Mina ' + m.id; $('mpTitulo').textContent = m.nombre; $('mpTexto').textContent = m.texto;
-    btn.hidden = false; btn.disabled = !m.abierta; btn.textContent = m.abierta ? 'Bajar a la mina' : 'Cerrada por ahora';
+    btn.hidden = false;
+    if(abierta(m)){ btn.disabled = false; btn.textContent = 'Bajar a la mina'; return; }
+    if(m.desbloqueo){
+      // mina cerrada que se abre con materiales del almacén
+      const tiene = k => Pa.almacen[k] || 0, ok = Pa.puedePagar(m.desbloqueo);
+      $('mpTexto').innerHTML = m.texto + '<br><b>Para abrirla hace falta:</b><span class="coste">' +
+        Object.entries(m.desbloqueo).map(([k, n]) => `<span class="chip${tiene(k) >= n ? '' : ' muted'}"><i style="background:${MAT[k].color}"></i>${MAT[k].nombre} <b>${Math.min(tiene(k), n)}/${n}</b></span>`).join('') + '</span>';
+      btn.disabled = !ok; btn.textContent = ok ? 'Abrir la mina' : 'Faltan materiales';
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Cerrada por ahora';
   }
-  $('mpBoton').onclick = () => { if(mapaSel !== null && D.minas[mapaSel].abierta) window.Pantallas.mostrar('mina', D.minas[mapaSel].pozo || 'viejo'); };
+  $('mpBoton').onclick = () => {
+    if(mapaSel === null) return;
+    const m = D.minas[mapaSel];
+    if(abierta(m)){ window.Pantallas.mostrar('mina', m.pozo || 'viejo'); return; }
+    if(m.desbloqueo && Pa.puedePagar(m.desbloqueo)){
+      for(const [k, n] of Object.entries(m.desbloqueo)) Pa.almacen[k] -= n;
+      Pa.ponerBandera('mina_' + m.id + '_abierta'); Pa.sumarProsperidad(2);
+      window.Sonido && window.Sonido.tocar('abrir');
+      montarPuntosMapa(); marcar();
+      $('mpEyebrow').textContent = '¡Mina abierta!';
+    }
+  };
 
   // =================== PLAZA ===================
   const PW = 200, PH = 260;
@@ -201,7 +226,13 @@ window.Pueblo = (()=>{
       b.setAttribute('aria-label', c.nombre);
       b.onclick = () => { plazaSel = i; document.querySelectorAll('#plazaPuntos .punto').forEach((bb, j) => bb.classList.toggle('sel', j === i));
         $('ppEyebrow').textContent = D.casas[i].dueno; $('ppTitulo').textContent = D.casas[i].nombre; $('ppCuerpo').innerHTML = '<p class="note">Deep va hacia la puerta…</p>';
-        irA(puerta(i), () => { if(plazaSel === i) panelCasa(); }); };
+        irA(puerta(i), () => {
+          if(plazaSel !== i) return;
+          // al llegar a la puerta: si toca conversación, primero el diálogo y luego la casa
+          const conv = window.Conversaciones && window.Conversaciones.alEntrar(D.casas[i].id);
+          if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); panelCasa(); });
+          else panelCasa();
+        }); };
       cont.appendChild(b);
     });
     const salida = document.createElement('button'); salida.className = 'punto';
@@ -212,7 +243,6 @@ window.Pueblo = (()=>{
     salida.onclick = () => { plazaSel = null; panelCasa(); irA({x: 158, y: 196}, () => window.Pantallas.mostrar('mapa')); };
     cont.appendChild(salida);
   }
-  const MAT = D.materiales;
   const chip = (k, n) => `<span class="chip"><i style="background:${MAT[k] && MAT[k].color || '#999'}"></i>${MAT[k] ? MAT[k].nombre : k} <b>${n}</b></span>`;
   const precioTxt = p => Object.entries(p).map(([m, n]) => n + ' de ' + (MAT[m] ? MAT[m].nombre.toLowerCase() : m)).join(', ');
   function kitTxt(){ return 'Llevas ' + (Pa.kit.puntales||0) + ' puntales y ' + (Pa.kit.escaleras||0) + ' escaleras'; }

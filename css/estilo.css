@@ -181,3 +181,23 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 .dropRow{display:flex;align-items:center;gap:6px;margin:4px 0}
 .dropRow .chip{flex:1}
 .btn.mini{padding:4px 10px;font-size:14px;width:auto}
+
+/* 0.208: diálogos al estilo JRPG */
+#dialogo{position:fixed;inset:0;z-index:50;background:linear-gradient(to bottom, rgba(34,32,52,.15), rgba(34,32,52,.75));cursor:pointer;user-select:none;-webkit-user-select:none}
+.dlg-ret{position:absolute;bottom:clamp(150px, 30vh, 210px);width:min(46vw, 300px);aspect-ratio:1;transition:filter .2s, transform .2s, opacity .2s}
+.dlg-ret.izq{left:max(8px, calc(50% - 300px))}
+.dlg-ret.der{right:max(8px, calc(50% - 300px))}
+.dlg-ret img{width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges;filter:drop-shadow(0 6px 0 rgba(0,0,0,.35))}
+.dlg-ret.callado{filter:brightness(.45) saturate(.4);transform:scale(.94)}
+.dlg-ret.habla{transform:scale(1)}
+.dlg-ret.der img{transform:scaleX(-1)}
+.dlg-caja{position:absolute;left:50%;transform:translateX(-50%);bottom:max(14px, env(safe-area-inset-bottom));width:min(94vw, 600px);min-height:120px;background:#fffdf8;color:var(--tinta);
+  border:4px solid var(--madera-oo);border-radius:16px;padding:16px 18px 22px;box-shadow:0 6px 0 var(--madera-oo);box-sizing:border-box}
+.dlg-caja b{position:absolute;top:-17px;font-family:var(--f-display);font-weight:400;font-size:20px;background:var(--amarillo);border:3px solid var(--madera-oo);border-radius:12px;padding:1px 12px}
+.dlg-caja.izq b{left:18px}
+.dlg-caja.der b{right:18px;background:#ffb3e0}
+.dlg-caja p{margin:6px 0 0;font-size:18px;line-height:1.4;font-weight:700}
+#dlgSig{position:absolute;right:16px;bottom:6px;font-size:14px;color:var(--madera);animation:dlgsig 0.8s ease-in-out infinite}
+@keyframes dlgsig{50%{transform:translateY(3px)}}
+/* mapa: desbloquear minas */
+.coste{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0}

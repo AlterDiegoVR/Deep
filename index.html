@@ -6,7 +6,7 @@
 <title>Deep</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
-<link rel="stylesheet" href="css/estilo.css?v=0.207c">
+<link rel="stylesheet" href="css/estilo.css?v=0.208">
 </head>
 <body>
 <div id="app">
@@ -179,7 +179,8 @@
           <p class="note">Parten de js/datos.js. Lo que cambies aquí solo vale en este navegador.</p>
           <label class="sl">Consumo de la lámpara (%/s)<output id="o_drain"></output><input type="range" id="s_drain" min="0.2" max="3" step="0.1"></label>
           <label class="sl">Aceite: luz que da cada bidón (%)<output id="o_oilGain"></output><input type="range" id="s_oilGain" min="10" max="80" step="5"></label>
-          <label class="sl">Aceite: un bidón cada (filas, aprox.)<output id="o_oilEvery"></output><input type="range" id="s_oilEvery" min="4" max="20" step="1"></label>
+          <label class="sl">Aceite: tramos de al menos (filas) llevan 1 o 2 bidones<output id="o_oilMin"></output><input type="range" id="s_oilMin" min="0" max="60" step="2"></label>
+          <label class="sl">Aceite en ramales: un bidón cada (filas, aprox.)<output id="o_oilEvery"></output><input type="range" id="s_oilEvery" min="4" max="20" step="1"></label>
           <label class="sl">Cornisa: casillas que aguanta en voladizo<output id="o_corn"></output><input type="range" id="s_corn" min="1" max="4" step="1"></label>
           <p class="note mini">Sujeto por los dos lados (puente) aguanta el doble. La roca dura, la maciza y la roca madre siempre sujetan.</p>
           <label class="sl">Tiempo de crujido (s)<output id="o_crack"></output><input type="range" id="s_crack" min="0.2" max="2" step="0.1"></label>
@@ -224,13 +225,23 @@
   </section>
 </div>
 
-<script src="js/datos.js?v=0.207c"></script>
-  <script src="js/piezas.js?v=0.207c"></script>
-<script src="js/sprites.js?v=0.207c"></script>
-  <script src="js/sonido.js?v=0.207c"></script>
-<script src="js/partida.js?v=0.207c"></script>
-<script src="js/mina.js?v=0.207c"></script>
-<script src="js/pueblo.js?v=0.207c"></script>
-<script src="js/main.js?v=0.207c"></script>
+<!-- ================= DIÁLOGO (encima de todo) ================= -->
+<div id="dialogo" hidden>
+  <div class="dlg-ret izq" id="dlgRetIzq" hidden><img id="dlgIzq" alt=""></div>
+  <div class="dlg-ret der" id="dlgRetDer" hidden><img id="dlgDer" alt=""></div>
+  <div class="dlg-caja" id="dlgCaja"><b id="dlgNombre"></b><p id="dlgTexto"></p><span id="dlgSig" hidden>▼</span></div>
+</div>
+
+<script src="js/datos.js?v=0.208"></script>
+  <script src="js/piezas.js?v=0.208"></script>
+<script src="js/sprites.js?v=0.208"></script>
+<script src="js/retratos.js?v=0.208"></script>
+  <script src="js/sonido.js?v=0.208"></script>
+<script src="js/partida.js?v=0.208"></script>
+<script src="js/mina.js?v=0.208"></script>
+<script src="js/conversaciones.js?v=0.208"></script>
+<script src="js/dialogo.js?v=0.208"></script>
+<script src="js/pueblo.js?v=0.208"></script>
+<script src="js/main.js?v=0.208"></script>
 </body>
 </html>

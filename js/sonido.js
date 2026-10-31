@@ -69,6 +69,11 @@ window.Sonido = (()=>{
     paso(t,v){ noise(t, 0.03, 0.12*v, 'lowpass', 600); },
     // escala que se desenrolla: traqueteo de madera y cuerda
     escala(t,v){ tone(t, 0.05, 0.18*v, 'square', 300 + Math.random()*60, 180); noise(t + 0.02, 0.05, 0.25*v, 'bandpass', 900 + Math.random()*300, 0, 1.2); },
+    // voces de los diálogos (pitidos cortos, como en los JRPG)
+    vozDeep(t,v){ tone(t, 0.04, 0.12*v, 'square', 420 + Math.random()*60); },
+    vozOtro(t,v){ tone(t, 0.04, 0.11*v, 'triangle', 640 + Math.random()*90); },
+    // mina desbloqueada
+    abrir(t,v){ [392,523,659,784,1047].forEach((f,i) => tone(t+i*0.09, 0.3, 0.18*v, 'triangle', f)); noise(t, 0.4, 0.2*v, 'lowpass', 600, 100); },
     // clic de los menús: un toque de madera corto y suave
     clic(t,v){ tone(t, 0.05, 0.16*v, 'triangle', 880, 620); noise(t, 0.025, 0.12*v, 'bandpass', 2400, 0, 2); },
     // pasos en la plaza (sobre adoquines)
