@@ -27,6 +27,7 @@
 //    M  montacargas (al fondo de un ramal: te sube al tiro principal)
 //    A  ascensor viejo (roto: hace falta su pieza)   Z  pieza del ascensor   K  pico con un símbolo
 //    V  respiradero (sube aire caliente desde abajo)
+//    N  nota de la cuadrilla (sale la siguiente que aún no tengas; si ya las tienes todas, nada)
 // =====================================================================
 window.PIEZAS = [
   {
@@ -55,7 +56,7 @@ window.PIEZAS = [
     filas: [
       'xxxxxxtttxxxxxx',
       'xx___________xx',
-      'xxM_f__B__o__xx',
+      'xxM_f__B_No__xx',
       'xxxxxmmmmmxxxxx',
       'xxxxxxxxxxxxxxx',
     ],
@@ -82,7 +83,22 @@ window.PIEZAS = [
     filas: [
       '...............',
       'x_____________x',
-      'x_f___B___V__ox',
+      'xAf___B___V__ox',
+    ],
+  },
+  {
+    // Pozo viejo: en el último tramo, una cámara lateral tapada con roca maciza (la abrirá el taladro).
+    // Una promesa para volver al primer pozo más adelante.
+    id: 'camara_maciza_pozo1',
+    pozo: 'uno',
+    tiro: 'principal',
+    colocar: { fila: 98 },
+    reflejar: true,
+    filas: [
+      'xxxxxm.........',
+      'x__B_m.........',
+      'x_f__m.........',
+      'xxxxxm.........',
     ],
   },
 ];

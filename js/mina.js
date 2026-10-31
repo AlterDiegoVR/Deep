@@ -106,7 +106,7 @@ const Pa = window.Partida;
 // ---------- mundo ----------
 let W = null;   // el tiro actual: {id, seed, rows, items, bag, ...}
 let MINA = null;   // la mina entera: {ver, seed, actual, tiros:{id: W}}
-const WORLD_VER = 7;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
+const WORLD_VER = 8;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
 function newTiroWorld(id, seed){ return {id, ver:WORLD_VER, seed, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0, record:0, doors:[], lastRun:0, cargaOk:[], ascUsado:false, escalas:[]}; }
 function newMine(){ const seed = (Math.random()*1e9)|0; return {ver:WORLD_VER, seed, actual:'principal', tiros:{principal: newTiroWorld('principal', seed)}, stats:{ext:{}, per:{}}}; }
 // contador de materiales del pozo: extraído (llegó al almacén) y perdido (escombro, mochila llena, soltado, explosiones, derrumbes)
@@ -170,6 +170,16 @@ function placePieces(){
 }
 function pieceAt(r, c){ for(const P of PLACED){ const k = r - P.r0; if(k >= 0 && k < P.rows.length && P.rows[k][c] !== '.') return P.rows[k][c]; } return null; }
 const pieceRow = r => PLACED.some(P => r >= P.r0 - 1 && r < P.r0 + P.rows.length + 1);
+// notas de la cuadrilla: la siguiente que aún no tengas (ni en la colección, ni en la mochila, ni puesta en algún pozo)
+function notaSiguiente(){
+  for(const id of ['nota_1', 'nota_2', 'nota_3']){
+    if(Pa.coleccion[id] || (bag && bag['o:' + id])) continue;
+    if(MINA && Object.values(MINA.tiros).some(w => w.items.some(i => i.k === 'obj' && i.id === id && i.alive))) continue;
+    if(W && W.items.some(i => i.k === 'obj' && i.id === id && i.alive)) continue;
+    return id;
+  }
+  return null;
+}
 function applyPieces(r, Tt){
   for(const P of PLACED){
     const k = r - P.r0; if(k < 0 || k >= P.rows.length) continue;
@@ -189,6 +199,7 @@ function applyPieces(r, Tt){
       else if(ch === 'Z'){ if(!Pa.bandera('ascensor_pozo1_roto')) W.items.push({k:'obj', id:'pieza_ascensor', r, c, alive:true}); }   // la pieza y el pico salen una sola vez
       else if(ch === 'K'){ if(!Pa.bandera('pico_encontrado') && !Pa.coleccion.pico_padre && !(bag && bag['o:pico_padre'])) W.items.push({k:'obj', id:'pico_padre', r, c, alive:true}); }
       else if(ch === 'V') W.items.push({k:'vent', r, c, alive:true});
+      else if(ch === 'N'){ const id = notaSiguiente(); if(id) W.items.push({k:'obj', id, r, c, alive:true}); }
     }
   }
 }
@@ -295,7 +306,7 @@ function addKit(r, fresh){
     if(R.t[c] !== WATER && R.t[c] !== GAS && R.t[c] !== ROCK && R.t[c] !== DOOR && R.t[c] !== PASS && !pieceAt(r, c)){ R.t[c] = AIR; R.hp[c] = 0; R.nat[c] = 1; W.items.push({k:'llave', r, c, alive:true}); }
   }
   // objetos sueltos (coleccionables de minería): no reaparecen
-  if(fresh && ON('objetos')) for(const id in OBJ){ const o = P1.sueltos ? P1.sueltos[id] : OBJ[id].suelto; if(!o || r - SURF < o.desdeFila || h2(r, hashStr(id) % 997, W.seed + 91) >= 1/o.cada) continue;
+  if(fresh && ON('objetos')) for(const id in OBJ){ const SU = !TC.principal && P1.sueltosRamal ? P1.sueltosRamal : P1.sueltos; const o = SU ? SU[id] : OBJ[id].suelto; if(!o || r - SURF < o.desdeFila || h2(r, hashStr(id) % 997, W.seed + 91) >= 1/o.cada) continue;
     const R = W.rows[r], c = 1 + Math.floor(h2(r, hashStr(id) % 991, W.seed + 92)*(COLS-2));
     if(R.t[c] !== WATER && R.t[c] !== GAS && R.t[c] !== ROCK && R.t[c] !== DOOR && R.t[c] !== PASS && !pieceAt(r, c) && !W.items.some(i => i.r === r && i.c === c)){ R.t[c] = AIR; R.hp[c] = 0; R.nat[c] = 1; W.items.push({k:'obj', id, r, c, alive:true}); } }
   if(r - SURF < RC.desdeFila) return;
@@ -389,6 +400,7 @@ function startRun(){
   prevRecord = W.record||0; newGround = false;
   cards = {}; spun = new Set(); carpDone = 0; chestFx = null; air = airMax(); submerged = false; airWarn = false;
   ensureRoomItems(); tidyEscalas(); unroll = null;
+  repartirDeposito();
   redSeguridad();
   dead = null; deadT = 0; cashed = false; rocks = []; particles = []; floats = []; fillQ = [];
   digT = 0; moveT = 0; buried = 0; crackMsgT = 0; lockMsgT = 0; flashT = 0; maxDepth = 0;
@@ -800,7 +812,11 @@ function updatePlayer(dt){
       else if(it.k === 'cofreSala' && !W.rewarded.includes(it.room)) openRoomChest(it);
       else if(it.k === 'cofrePieza' && !it.abierto) openPieceChest(it);
       else if(it.k === 'obj') pickObject(it);
-      else if(it.k === 'bag'){ it.alive = false; SND('mochila'); for(const k in W.bag.items) bag[k] = (bag[k]||0) + W.bag.items[k];
+      else if(it.k === 'bag'){ it.alive = false; SND('mochila');
+        // objetos (no pesan) y minerales hasta llenar la mochila; lo que no cabe se queda en el pozo (depósito)
+        const mins = {}; for(const k in W.bag.items){ if(String(k).startsWith('o:')) bag[k] = (bag[k]||0) + W.bag.items[k]; else mins[k] = W.bag.items[k]; }
+        const sobra = meterEnMochila(mins);
+        if(sobra) setTimeout(() => toast('No puedes llevarlo todo', 'Te quedas con lo más valioso; ' + sobra + ' de mineral se queda en el pozo'), 1600);
         const bp = W.bag.puntales||0, be = W.bag.escaleras||0; props += bp; ladders += be;
         W.bag = null; renderInv(); toast('Mochila recuperada', 'Todo lo que perdiste vuelve contigo' + (bp || be ? ' (' + bp + ' puntales y ' + be + ' escaleras)' : '')); burst(it.r+0.5, it.c+0.5, '#fbf236', 20); }
     }
@@ -881,6 +897,8 @@ function ladderTap(){
   if(unroll) return;
   let e = escalaAt(p.r, p.c);
   if(!e){ e = {r:p.r, c:p.c, len:1, abierta:false}; W.escalas.push(e); }   // escaleras de antes: cuentan como una sola
+  // la escalera está anclada arriba: solo se despliega o se recoge desde esa casilla (más adelante, un invento del tejón quitará esta limitación)
+  if(p.r !== e.r && !Pa.bandera('escala_garfios')){ if(lockMsgT <= 0){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Solo se recoge desde arriba, donde la anclaste', life:1.4, col:'#d9a066'}); lockMsgT = 1.4; } return; }
   if(!e.abierta && e.len === 1 && unrollFree(e.r + 1, e.c)){
     e.abierta = true; unroll = {e, left:ESC_MAX, t:0};
     floats.push({x:e.c+0.5, y:e.r+0.6, txt:'¡Escala!', life:0.9, col:'#fbf236'}); return;
@@ -923,6 +941,31 @@ function takeTile(r, c){ const lv = lvAt(r, c); setT(r, c, AIR); if(lv > 0.004){
 // Un puente sigue la misma regla que los techos: desde una roca aguanta en voladizo tantos tablones como la cornisa,
 // y si llega de roca a roca, el doble. (r, c) es un tablón que ya está o que se va a poner.
 function bridgeOK(r, c){
+  // de roca a roca en la misma fila: aguanta el doble
+  { let a = c - 1, b = c + 1;
+    while(a >= 0 && tAt(r, a) === PLANK) a--;
+    while(b < COLS && tAt(r, b) === PLANK) b++;
+    if(isSolid(tAt(r, a)) && isSolid(tAt(r, b)) && b - a - 1 <= 2*cfg.corn) return true; }
+  // si no, se cuentan los tablones desde el último agarre de roca, aunque se cambie de altura o se pase por escaleras
+  // o puntales (así no se puede encadenar puente, escalera encima, otro puente… sin límite)
+  const agarre = (rr, cc) => tAt(rr, cc) === PLANK && (isSolid(tAt(rr, cc-1)) || isSolid(tAt(rr, cc+1)) || isSolid(tAt(rr+1, cc)));
+  const piso = (rr, cc) => { const v = tAt(rr, cc); return v === PLANK || v === LADDER || v === PROP; };
+  const esTablon = (rr, cc) => rr === r && cc === c ? true : tAt(rr, cc) === PLANK;
+  const ok0 = (rr, cc) => (rr === r && cc === c) ? (isSolid(tAt(r, c-1)) || isSolid(tAt(r, c+1)) || isSolid(tAt(r+1, c))) : agarre(rr, cc);
+  const best = new Map(), q = [[r, c, 1]]; best.set(r*16 + c, 1);
+  while(q.length){
+    q.sort((x, y) => x[2] - y[2]); const [rr, cc, n] = q.shift();
+    if(n > cfg.corn) continue;
+    if(ok0(rr, cc)) return true;
+    for(const [dr, dc] of [[0,1],[0,-1],[1,0],[-1,0]]){
+      const r2 = rr + dr, c2 = cc + dc; if(c2 < 0 || c2 >= COLS || !piso(r2, c2)) continue;
+      const n2 = n + (esTablon(r2, c2) ? 1 : 0), k = r2*16 + c2;
+      if(best.has(k) && best.get(k) <= n2) continue; best.set(k, n2); q.push([r2, c2, n2]);
+    }
+  }
+  return false;
+}
+function bridgeOK_old(r, c){
   let a = c - 1, b = c + 1;
   while(a >= 0 && tAt(r, a) === PLANK) a--;
   while(b < COLS && tAt(r, b) === PLANK) b++;
@@ -1314,6 +1357,21 @@ function drawDoor(r, c, X, Y){
 // objetos: flor de mina (brilla) o reliquia de minería (caja con destello)
 function drawObject(it, X, Y){
   const o = OBJ[it.id] || {}, bob = Math.round(Math.sin(t*3 + it.c)*1);
+  if(o.dibujo === 'hongo'){
+    const g = 0.35 + 0.25*Math.sin(t*2.5 + it.r); ctx.fillStyle = `rgba(95,205,228,${g*0.45})`; ctx.fillRect(X+4, Y+6, T-8, T-7);
+    ctx.fillStyle = '#000'; ctx.fillRect(X+10, Y+13, 5, 10); ctx.fillRect(X+4, Y+7+bob, 17, 8);
+    ctx.fillStyle = '#cbdbfc'; ctx.fillRect(X+11, Y+14, 3, 9);
+    ctx.fillStyle = '#5fcde4'; ctx.fillRect(X+5, Y+8+bob, 15, 6); ctx.fillStyle = '#639bff'; ctx.fillRect(X+5, Y+12+bob, 15, 2);
+    ctx.fillStyle = '#fff'; ctx.fillRect(X+8, Y+9+bob, 2, 2); ctx.fillRect(X+15, Y+10+bob, 2, 1);
+    return;
+  }
+  if(o.dibujo === 'nota'){
+    ctx.fillStyle = '#000'; ctx.fillRect(X+5, Y+9+bob, 15, 13);
+    ctx.fillStyle = '#eec39a'; ctx.fillRect(X+6, Y+10+bob, 13, 11); ctx.fillStyle = '#d9a066'; ctx.fillRect(X+6, Y+19+bob, 13, 2);
+    ctx.fillStyle = '#8f563b'; for(let i=0;i<3;i++) ctx.fillRect(X+8, Y+12+i*3+bob, 9 - (i === 2 ? 4 : 0), 1);
+    if(Math.floor(t*2 + it.c) % 3 === 0){ ctx.fillStyle = '#fff'; ctx.fillRect(X+18, Y+7+bob, 2, 2); }
+    return;
+  }
   if(o.dibujo === 'pico'){
     const g = 0.3 + 0.2*Math.sin(t*3 + it.r); ctx.fillStyle = `rgba(251,242,54,${g*0.4})`; ctx.fillRect(X+3, Y+6, T-6, T-7);
     ctx.fillStyle = '#000'; ctx.fillRect(X+10, Y+8+bob, 4, 15); ctx.fillRect(X+3, Y+6+bob, 18, 5);
@@ -1744,12 +1802,14 @@ function givePrize(pr){
   if(pr.escaleras) ladders += pr.escaleras;
   if(pr.puntales) props += pr.puntales;
   if(pr.luz) lamp = Math.min(100, Math.max(lamp, pr.luz));
-  if(pr.material) for(const [m, n] of Object.entries(pr.material)){ const tt = KEY2T[m]; if(tt !== undefined) bag[tt] = (bag[tt]||0) + n; }
+  if(pr.objeto){ const k = 'o:' + pr.objeto; bag[k] = (bag[k]||0) + (pr.cantidadObjeto || 1); }
+  if(pr.material){ const mins = {}; for(const [m, n] of Object.entries(pr.material)){ const tt = KEY2T[m]; if(tt !== undefined) mins[tt] = n; }
+    const sobra = meterEnMochila(mins); if(sobra) setTimeout(() => toast('La mochila está llena', sobra + ' de mineral se queda en el pozo para la próxima bajada'), 1800); }
   renderInv();
 }
 function openPieceChest(it){
   it.abierto = true; chestFx = {it, t:0}; SND('cofre'); shakeKick = Math.max(shakeKick, 1.5);
-  const L = SB.premios || [], pr = L.length ? L[Math.floor(Math.random()*L.length)] : {texto:'Nada… solo polvo'};
+  const L = P1.cofreEspecial || SB.premios || [], pr = L.length ? L[Math.floor(Math.random()*L.length)] : {texto:'Nada… solo polvo'};
   givePrize(pr); burst(it.r+0.4, it.c+0.5, '#fbf236', 26);
   toast('¡Cofre escondido!', pr.texto); floats.push({x:it.c+0.5, y:it.r-0.3, txt:pr.texto, life:1.8, col:'#fbf236'});
   persist();
@@ -1770,7 +1830,7 @@ const bnCv = document.getElementById('bnCv'), bnX = bnCv.getContext('2d');
 function openBonus(){
   bonusOpen = true; wasStartedB = started; started = false;
   for(const k in input){ input[k] = false; tapped[k] = 0; }
-  const L = SB.premios || []; BN.premio = L.length ? L[Math.floor(Math.random()*L.length)] : null;
+  const L = P1.cofreEspecial || SB.premios || []; BN.premio = L.length ? L[Math.floor(Math.random()*L.length)] : null;
   BN.st = 'cerrado'; BN.t = 0;
   $('bnTitle').textContent = 'Una sala escondida'; $('bnText').textContent = 'Al fondo hay un cofre cubierto de polvo.'; $('bnBtn').textContent = 'Abrir el cofre';
   $('bonus').hidden = false;
@@ -1848,7 +1908,8 @@ function sendCargo(mc){
 }
 // el ascensor del fondo (Pozo viejo): estado según la historia
 //   pieza: nunca se ha usado, le falta la pieza · roto: subió y se estropeó arriba · apanado: el tejón lo apañó (solo sube) · fino: sube y baja
-function ascState(){ if(!Pa.bandera('ascensor_pozo1_roto')) return 'pieza'; if(Pa.bandera('ascensor_pozo1_fino')) return 'fino'; if(Pa.bandera('ascensor_pozo1_apanado')) return 'apanado'; return 'roto'; }
+function ascState(){ if(PK !== 'uno') return 'apanado';   // en los demás pozos el ascensor del fondo funciona (solo sube)
+  if(!Pa.bandera('ascensor_pozo1_roto')) return 'pieza'; if(Pa.bandera('ascensor_pozo1_fino')) return 'fino'; if(Pa.bandera('ascensor_pozo1_apanado')) return 'apanado'; return 'roto'; }
 // con el ascensor roto no se puede bajar al Pozo viejo (no habría forma de volver)
 const bajadaBloqueada = () => PK === 'uno' && ascState() === 'roto';
 function useElevator(){
@@ -1861,7 +1922,7 @@ function useElevator(){
     const ks = Object.keys(bag).filter(k => INFO[k] && bag[k] > 0).sort((a, b) => INFO[b].val - INFO[a].val);
     let w = 0;
     for(const k of ks){ const keep = Math.max(0, Math.min(bag[k], Math.floor((lim - w)/INFO[k].val))); const fuera = bag[k] - keep;
-      if(fuera){ dejado += fuera; stat('per', INFO[k].key, fuera); } bag[k] = keep; w += keep*INFO[k].val; if(!bag[k]) delete bag[k]; }
+      if(fuera){ dejado += fuera; depositar(INFO[k].key, fuera); } bag[k] = keep; w += keep*INFO[k].val; if(!bag[k]) delete bag[k]; }
     if(dejado) toast('No creo que esto aguante tanto peso…', 'Deep deja casi toda la carga abajo');
   }
   else if(st === 'roto') return;
@@ -1872,9 +1933,43 @@ function useElevator(){
   transit = {t:0, to:null, swapped:true, label:'El ascensor arranca…', ascensor:true}; SND('trampilla'); shakeKick = 3;
 }
 let wasStartedD = false, ascTexto = null;
+// ---------- depósito del pozo ----------
+// Lo que no cabe al recuperar la mochila, lo que sueltas en las salas y la carga que se deja en la primera subida
+// no se pierde: se guarda en el depósito del pozo y, en la siguiente bajada, se reparte por él como vetas nuevas.
+function depositar(key, n){ if(!MINA || !n) return; const D2 = MINA.deposito || (MINA.deposito = {}); D2[key] = (D2[key]||0) + n; }
+function ponerVetas(mapa){
+  let puestos = 0;
+  if(isFinite(TC.fondo)) ensure(TC.fondo + 1); else ensure(Math.max(W.rows.length, SURF + 80));
+  const desde = ROOM_ROW.length ? ROOM_ROW[0] + ROOM_H : SURF + 3, hasta = Math.min(W.rows.length - 2, isFinite(TC.fondo) ? TC.fondo - 4 : W.rows.length - 2);
+  for(const [k, n] of Object.entries(mapa)){
+    const tt = KEY2T[k]; if(tt === undefined) continue;
+    for(let i=0, intentos=0; i<n && intentos < 4000; intentos++){
+      const r = desde + Math.floor(Math.random()*(hasta - desde)), c = Math.floor(Math.random()*COLS);
+      if(layout(r).part !== undefined) continue;
+      const v = W.rows[r].t[c];
+      if(v === DIRT || v === STONE){ setT(r, c, tt); i++; puestos++; }
+    }
+  }
+  return puestos;
+}
+function repartirDeposito(){
+  if(!MINA || !MINA.deposito || !Object.keys(MINA.deposito).length || !TC.principal) return 0;
+  const n = ponerVetas(MINA.deposito); MINA.deposito = {}; persist(); return n;
+}
+// mete minerales en la mochila hasta su capacidad (lo más valioso primero); lo que no cabe va al depósito del pozo
+function meterEnMochila(items){
+  const ks = Object.keys(items).filter(k => INFO[k] && items[k] > 0).sort((a, b) => INFO[b].val - INFO[a].val);
+  let fuera = 0;
+  for(const k of ks){
+    let n = items[k];
+    while(n > 0 && weight() + INFO[k].val <= capacity()){ bag[k] = (bag[k]||0) + 1; n--; }
+    if(n > 0){ depositar(INFO[k].key, n); fuera += n; }
+  }
+  return fuera;
+}
 // derrumbe que vuelve a sellar el pozo: se genera entero de nuevo (con mineral nuevo); el contador sigue
 function sellarPozo(){
-  const st = MINA.stats; MINA = newMine(); MINA.stats = st;
+  const st = MINA.stats, dep = MINA.deposito; MINA = newMine(); MINA.stats = st; MINA.deposito = dep || {};
   W = MINA.tiros.principal; setTiro('principal'); persist();
 }
 // ---------- red de seguridad de materiales ----------
@@ -1925,7 +2020,7 @@ function renderDrop(){
   const ks = Object.keys(bag).filter(k => !k.startsWith('o:') && bag[k] > 0);
   $('dropCap').textContent = 'Carga ' + weight() + ' de ' + capacity() + '. Lo que sueltes se pierde.';
   $('dropList').innerHTML = ks.length ? ks.map(k => `<div class="dropRow"><span class="chip"><i style="background:${INFO[k].dot}"></i>${INFO[k].n} <b>${bag[k]}</b></span><button class="btn ghost mini" data-k="${k}" data-n="1">Soltar 1</button><button class="btn ghost mini" data-k="${k}" data-n="all">Todo</button></div>`).join('') : '<p class="note">No llevas mineral.</p>';
-  $('dropList').querySelectorAll('button').forEach(b => b.onclick = () => { const k = b.dataset.k, n = b.dataset.n === 'all' ? bag[k] : 1; bag[k] -= n; stat('per', INFO[k].key, n); if(bag[k] <= 0) delete bag[k]; SND('poner'); renderInv(); renderDrop(); });
+  $('dropList').querySelectorAll('button').forEach(b => b.onclick = () => { const k = b.dataset.k, n = b.dataset.n === 'all' ? bag[k] : 1; bag[k] -= n; depositar(INFO[k].key, n); if(bag[k] <= 0) delete bag[k]; SND('poner'); renderInv(); renderDrop(); });
 }
 
 // ---------- interfaz ----------

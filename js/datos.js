@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.211',
+  version: '0.212',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -204,12 +204,13 @@ window.DATOS = {
   llaves: { cada: 24, desdeFila: 10 },             // una llave suelta cada tantas filas (aprox.); no reaparecen
   puertas: { cada: 20, desdeFila: 14 },            // una puerta en un lateral cada tantas filas (aprox.)
   salaBonus: {
-    // lo que puede dar el cofre de la sala de bonus (sale uno al azar)
+    // cofres especiales (salas de bonus tras una puerta con llave y fondo de los ramales): sale uno al azar.
+    // Minerales caros o un coleccionable; nunca escaleras ni puntales. Cada pozo puede tener su lista (cofreEspecial).
     premios: [
-      { texto: '3 escaleras y 3 puntales', escaleras: 3, puntales: 3 },
-      { texto: 'Lámpara al máximo y 2 escaleras', luz: 100, escaleras: 2 },
-      { texto: '4 de cobre', material: { cobre: 4 } },
-      { texto: '5 de carbón y 2 puntales', material: { carbon: 5 }, puntales: 2 },
+      { texto: '5 de cobre', material: { cobre: 5 } },
+      { texto: '3 de cuarzo', material: { cuarzo: 3 } },
+      { texto: '3 de cobre y 4 de carbón', material: { cobre: 3, carbon: 4 } },
+      { texto: 'Una flor de mina', objeto: 'flor_mina' },
     ],
   },
 
@@ -366,7 +367,14 @@ window.DATOS = {
       arenaArcillosa: 0.35,
       montacargasCada: 2,
       costeMontacargas: { arcilla: 5, carbon: 4 },
-      sueltos: { flor_mina: { cada: 30, desdeFila: 20 }, lampara_vieja: { cada: 60, desdeFila: 30 }, foto_cuadrilla: { cada: 90, desdeFila: 60 } },
+      sueltos: { flor_mina: { cada: 30, desdeFila: 20 }, hongo_azul: { cada: 45, desdeFila: 30 }, lampara_vieja: { cada: 60, desdeFila: 30 }, foto_cuadrilla: { cada: 90, desdeFila: 60 } },
+      sueltosRamal: { hongo_azul: { cada: 7, desdeFila: 4 }, flor_mina: { cada: 15, desdeFila: 8 } },   // en los ramales, más coleccionables propios del pozo
+      cofreEspecial: [
+        { texto: '4 de cuarzo', material: { cuarzo: 4 } },
+        { texto: '6 de cobre', material: { cobre: 6 } },
+        { texto: '3 de cuarzo y 3 de cobre', material: { cuarzo: 3, cobre: 3 } },
+        { texto: 'Dos hongos luminosos y 2 de cuarzo', objeto: 'hongo_azul', cantidadObjeto: 2, material: { cuarzo: 2 } },
+      ],
       ramales: [
         { id: 'molino_a', nombre: 'Galería de los carros', fila: 30, lado: 'izquierda', largo: 30 },
         { id: 'molino_b', nombre: 'Tiro de los cuervos',   fila: 85, lado: 'derecha',   largo: 40 },
@@ -396,6 +404,14 @@ window.DATOS = {
                       texto: 'Varios topos mineros posan a la entrada del pozo. Uno se parece mucho a ti.' },
     pico_padre:     { nombre: 'Pico con un símbolo', categoria: 'mineria', icono: '⛏️', dibujo: 'pico', brilla: true,
                       texto: 'Un pico de topo minero, gastado de tanto uso. En el mango hay un símbolo grabado.' },
+    hongo_azul:     { nombre: 'Hongo luminoso', categoria: 'herbario', icono: '🍄', dibujo: 'hongo', brilla: true,
+                      texto: 'Un hongo que da una luz azul y fría. Crece en las galerías húmedas de la Cantera del molino.' },
+    nota_1:         { nombre: 'Nota de la cuadrilla (1)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
+                      texto: '«Tercer día bajo tierra. El derrumbe nos ha cerrado la galería. Somos seis. Hay aire, y un calor raro que sube del fondo.»' },
+    nota_2:         { nombre: 'Nota de la cuadrilla (2)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
+                      texto: '«Hemos encontrado un paso entre las minas. Las galerías de los antiguos llegan mucho más lejos de lo que nadie sabía.»' },
+    nota_3:         { nombre: 'Nota de la cuadrilla (3)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
+                      texto: '«Si alguien encuentra esto: no estamos perdidos. Estamos donde tenemos que estar. Cuidad del pueblo.»' },
     pieza_ascensor: { nombre: 'Pieza del ascensor', categoria: 'mineria', icono: '⚙️', dibujo: 'pieza',
                       texto: 'Un engranaje grande, viejo pero entero. Parece del mecanismo de un ascensor.' },
   },
