@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.210',
+  version: '0.211',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -39,7 +39,7 @@ window.DATOS = {
     inicial: { puntales: 15, escaleras: 9 },       // con lo que empieza una partida nueva
     minimoPorBajada: { puntales: 1, escaleras: 1 },  // al empezar cada bajada tienes al menos esto (lo que gastas se queda en la mina: puedes volver a recogerlo)
     recogerPuntales: true,                          // pulsar Puntal encima de un puntal (o dentro de un tablón) lo recoge. Más adelante lo enseñará el topo viejo
-    alMorir: 'perder',                              // 'perder' = pierdes las que llevabas; 'conservar' = no pierdes nada
+    alMorir: 'perder',                              // 'perder' = se quedan en tu mochila, enterrada donde mueres (recupérala y vuelven); 'conservar' = no pierdes nada
   },
 
   // ---------- Salas seguras ----------

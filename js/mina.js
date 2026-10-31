@@ -800,7 +800,9 @@ function updatePlayer(dt){
       else if(it.k === 'cofreSala' && !W.rewarded.includes(it.room)) openRoomChest(it);
       else if(it.k === 'cofrePieza' && !it.abierto) openPieceChest(it);
       else if(it.k === 'obj') pickObject(it);
-      else if(it.k === 'bag'){ it.alive = false; SND('mochila'); for(const k in W.bag.items) bag[k] = (bag[k]||0) + W.bag.items[k]; W.bag = null; renderInv(); toast('Mochila recuperada', 'Todo lo que perdiste vuelve contigo'); burst(it.r+0.5, it.c+0.5, '#fbf236', 20); }
+      else if(it.k === 'bag'){ it.alive = false; SND('mochila'); for(const k in W.bag.items) bag[k] = (bag[k]||0) + W.bag.items[k];
+        const bp = W.bag.puntales||0, be = W.bag.escaleras||0; props += bp; ladders += be;
+        W.bag = null; renderInv(); toast('Mochila recuperada', 'Todo lo que perdiste vuelve contigo' + (bp || be ? ' (' + bp + ' puntales y ' + be + ' escaleras)' : '')); burst(it.r+0.5, it.c+0.5, '#fbf236', 20); }
     }
   }
   // avisos
@@ -995,7 +997,9 @@ function die(cause){
   const n = Object.values(bag).reduce((a,b)=>a+b,0);
   const oldBagLost = Object.values(MINA.tiros).some(w => w.bag);
   for(const w of Object.values(MINA.tiros)){ if(w.bag) for(const k in w.bag.items) if(INFO[k]) stat('per', INFO[k].key, w.bag.items[k]); w.bag = null; w.items = w.items.filter(it => it.k !== 'bag'); }
-  W.bag = n ? {r:p.r, c:p.c, items:{...bag}} : null;
+  // la mochila guarda también los puntales y escaleras que llevabas: al recuperarla vuelven contigo
+  const herrs = (props||0) + (ladders||0);
+  W.bag = n || herrs ? {r:p.r, c:p.c, items:{...bag}, puntales:props||0, escaleras:ladders||0} : null;
   // el último tramo (desde la última sala segura) se llena de escombro sin vetas
   // el primer tramo (antes de la primera sala) nunca se rellena: lo que haces al principio se respeta
   const top = Math.max(lastRoomFloor + 1, TC.principal && ROOM_ROW.length ? ROOM_ROW[0] + ROOM_H : SURF), bot = p.r + 2;
@@ -1990,10 +1994,10 @@ function showEnd(){
     $('ovText').textContent = M[1];
     $('ovList').innerHTML = dead.n ? list : '';
     let note = 'El último tramo se ha llenado de escombro y piedra suelta.';
-    if(dead.n) note += ' Tu mochila ha quedado enterrada dentro, a '+maxDepth+' m: pica el escombro para recuperarla.';
-    if(dead.oldBagLost && dead.n) note += ' La mochila que ya habías perdido antes se ha perdido para siempre.';
+    if(dead.n || dead.lost.props || dead.lost.ladders) note += ' Tu mochila ha quedado enterrada dentro, a '+maxDepth+' m: pica el escombro para recuperarla.';
+    if(dead.oldBagLost && (dead.n || dead.lost.props || dead.lost.ladders)) note += ' La mochila que ya habías perdido antes se ha perdido para siempre.';
     if(dead.saved) note += ' Bolsillo secreto: '+dead.saved.n+' de '+dead.saved.name+' llegan al almacén.';
-    if(dead.lost.props || dead.lost.ladders) note += ' Pierdes las herramientas que llevabas ('+dead.lost.props+' puntales y '+dead.lost.ladders+' escaleras).';
+    if(dead.lost.props || dead.lost.ladders) note += ' Tus '+dead.lost.props+' puntales y '+dead.lost.ladders+' escaleras se quedan en la mochila' + (dead.n ? '' : ', enterrada donde caíste') + ': recupérala y vuelven contigo.';
     $('ovNote').textContent = note;
   }
   $('over').hidden = false;
