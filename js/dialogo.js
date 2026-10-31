@@ -6,7 +6,7 @@
 // =====================================================================
 window.Dialogo = (()=>{
   const R = window.RETRATOS || {}, $ = id => document.getElementById(id);
-  const NOMBRES = { deep: 'Deep', coneja: 'Señora Coneja' };
+  const NOMBRES = { deep: 'Deep', coneja: 'Señora Coneja', tejon: 'El tejón', viejo: 'El viejo topo' };
   const LADO = { deep: 'izq' };   // el resto, a la derecha
   let lineas = [], i = 0, escrito = 0, timer = 0, fin = null, abierto = false;
   function cara(quien, c){ const set = R[quien] || {}; return set[c] || set[Object.keys(set)[0]] || ''; }
@@ -17,7 +17,7 @@ window.Dialogo = (()=>{
     $('dlgRetIzq').classList.toggle('callado', lado !== 'izq'); $('dlgRetDer').classList.toggle('callado', lado !== 'der');
     $('dlgRetIzq').classList.toggle('habla', lado === 'izq'); $('dlgRetDer').classList.toggle('habla', lado === 'der');
     $('dlgNombre').textContent = NOMBRES[L.quien] || L.quien;
-    $('dlgCaja').className = 'dlg-caja ' + lado;
+    $('dlgCaja').className = 'dlg-caja ' + lado + ' ' + L.quien;
     escrito = 0; $('dlgTexto').textContent = ''; $('dlgSig').hidden = true;
     clearInterval(timer);
     timer = setInterval(() => {

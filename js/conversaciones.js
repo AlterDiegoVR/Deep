@@ -3,11 +3,17 @@
 //  Cada casa puede tener conversaciones que salen al entrar, según lo que haya pasado (banderas de la partida).
 //  Caras de Deep: contento, alegre, sorprendido, asustado, triste, decidido, cansado, pensativo
 //  Caras de la Señora Coneja: contenta, alegre, emocionada, sorprendida, triste, pensativa
+//  Caras del tejón: contento, alegre, sorprendido, pensativo, sudando
+//  Caras del viejo topo: gruñon, sorprendido, triste, pensativo, cansado
 // =====================================================================
 window.Conversaciones = (()=>{
   const Pa = window.Partida;
   const d = (cara, texto) => ({quien:'deep', cara, texto});
   const c = (cara, texto) => ({quien:'coneja', cara, texto});
+  const t = (cara, texto) => ({quien:'tejon', cara, texto});
+  const v = (cara, texto) => ({quien:'viejo', cara, texto});
+  const D = window.DATOS, MAT = D.materiales;
+  const listaMat = o => Object.entries(o).map(([k, n]) => n + ' de ' + MAT[k].nombre.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' y $1');
 
   // Primera visita a la tienda: antes de bajar a la mina
   const CONEJA_ANTES = [
@@ -54,8 +60,78 @@ window.Conversaciones = (()=>{
   ];
   const azar = L => L[Math.floor(Math.random()*L.length)];
 
+  // ---------- Taller del tejón: el ascensor del Pozo viejo ----------
+  const FINO = (D.ascensor && D.ascensor.fino) || {arcilla: 15, carbon: 12, cobre: 6};
+  const TEJON_ASCENSOR = () => [
+    d('pensativo', 'Hola… ¿Es usted el que arregla cosas?'),
+    t('contento', 'Arreglo todo lo que tenga tornillos, y lo que no los tiene, se los pongo. ¿Qué te trae por aquí, chaval?'),
+    d('decidido', 'He bajado al Pozo viejo. Hasta el fondo.'),
+    t('sorprendido', '¿Hasta el fondo? ¿Tú solo? …¿Y cómo demonios has vuelto a subir?'),
+    d('contento', 'Abajo había un ascensor viejo. Le faltaba una pieza, la encontré por allí, la puse y arrancó… a trompicones.'),
+    d('asustado', 'Me dejó arriba, pero se paró echando humo. Y ahora no puedo volver a bajar: no tendría forma de subir.'),
+    t('pensativo', 'El ascensor de los topos… Lo construyó tu gente hace muchos años, antes de que yo llegara al pueblo. Un trasto precioso.'),
+    t('alegre', '¡Déjamelo a mí! Voy a echarle un vistazo.'),
+    t('sudando', '…Uf. Ya está. Apañado. Sube, aunque chirría como un grillo con tos. Para bajar, yo no me fiaría.'),
+    t('contento', 'Si me trajeras ' + listaMat(FINO) + ', lo dejaría fino. Podrías bajar y subir con él siempre que quisieras.'),
+    d('alegre', '¡Trato hecho!'),
+  ];
+  const TEJON_FINO = () => [
+    d('alegre', '¡Le traigo los materiales para el ascensor!'),
+    t('sorprendido', 'A ver, a ver… ' + listaMat(FINO) + '. ¡Está todo!'),
+    t('sudando', 'Dame un rato… Una tuerca por aquí, un poco de grasa por allá…'),
+    t('alegre', '¡Listo! Ahora el ascensor baja y sube suave como la seda. Cuando vayas al Pozo viejo podrás elegir: bajar por la boca o en el ascensor, hasta el fondo.'),
+    d('contento', '¡Gracias, señor Tejón!'),
+    t('contento', 'Nada de señor. Tejón a secas. Y vuelve cuando quieras: siempre tengo algún invento a medias.'),
+  ];
+  const TEJON_FALTA = () => [[t('pensativo', 'Para dejar fino el ascensor me hacen falta ' + listaMat(FINO) + '. Tú tráemelos y yo hago magia.'), d('decidido', 'Bajaré a por ellos.')]];
+  const TEJON_NADA = [
+    [t('contento', '¿Un topo en mi taller? Hacía años que no veía uno… Si algún día necesitas arreglar algún trasto, ya sabes dónde estoy.'), d('contento', 'Lo tendré en cuenta.')],
+  ];
+  const TEJON_DESPUES = [
+    [t('contento', '¿Qué tal funciona mi ascensor? Si oyes un chirrido raro, ni caso. Es su forma de saludar.'), d('alegre', 'Va de maravilla.')],
+    [t('pensativo', 'Estoy pensando en un trasto para subir la carga por los pozos sin que tengas que cargar con ella… Algún día.'), d('sorprendido', '¿Como un montacargas?')],
+  ];
+
+  // ---------- Casa del viejo topo ----------
+  const VIEJO_CERRADO = [
+    [v('gruñon', '¿Quién anda ahí? …No compro nada y no quiero visitas. Vete a casa, chaval.'), d('triste', '…')],
+    [v('gruñon', 'Ya te he dicho que te vayas. Aquí no hay nada para ti.'), d('triste', 'Solo quería hablar de mi padre…'), v('cansado', '…Vete.')],
+  ];
+  const VIEJO_PICO = [
+    d('pensativo', 'Señor… La señora Coneja me dijo que usted conocía a mi padre.'),
+    v('gruñon', 'Tu padre… Hace mucho que nadie lo nombra en este pueblo. ¿Qué quieres?'),
+    d('decidido', 'Encontré esto en el fondo del Pozo viejo.'),
+    v('sorprendido', 'Ese pico… Trae acá. …Es el suyo. Lo reconocería entre mil. Esa marca la grabamos juntos, el día que nos dieron la cuadrilla.'),
+    v('pensativo', 'Pero no puede ser. Aquel día la cuadrilla no bajó por el Pozo viejo. Entramos por otra mina. Este pico no debería estar ahí.'),
+    d('sorprendido', '¿Entonces…?'),
+    v('pensativo', 'Entonces algo no cuadra. Si su pico llegó al Pozo viejo, alguien lo llevó hasta allí… por dentro de la montaña.'),
+    d('triste', '¿Cree que mi padre…?'),
+    v('triste', 'No creo nada. Llevo años sin creer en nada, chaval.'),
+    v('pensativo', '…Pero bajaste hasta el fondo tú solo. Un crío. Hacía mucho que nadie hacía eso.'),
+    v('pensativo', 'Dime una cosa. Allí abajo… ¿notaste calor?'),
+    d('pensativo', 'Por una grieta del fondo subía aire caliente. Como si la montaña respirara.'),
+    v('cansado', '…Vuelve otro día. Tengo que pensar.'),
+  ];
+  const VIEJO_DESPUES = [
+    [v('gruñon', 'Sigue bajando, si quieres. Pero con cabeza: los puntales no son un adorno.'), d('decidido', 'Lo sé.')],
+    [v('pensativo', 'Tu padre siempre decía que la montaña habla, si sabes escuchar. Yo hace años que me tapé los oídos.'), d('pensativo', '¿Y qué decía?')],
+  ];
+
   // Devuelve la conversación que toca al entrar en una casa (o null) y lo que pasa al acabarla
   function alEntrar(casa){
+    if(casa === 'taller'){
+      if(Pa.bandera('ascensor_pozo1_roto') && !Pa.bandera('ascensor_pozo1_apanado'))
+        return {lineas: TEJON_ASCENSOR(), fin: () => { Pa.ponerBandera('ascensor_pozo1_apanado'); Pa.sumarProsperidad(1); }};
+      if(Pa.bandera('ascensor_pozo1_apanado') && !Pa.bandera('ascensor_pozo1_fino')){
+        if(Pa.puedePagar(FINO)) return {lineas: TEJON_FINO(), fin: () => { for(const [k, n] of Object.entries(FINO)) Pa.almacen[k] -= n; Pa.ponerBandera('ascensor_pozo1_fino'); Pa.sumarProsperidad(1); }};
+        return {lineas: azar(TEJON_FALTA()), fin: null};
+      }
+      return {lineas: azar(Pa.bandera('ascensor_pozo1_fino') ? TEJON_DESPUES : TEJON_NADA), fin: null};
+    }
+    if(casa === 'viejo'){
+      if((Pa.coleccion.pico_padre || 0) > 0 && !Pa.bandera('viejo_pico')) return {lineas: VIEJO_PICO, fin: () => { Pa.ponerBandera('viejo_pico'); }};
+      return {lineas: azar(Pa.bandera('viejo_pico') ? VIEJO_DESPUES : VIEJO_CERRADO), fin: null};
+    }
     if(casa !== 'tienda') return null;
     if(!Pa.bandera('coneja_intro')) return {lineas: CONEJA_ANTES, fin: () => Pa.ponerBandera('coneja_intro')};
     if(!Pa.bandera('flor_entregada') && (Pa.coleccion.flor_mina || 0) > 0)

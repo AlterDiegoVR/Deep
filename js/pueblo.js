@@ -50,6 +50,8 @@ window.Pueblo = (()=>{
     const a = -Math.PI/2 + i * (Math.PI*2/D.minas.length);
     return {x: Math.round(CENTRO.x + Math.cos(a)*74), y: Math.round(CENTRO.y + Math.sin(a)*112)};
   });
+  // la casa del viejo topo: apartada del pueblo, junto al camino del molino (mina 2)
+  const VIEJO = {x: Math.round(CENTRO.x + (POS[1].x - CENTRO.x)*0.55 + 16), y: Math.round(CENTRO.y + (POS[1].y - CENTRO.y)*0.55)};
   function dibujarMapa(t){
     const x = mx;
     // hierba con textura
@@ -77,6 +79,14 @@ window.Pueblo = (()=>{
       R(x, C.neg, X-1, Y-1, 14, 11); R(x, C.crema, X, Y+3, 12, 7); R(x, col, X, Y, 12, 4); R(x, C.marron, X+5, Y+6, 2, 4); R(x, C.cian, X+2, Y+5, 2, 2); }
     R(x, C.neg, CENTRO.x-4, CENTRO.y-3, 8, 7); R(x, C.gris, CENTRO.x-3, CENTRO.y-2, 6, 5); R(x, C.cian, CENTRO.x-2, CENTRO.y-1, 4, 3);
     if(Math.floor(t*3) % 2) R(x, C.blanco, CENTRO.x-1, CENTRO.y-1, 1, 1);
+    // casa del viejo topo (con humo en la chimenea)
+    { const X = VIEJO.x, Y = VIEJO.y;
+      R(x, C.neg, X-8, Y-4, 16, 10); R(x, C.marron, X-7, Y-3, 14, 8); R(x, C.marronC, X-7, Y-3, 14, 2);
+      for(let i=0;i<6;i++) R(x, C.neg, X-9+i, Y-5-i, 18-i*2, 1);
+      for(let i=0;i<5;i++) R(x, C.grisB, X-8+i, Y-5-i, 16-i*2, 1);
+      R(x, C.neg, X+3, Y-11, 3, 5); R(x, C.marron, X-1, Y+1, 3, 4); R(x, C.amarillo, X+3, Y-1, 2, 2);
+      for(let i=0;i<3;i++){ const ph = (t*0.4 + i*0.33) % 1; R(x, C.gris, X+4 + Math.sin(t+i)*2, Y-13 - ph*10, 2, 2); }
+      if(mapaSel === 'viejo'){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(X-11.5, Y-14.5, 23, 22); } }
     // minas
     D.minas.forEach((m, i) => {
       const p = POS[i], X = p.x, Y = p.y;
@@ -107,11 +117,24 @@ window.Pueblo = (()=>{
       b.onclick = () => { mapaSel = i; marcar(); };
       cont.appendChild(b);
     });
+    const v = document.createElement('button'); v.className = 'punto';
+    const qv = at(VIEJO.x, VIEJO.y); v.style.left = qv.left+'px'; v.style.top = qv.top+'px';
+    v.style.transform = `translate(-50%, -${12*g.css}px)`;
+    v.innerHTML = `<span class="zona" style="width:${22*g.css}px;height:${20*g.css}px"></span><span class="etq">Viejo topo</span>`;
+    v.setAttribute('aria-label', 'Casa del viejo topo');
+    v.onclick = () => { mapaSel = 'viejo'; marcar(); };
+    cont.appendChild(v);
     marcar();
   }
   function marcar(){
-    document.querySelectorAll('#mapaPuntos .punto').forEach((b, j) => b.classList.toggle('sel', j-1 === mapaSel));
-    const btn = $('mpBoton');
+    const pts = document.querySelectorAll('#mapaPuntos .punto');
+    pts.forEach((b, j) => b.classList.toggle('sel', mapaSel === 'viejo' ? j === pts.length - 1 : j-1 === mapaSel));
+    const btn = $('mpBoton'); $('mpBoton2').hidden = true;
+    if(mapaSel === 'viejo'){
+      $('mpEyebrow').textContent = 'Apartada del pueblo'; $('mpTitulo').textContent = 'Casa del viejo topo';
+      $('mpTexto').textContent = 'Una casita junto al camino del molino. Sale humo de la chimenea, pero las contraventanas están cerradas.';
+      btn.hidden = false; btn.disabled = false; btn.textContent = 'Llamar a la puerta'; return;
+    }
     if(mapaSel === null){
       $('mpEyebrow').textContent = 'Mapa'; $('mpTitulo').textContent = 'Elige adónde ir';
       $('mpTexto').textContent = 'Toca el pueblo para entrar en la plaza, o una mina para ver si puedes bajar.'; btn.hidden = true; return;
@@ -119,7 +142,13 @@ window.Pueblo = (()=>{
     const m = D.minas[mapaSel];
     $('mpEyebrow').textContent = 'Mina ' + m.id; $('mpTitulo').textContent = m.nombre; $('mpTexto').textContent = m.texto;
     btn.hidden = false;
-    if(abierta(m)){ btn.disabled = false; btn.textContent = 'Bajar a la mina'; return; }
+    if(abierta(m)){
+      btn.disabled = false; btn.textContent = 'Bajar a la mina';
+      // Pozo viejo: el ascensor según la historia
+      if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_roto') && !Pa.bandera('ascensor_pozo1_apanado')) $('mpTexto').textContent = m.texto + ' El ascensor del fondo está estropeado: así no hay forma de volver a subir.';
+      if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_fino')){ $('mpBoton2').hidden = false; btn.textContent = 'Bajar por la boca'; }
+      return;
+    }
     if(m.desbloqueo){
       // mina cerrada que se abre con materiales del almacén
       const tiene = k => Pa.almacen[k] || 0, ok = Pa.puedePagar(m.desbloqueo);
@@ -130,8 +159,14 @@ window.Pueblo = (()=>{
     }
     btn.disabled = true; btn.textContent = 'Cerrada por ahora';
   }
+  $('mpBoton2').onclick = () => { if(mapaSel !== null && mapaSel !== 'viejo') window.Pantallas.mostrar('mina', D.minas[mapaSel].pozo || 'viejo', {fondo: true}); };
   $('mpBoton').onclick = () => {
     if(mapaSel === null) return;
+    if(mapaSel === 'viejo'){
+      const conv = window.Conversaciones && window.Conversaciones.alEntrar('viejo');
+      if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); marcar(); });
+      return;
+    }
     const m = D.minas[mapaSel];
     if(abierta(m)){ window.Pantallas.mostrar('mina', m.pozo || 'viejo'); return; }
     if(m.desbloqueo && Pa.puedePagar(m.desbloqueo)){

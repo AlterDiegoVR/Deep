@@ -196,6 +196,8 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 .dlg-caja b{position:absolute;top:-17px;font-family:var(--f-display);font-weight:400;font-size:20px;background:var(--amarillo);border:3px solid var(--madera-oo);border-radius:12px;padding:1px 12px}
 .dlg-caja.izq b{left:18px}
 .dlg-caja.der b{right:18px;background:#ffb3e0}
+.dlg-caja.der.tejon b{background:#9badb7}
+.dlg-caja.der.viejo b{background:#cbdbfc}
 .dlg-caja p{margin:6px 0 0;font-size:18px;line-height:1.4;font-weight:700}
 #dlgSig{position:absolute;right:16px;bottom:6px;font-size:14px;color:var(--madera);animation:dlgsig 0.8s ease-in-out infinite}
 @keyframes dlgsig{50%{transform:translateY(3px)}}

@@ -6,11 +6,15 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.208',
+  version: '0.209',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
   pantalla: { calidad: 0 },
+
+  // ---------- Ascensor del Pozo viejo ----------
+  // Lo arregla el tejón: primero lo deja «apañado» (solo sube) y, si le llevas estos materiales, «fino» (baja y sube cuando quieras)
+  ascensor: { fino: { arcilla: 15, carbon: 12, cobre: 6 } },
 
   // ---------- Aceite ----------
   // Los bidones se reparten por tramos: en los tramos cortos no hay; en los largos, entre «minimo» y «maximo» al azar.

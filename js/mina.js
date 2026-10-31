@@ -363,6 +363,7 @@ function refillTunnels(){
   for(const it of W.items) if(it.alive && it.k !== 'moth' && it.r >= from && isSolid(tAt(it.r, it.c))){ if(it.k === 'bag' || it.k === 'oil') it.alive = false; }
   return n;
 }
+let startOpts = null;
 function startRun(){
   if(!MINA){ MINA = newMine(); }
   if(MINA.actual !== 'principal' || !TC || !TC.principal){ MINA.actual = 'principal'; W = MINA.tiros.principal; setTiro('principal'); }
@@ -394,7 +395,15 @@ function startRun(){
   if(mundoNuevo){ mundoNuevo = false; toast('Mina nueva', 'Versión '+D.version+': el pozo ha cambiado y empieza de cero'); }
   else if(bagWhere()){ const bw = bagWhere(); toast('Tu mochila te espera', bw.here ? 'Bajo el escombro, a '+(W.bag.r - SURF + 1)+' m' : 'Se quedó en el '+bw.nombre); }
   else if(refilled) toast('El pozo se ha asentado', 'Tus túneles de abajo se han llenado de escombro y piedra');
+  else if(bajadaBloqueada()) toast('El ascensor está estropeado', 'No puedo bajar así… Si tan solo pudiera arreglarlo.');
   else toast(P1.nombre, TRAMOS[0].n);
+  // bajar en el ascensor del tejón (Pozo viejo, ascensor fino): empiezas en el fondo
+  if(startOpts && startOpts.fondo && PK === 'uno' && ascState() === 'fino'){
+    ensure(TC.fondo + 4); const as = W.items.find(i => i.k === 'ascensor');
+    if(as){ p.onPlat = false; platOpen = 1; p.r = p.y = as.r; p.c = p.x = p.sx = as.c; lastRoomFloor = ROOM_ROW.length ? ROOM_ROW[ROOM_ROW.length-1] + ROOM_H - 1 : SURF - 1; maxDepth = as.r - SURF + 1; segSeen = TRAMOS.length - 1; roomsSeen = new Set(ROOM_ROW.map((_, i) => i));
+      cam = p.y - (VH/T)*0.35; camX = (p.x+0.5)*T; toast('El ascensor te baja al fondo', 'Suave como la seda. Para volver, súbete otra vez'); }
+  }
+  startOpts = null;
 }
 
 // ---------- cartas ----------
@@ -709,7 +718,8 @@ function updatePlayer(dt){
         }
       }
       p.fallN = 0;
-      if(p.onPlat && want('D')){ tapped.D = 0; p.onPlat = false; platOpen = 1; SND('trampilla'); floats.push({x:p.c+0.5, y:p.r-0.3, txt:'¡Allá voy!', life:0.9, col:'#fbf236'}); }
+      if(p.onPlat && want('D') && bajadaBloqueada()){ tapped.D = 0; if(lockMsgT <= 0){ toast('No puedo bajar', 'El ascensor del fondo está estropeado… Si tan solo pudiera arreglarlo.'); lockMsgT = 2; SND('clin'); } }
+      else if(p.onPlat && want('D')){ tapped.D = 0; p.onPlat = false; platOpen = 1; SND('trampilla'); floats.push({x:p.c+0.5, y:p.r-0.3, txt:'¡Allá voy!', life:0.9, col:'#fbf236'}); }
       else if(moveT <= 0 && digT <= 0 && p.stun <= 0 && !looking){
         const ax = (want('R')?1:0) - (want('L')?1:0);
         if(ax){ tapped.L = tapped.R = 0; }
@@ -730,7 +740,7 @@ function updatePlayer(dt){
         } else if(want('U')){ tapped.U = 0;
           const up = tAt(p.r-1, p.c), lift = W.items.find(i => i.alive && i.k === 'lift' && i.r === p.r && i.c === p.c);
           if(lift) useLift();
-          else if(itemHere('ascensor')){ if(W.ascUsado) toast('El ascensor ya no está', 'Se quedó arriba, roto y echando humo'); else if(bag['o:pieza_ascensor']) useElevator(); else toast('Un ascensor viejo', 'Está roto: le falta una pieza del mecanismo'); }
+          else if(itemHere('ascensor')){ const st = ascState(); if(st === 'roto') toast('El ascensor ya no está', 'Se quedó arriba, roto y echando humo'); else if(st !== 'pieza' || bag['o:pieza_ascensor']) useElevator(); else toast('Un ascensor viejo', 'Está roto: le falta una pieza del mecanismo'); }
           else if(up === DOOR) tryDoor(p.r-1, p.c);          // puertas y pasadizos también se abren desde abajo
           else if(up === PASS) enterPass(p.r-1, p.c);
           else if(tAt(p.r, p.c) === LADDER && passable(p.r-1, p.c)){ p.r--; moveT = stepTime(); }
@@ -779,7 +789,8 @@ function updatePlayer(dt){
         if(it.tipo === 'puntal') props += n; else ladders += n; renderInv();
         burst(it.r+0.5, it.c+0.5, '#d9a066', 10); floats.push({x:it.c+0.5, y:it.r, txt:'+'+n+' '+(it.tipo === 'puntal' ? 'puntal' : 'escalera'), life:1.2, col:'#fbf236'}); }
       else if(it.k === 'vent'){ if(!it.avisado){ it.avisado = true; toast('Aire caliente', 'Por la grieta sube un aire tibio, como si la montaña respirara'); } }
-      else if(it.k === 'ascensor'){ if(!it.avisado){ it.avisado = true; toast(W.ascUsado ? 'El hueco del ascensor' : 'Un ascensor viejo', W.ascUsado ? 'El ascensor se quedó arriba, roto' : bag['o:pieza_ascensor'] ? 'Tienes la pieza: pulsa el botón o arriba para ponerla' : 'Está roto: le falta una pieza del mecanismo'); } }
+      else if(it.k === 'ascensor'){ if(!it.avisado){ it.avisado = true; const st = ascState();
+        toast(st === 'roto' ? 'El hueco del ascensor' : 'El ascensor', st === 'roto' ? 'El ascensor se quedó arriba, roto' : st !== 'pieza' ? 'Arreglado por el tejón: pulsa el botón o arriba para subir' : bag['o:pieza_ascensor'] ? 'Tienes la pieza: pulsa el botón o arriba para ponerla' : 'Está roto: le falta una pieza del mecanismo'); } }
       else if(it.k === 'carga'){ if(!it.avisado){ it.avisado = true; toast('Montacargas', W.cargaOk.includes(it.room) ? 'Manda la carga al almacén y sigue bajando' : 'Está roto: se arregla con un poco de mineral'); } }
       else if(it.k === 'lift'){ if(!it.avisado){ it.avisado = true; toast('Montacargas viejo', 'Pulsa arriba para subir al tiro principal'); } }
       else if(it.k === 'oil'){ const g = cfg.oilGain*(has('bidon_grande') ? cv_('bidon_grande', 2) : 1); it.alive = false; SND('aceite'); lamp = Math.min(100, lamp + g); burst(it.r+0.5, it.c+0.5, '#fbf236', 14); floats.push({x:it.c+0.5, y:it.r, txt:'+'+g+'% luz', life:1.2, col:'#fbf236'}); }
@@ -983,7 +994,8 @@ function die(cause){
   for(const w of Object.values(MINA.tiros)){ if(w.bag) for(const k in w.bag.items) if(INFO[k]) stat('per', INFO[k].key, w.bag.items[k]); w.bag = null; w.items = w.items.filter(it => it.k !== 'bag'); }
   W.bag = n ? {r:p.r, c:p.c, items:{...bag}} : null;
   // el último tramo (desde la última sala segura) se llena de escombro sin vetas
-  const top = lastRoomFloor + 1, bot = p.r + 2;
+  // el primer tramo (antes de la primera sala) nunca se rellena: lo que haces al principio se respeta
+  const top = Math.max(lastRoomFloor + 1, TC.principal && ROOM_ROW.length ? ROOM_ROW[0] + ROOM_H : SURF), bot = p.r + 2;
   fillQ = [];
   for(let r=top; r<=bot; r++) for(let c=0;c<COLS;c++){ const v = tAt(r,c); if(v !== ROCK && v !== BEAM && v !== DOOR && v !== PASS && v !== BEDROCK){ fillQ.push([r,c]); if(INFO[v].val) stat('per', INFO[v].key, 1); } }
   fillQ.sort((a,b)=> a[0]-b[0] || Math.random()-0.5);
@@ -1209,11 +1221,12 @@ function drawCargo(it, X, Y){
 // ascensor del fondo: jaula grande de hierro; roto, sin pieza. Después de usarlo, solo queda el hueco
 function drawElevator(it, X, Y){
   ctx.fillStyle = '#9badb7'; ctx.fillRect(X + 6, Y - 4*T, 1, 4*T); ctx.fillRect(X + T - 7, Y - 4*T, 1, 4*T);
-  if(W.ascUsado){ ctx.fillStyle = '#000'; ctx.fillRect(X + 2, Y + T - 4, T - 4, 4); return; }
+  const st = ascState();
+  if(st === 'roto'){ ctx.fillStyle = '#000'; ctx.fillRect(X + 2, Y + T - 4, T - 4, 4); return; }
   ctx.fillStyle = '#000'; ctx.fillRect(X, Y - 8, T, T + 8);
   ctx.fillStyle = '#595652'; ctx.fillRect(X + 1, Y - 7, T - 2, 3); ctx.fillRect(X + 1, Y + T - 4, T - 2, 3); ctx.fillRect(X + 1, Y - 7, 2, T + 6); ctx.fillRect(X + T - 3, Y - 7, 2, T + 6);
   ctx.fillStyle = '#847e87'; for(let i=0;i<3;i++) ctx.fillRect(X + 6 + i*5, Y - 4, 1, T);
-  ctx.fillStyle = '#ac3232'; ctx.fillRect(X + T - 8, Y + 2, 4, 4);   // el hueco de la pieza, en rojo
+  ctx.fillStyle = st === 'pieza' ? '#ac3232' : st === 'fino' ? '#6abe30' : '#df7126'; ctx.fillRect(X + T - 8, Y + 2, 4, 4);   // la pieza: falta (rojo), apañado (naranja), fino (verde)
   if(transit && transit.ascensor){ ctx.fillStyle = 'rgba(155,173,183,0.5)'; ctx.fillRect(X - 4, Y - 14, T + 8, 8); }
 }
 // respiradero: grieta en el suelo por la que sube aire caliente
@@ -1243,6 +1256,14 @@ function drawSurface(ys){
     ctx.beginPath(); ctx.moveTo(hx*T-4, ys-hh*T); ctx.lineTo((hx+hw/2)*T, ys-(hh+0.8)*T); ctx.lineTo((hx+hw)*T+4, ys-hh*T); ctx.fill();
   }
   ctx.fillStyle = '#fbf236'; ctx.fillRect(1.1*T|0, ys-0.9*T|0, 5, 5); ctx.fillRect(11.4*T|0, ys-1.1*T|0, 5, 5);
+  // ascensor viejo del Pozo viejo, junto al castillete: roto (echando humo) hasta que el tejón lo arregle
+  if(PK === 'uno' && ascState() !== 'pieza'){
+    const st = ascState(), ax = Math.round(9.9*T), ay = ys - T - 6;
+    ctx.fillStyle = '#000'; ctx.fillRect(ax - 1, ay - 8, T + 2, T + 8); ctx.fillStyle = '#595652'; ctx.fillRect(ax, ay - 7, T, 3); ctx.fillRect(ax, ay + T - 4, T, 3); ctx.fillRect(ax, ay - 7, 2, T + 6); ctx.fillRect(ax + T - 2, ay - 7, 2, T + 6);
+    ctx.fillStyle = '#847e87'; for(let i=0;i<3;i++) ctx.fillRect(ax + 5 + i*5, ay - 4, 1, T);
+    ctx.fillStyle = st === 'roto' ? '#ac3232' : st === 'fino' ? '#6abe30' : '#df7126'; ctx.fillRect(ax + T - 7, ay + 2, 4, 4);
+    if(st === 'roto') for(let i=0;i<5;i++){ const ph = (t*0.5 + i*0.2) % 1; ctx.fillStyle = `rgba(155,173,183,${0.6*(1-ph)})`; ctx.fillRect(Math.round(ax + 8 + Math.sin(t*2 + i)*4), Math.round(ay - 10 - ph*30), 4, 4); }
+  }
   // castillete del pozo con la jaula de bajada
   const top = ys - 3*T + 4, L0 = 5.6*T, L1 = 9.4*T;
   ctx.fillStyle = '#000'; ctx.fillRect(L0-3, top, 7, 3*T); ctx.fillRect(L1-4, top, 7, 3*T); ctx.fillRect(L0-3, top-3, L1-L0+7, 7);
@@ -1689,7 +1710,7 @@ function updateTransit(dt){
   if(transit.ascensor){
     if(Math.random() < 0.5) burst(p.y - 0.5 - transit.t*2, p.x + 0.5, '#9badb7', 1);
     shake = 1.5;
-    if(transit.t >= 2.6){ transit = null; cashOut({titulo:'El ascensor te ha subido', texto:'Subió a trompicones y se paró en la boca del pozo echando humo. Habrá que buscar a alguien que sepa arreglarlo.'}); }
+    if(transit.t >= 2.6){ transit = null; cashOut(ascTexto); }
     return;
   }
   if(!transit.swapped && transit.t >= 0.45){ transit.swapped = true; doSwap(transit.to); }
@@ -1793,8 +1814,10 @@ function actionHere(){
     if(!W.cargaOk.includes(mc.room)) return {txt:'Arreglar el montacargas (' + costTxt() + ')', fn: () => fixLift(mc)};
     return {txt:'Mandar la carga arriba', fn: () => sendCargo(mc)};
   }
-  const as = itemHere('ascensor');
-  if(as && !W.ascUsado && bag['o:pieza_ascensor']) return {txt:'Poner la pieza y subir', fn: useElevator};
+  const as = itemHere('ascensor'), st = as ? ascState() : null;
+  if(as && st === 'pieza' && bag['o:pieza_ascensor']) return {txt:'Poner la pieza y subir', fn: useElevator};
+  if(as && (st === 'apanado' || st === 'fino')) return {txt:'Subir en el ascensor', fn: useElevator};
+  if(L.surface && bajadaBloqueada()) return {txt:'Volver al pueblo', fn: () => cashOut({titulo:'No se puede bajar', texto:'El ascensor del fondo está estropeado: sin él no hay forma de volver a subir.'})};
   return null;
 }
 // coste del montacargas: materiales concretos según el pozo (datos.pozos.X.costeMontacargas)
@@ -1815,14 +1838,22 @@ function sendCargo(mc){
   toast('La carga sube al pueblo', n + ' de mineral al almacén. Tu mochila queda vacía');
   floats.push({x:mc.c+0.5, y:mc.r-0.4, txt:'+' + n + ' al almacén', life:1.6, col:'#fbf236'});
 }
-// el ascensor del fondo: pones la pieza, arranca a trompicones, te sube y se estropea echando humo arriba
+// el ascensor del fondo (Pozo viejo): estado según la historia
+//   pieza: nunca se ha usado, le falta la pieza · roto: subió y se estropeó arriba · apanado: el tejón lo apañó (solo sube) · fino: sube y baja
+function ascState(){ if(!Pa.bandera('ascensor_pozo1_roto')) return 'pieza'; if(Pa.bandera('ascensor_pozo1_fino')) return 'fino'; if(Pa.bandera('ascensor_pozo1_apanado')) return 'apanado'; return 'roto'; }
+// con el ascensor roto no se puede bajar al Pozo viejo (no habría forma de volver)
+const bajadaBloqueada = () => PK === 'uno' && ascState() === 'roto';
 function useElevator(){
-  delete bag['o:pieza_ascensor'];
-  W.ascUsado = true; Pa.ponerBandera('ascensor_pozo1_roto'); renderInv();
+  const st = ascState();
+  if(st === 'pieza'){ delete bag['o:pieza_ascensor']; W.ascUsado = true; Pa.ponerBandera('ascensor_pozo1_roto'); }
+  else if(st === 'roto') return;
+  renderInv();
+  ascTexto = st === 'pieza' ? {titulo:'El ascensor te ha subido', texto:'Subió a trompicones y se paró en la boca del pozo echando humo. Habrá que buscar a alguien que sepa arreglarlo.'}
+    : {titulo:'De vuelta en el ascensor', texto: st === 'fino' ? 'El ascensor del tejón sube suave como la seda.' : 'El ascensor apañado sube chirriando como un grillo con tos, pero aguanta.'};
   for(const k in input){ input[k] = false; tapped[k] = 0; }
   transit = {t:0, to:null, swapped:true, label:'El ascensor arranca…', ascensor:true}; SND('trampilla'); shakeKick = 3;
 }
-let wasStartedD = false;
+let wasStartedD = false, ascTexto = null;
 function openDrop(){
   if(!$('dropSheet').hidden) return;
   wasStartedD = started; started = false;
@@ -1951,7 +1982,7 @@ function frame(now){
     shake += (shT - shake)*Math.min(1, dt*8);
     shakeKick = Math.max(0, shakeKick - dt*7);
     if(window.Sonido) window.Sonido.retumbo(Math.min(1, (falling + cracking*0.4)/6));
-    const Lz = layout(p.r), closeUp = !dead && (Lz.surface || (Lz.part !== undefined && Lz.part > 0 && Lz.part < ROOM_H-1));
+    const Lz = layout(p.r), closeUp = !dead && ((Lz.surface && !bajadaBloqueada()) || (Lz.part !== undefined && Lz.part > 0 && Lz.part < ROOM_H-1));
     const zBase = cfg.zoom === 'siempre' ? Math.max(1, CA.zoomExplorar) : 1;
     camX += ((p.x + 0.5)*T - camX)*Math.min(1, dt*CA.seguirLateral);
     const zT = looking ? CA.zoomVer : closeUp ? ZCLOSE : zBase;
@@ -2049,7 +2080,7 @@ lamp = 100; bag = {}; props = 0; ladders = 0; wick = 1; rocks = []; particles = 
 requestAnimationFrame(frame);
 return {
   // entrar en la mina con el pozo que toque ('viejo' o 'pruebas')
-  entrar(key){ if(key && key !== PK) cargarMundo(key); activa = true; resize(); startRun(); },
+  entrar(key, opts){ if(key && key !== PK) cargarMundo(key); startOpts = opts || null; activa = true; resize(); startRun(); },
   salir(){ activa = false; started = false; },
   borrar(){ for(const k in POZOS) save(POZOS[k].guardado, null); cargarMundo(PK); },
   get pozo(){ return PK; },
