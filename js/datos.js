@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.209',
+  version: '0.210',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -14,7 +14,10 @@ window.DATOS = {
 
   // ---------- Ascensor del Pozo viejo ----------
   // Lo arregla el tejón: primero lo deja «apañado» (solo sube) y, si le llevas estos materiales, «fino» (baja y sube cuando quieras)
-  ascensor: { fino: { arcilla: 15, carbon: 12, cobre: 6 } },
+  ascensor: {
+    fino: { arcilla: 6, carbon: 5, cobre: 2 },   // lo que pide el tejón para dejarlo fino (poco: una bajada)
+    primeraCarga: 5,                             // la primera vez (con la pieza) solo sube con esta carga: el resto se queda abajo
+  },
 
   // ---------- Aceite ----------
   // Los bidones se reparten por tramos: en los tramos cortos no hay; en los largos, entre «minimo» y «maximo» al azar.
@@ -29,12 +32,12 @@ window.DATOS = {
   // ---------- Mochila ----------
   // Se llena según lo que vale cada material (arcilla y carbón 1, cobre 2...). No frena: el drama es no poder coger más.
   // Con la mochila llena, lo que picas se pierde. El material se suelta solo en las salas seguras.
-  mochila: { capacidad: 20 },
+  mochila: { capacidad: 35 },
 
   // ---------- Herramientas ----------
   herramientas: {
-    inicial: { puntales: 10, escaleras: 6 },       // con lo que empieza una partida nueva
-    minimoPorBajada: { puntales: 10, escaleras: 4 }, // provisional hasta que haya economía: al empezar cada bajada tienes al menos esto (se cambia en ajustes)
+    inicial: { puntales: 15, escaleras: 9 },       // con lo que empieza una partida nueva
+    minimoPorBajada: { puntales: 1, escaleras: 1 },  // al empezar cada bajada tienes al menos esto (lo que gastas se queda en la mina: puedes volver a recogerlo)
     recogerPuntales: true,                          // pulsar Puntal encima de un puntal (o dentro de un tablón) lo recoge. Más adelante lo enseñará el topo viejo
     alMorir: 'perder',                              // 'perder' = pierdes las que llevabas; 'conservar' = no pierdes nada
   },
@@ -244,7 +247,7 @@ window.DATOS = {
   // ---------- Mapa: las minas alrededor del pueblo ----------
   minas: [
     { id: 1, nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin grisú. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
-    { id: 2, nombre: 'Cantera del molino',  abierta: false, pozo: 'dos', desbloqueo: { arcilla: 25, carbon: 25, cobre: 12 },
+    { id: 2, nombre: 'Cantera del molino',  abierta: false, pozo: 'dos', desbloqueo: { arcilla: 20, carbon: 20, cobre: 10 },
       texto: 'Prototipo del segundo pozo: más grande y más enrevesado, con dos ramales, grisú, barro, puertas con llave y cuarzo. Está cerrada: se abre con materiales del Pozo viejo.' },
     { id: 3, nombre: 'Galería del río',     abierta: false, texto: 'Próximamente.' },
     { id: 4, nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
@@ -268,6 +271,7 @@ window.DATOS = {
     //   sueltos: objetos que aparecen sueltos en este pozo (solo estos)
     uno: {
       nombre: 'Pozo viejo',
+      real: true,                  // pozo del juego (cuenta para la red de seguridad de materiales; los de prueba no)
       guardado: 'deep-pozo1',
       columnas: 15,
       tramos: [
@@ -344,6 +348,7 @@ window.DATOS = {
     // puertas con llave, ruleta de cartas, montacargas y cuarzo. Se abre en el mapa pagando materiales del Pozo viejo.
     dos: {
       nombre: 'Cantera del molino',
+      real: true,
       guardado: 'deep-pozo2',
       columnas: 15,
       tramos: [

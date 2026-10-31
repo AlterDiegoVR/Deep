@@ -68,11 +68,13 @@ window.Conversaciones = (()=>{
     d('decidido', 'He bajado al Pozo viejo. Hasta el fondo.'),
     t('sorprendido', '¿Hasta el fondo? ¿Tú solo? …¿Y cómo demonios has vuelto a subir?'),
     d('contento', 'Abajo había un ascensor viejo. Le faltaba una pieza, la encontré por allí, la puse y arrancó… a trompicones.'),
-    d('asustado', 'Me dejó arriba, pero se paró echando humo. Y ahora no puedo volver a bajar: no tendría forma de subir.'),
+    d('asustado', 'Me dejó arriba, pero se paró echando humo. Tuve que dejar casi todo lo que llevaba. Y ahora no puedo volver a bajar: no tendría forma de subir.'),
     t('pensativo', 'El ascensor de los topos… Lo construyó tu gente hace muchos años, antes de que yo llegara al pueblo. Un trasto precioso.'),
     t('alegre', '¡Déjamelo a mí! Voy a echarle un vistazo.'),
-    t('sudando', '…Uf. Ya está. Apañado. Sube, aunque chirría como un grillo con tos. Para bajar, yo no me fiaría.'),
-    t('contento', 'Si me trajeras ' + listaMat(FINO) + ', lo dejaría fino. Podrías bajar y subir con él siempre que quisieras.'),
+    t('sudando', '…Uf. Ya está. Apañado. Pero no aguantará mucho: uno o dos viajes como mucho. Ten cuidado.'),
+    t('contento', 'Tráeme ' + listaMat(FINO) + ' y te lo dejo fino. Podrás bajar y subir con él siempre que quieras.'),
+    d('asustado', '¿Y el pozo? Al salir se derrumbó todo…'),
+    t('contento', 'Mejor para ti: con el derrumbe habrá salido mineral nuevo. Las montañas son así.'),
     d('alegre', '¡Trato hecho!'),
   ];
   const TEJON_FINO = () => [

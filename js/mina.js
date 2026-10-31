@@ -88,7 +88,9 @@ const BASE = {drain:LA.consumo, corn:ES.cornisa ?? 2, crack:ES.tiempoCrujido, th
   frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, escala:'1', resp:1, respP:90, rubMax:ES.maxEscombroPorGolpe, caida:'0', caidaDesde:4, caidaDanio:10, caidaModo:'fijo', caidaCrece:5, minP:HM.puntales, minL:HM.escaleras, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilMin:(D.aceite && D.aceite.desdeLargo) || 20, oilGain:LA.aceite,
   dark:'1', zoom: CA.zoomExplorar >= 2 ? 'siempre' : 'salas'};
 let cfg = {...BASE};
-try{ const s = JSON.parse(localStorage.getItem('deep-cfg')||'null'); if(s) cfg = {...BASE, ...s}; }catch(e){}
+const CFG_VER = 2;   // sube cuando cambian valores por defecto importantes: los ajustes guardados de antes se olvidan de esos valores
+try{ const s = JSON.parse(localStorage.getItem('deep-cfg')||'null'); if(s){ if(s._v !== CFG_VER){ delete s.minP; delete s.minL; delete s.cap; s._v = CFG_VER; } cfg = {...BASE, ...s}; } }catch(e){}
+cfg._v = CFG_VER;
 const spanReach = () => cfg.corn;  // cornisa: casillas a cada lado que un apoyo sostiene (en puente, el doble)
 
 // ---------- ruido ----------
@@ -184,8 +186,8 @@ function applyPieces(r, Tt){
       else if(ch === 'f') W.items.push({k:'obj', id:'flor_mina', r, c, alive:true});
       else if(ch === 'M') W.items.push({k:'lift', r, c, alive:true});
       else if(ch === 'A') W.items.push({k:'ascensor', r, c, alive:true});
-      else if(ch === 'Z') W.items.push({k:'obj', id:'pieza_ascensor', r, c, alive:true});
-      else if(ch === 'K') W.items.push({k:'obj', id:'pico_padre', r, c, alive:true});
+      else if(ch === 'Z'){ if(!Pa.bandera('ascensor_pozo1_roto')) W.items.push({k:'obj', id:'pieza_ascensor', r, c, alive:true}); }   // la pieza y el pico salen una sola vez
+      else if(ch === 'K'){ if(!Pa.bandera('pico_encontrado') && !Pa.coleccion.pico_padre && !(bag && bag['o:pico_padre'])) W.items.push({k:'obj', id:'pico_padre', r, c, alive:true}); }
       else if(ch === 'V') W.items.push({k:'vent', r, c, alive:true});
     }
   }
@@ -387,6 +389,7 @@ function startRun(){
   prevRecord = W.record||0; newGround = false;
   cards = {}; spun = new Set(); carpDone = 0; chestFx = null; air = airMax(); submerged = false; airWarn = false;
   ensureRoomItems(); tidyEscalas(); unroll = null;
+  redSeguridad();
   dead = null; deadT = 0; cashed = false; rocks = []; particles = []; floats = []; fillQ = [];
   digT = 0; moveT = 0; buried = 0; crackMsgT = 0; lockMsgT = 0; flashT = 0; maxDepth = 0;
   lastRoomFloor = SURF - 1; roomsSeen = new Set(); segSeen = 0;
@@ -1710,7 +1713,7 @@ function updateTransit(dt){
   if(transit.ascensor){
     if(Math.random() < 0.5) burst(p.y - 0.5 - transit.t*2, p.x + 0.5, '#9badb7', 1);
     shake = 1.5;
-    if(transit.t >= 2.6){ transit = null; cashOut(ascTexto); }
+    if(transit.t >= 2.6){ transit = null; cashOut(ascTexto); if(ascTexto && ascTexto.derrumbe) sellarPozo(); }
     return;
   }
   if(!transit.swapped && transit.t >= 0.45){ transit.swapped = true; doSwap(transit.to); }
@@ -1725,6 +1728,7 @@ function drawTransit(){
 }
 function pickObject(it){
   it.alive = false;
+  if(it.id === 'pico_padre') Pa.ponerBandera('pico_encontrado');
   const key = 'o:' + it.id, o = OBJ[it.id] || {nombre: it.id, icono:'?', texto:''};
   bag[key] = (bag[key]||0) + 1; SND('carta'); renderInv();
   const nuevo = !Pa.coleccion[it.id] && !Object.keys(bag).some(k => k === key && bag[k] > 1);
@@ -1845,15 +1849,68 @@ function ascState(){ if(!Pa.bandera('ascensor_pozo1_roto')) return 'pieza'; if(P
 const bajadaBloqueada = () => PK === 'uno' && ascState() === 'roto';
 function useElevator(){
   const st = ascState();
-  if(st === 'pieza'){ delete bag['o:pieza_ascensor']; W.ascUsado = true; Pa.ponerBandera('ascensor_pozo1_roto'); }
+  let dejado = 0;
+  if(st === 'pieza'){
+    delete bag['o:pieza_ascensor']; W.ascUsado = true; Pa.ponerBandera('ascensor_pozo1_roto');
+    // la primera vez el ascensor no aguanta peso: solo sube un poco de carga (lo que más vale); el resto se queda abajo
+    const lim = (D.ascensor && D.ascensor.primeraCarga) ?? 5;
+    const ks = Object.keys(bag).filter(k => INFO[k] && bag[k] > 0).sort((a, b) => INFO[b].val - INFO[a].val);
+    let w = 0;
+    for(const k of ks){ const keep = Math.max(0, Math.min(bag[k], Math.floor((lim - w)/INFO[k].val))); const fuera = bag[k] - keep;
+      if(fuera){ dejado += fuera; stat('per', INFO[k].key, fuera); } bag[k] = keep; w += keep*INFO[k].val; if(!bag[k]) delete bag[k]; }
+    if(dejado) toast('No creo que esto aguante tanto peso…', 'Deep deja casi toda la carga abajo');
+  }
   else if(st === 'roto') return;
   renderInv();
-  ascTexto = st === 'pieza' ? {titulo:'El ascensor te ha subido', texto:'Subió a trompicones y se paró en la boca del pozo echando humo. Habrá que buscar a alguien que sepa arreglarlo.'}
+  ascTexto = st === 'pieza' ? {titulo:'El ascensor te ha subido', derrumbe:true, texto:(dejado ? 'Tuviste que dejar casi toda la carga abajo. ' : '') + 'El ascensor subió a trompicones y se paró en la boca del pozo echando humo. Al salir, un estruendo: el Pozo viejo se ha derrumbado y vuelve a estar sellado. Habrá que buscar a alguien que sepa arreglar el ascensor.'}
     : {titulo:'De vuelta en el ascensor', texto: st === 'fino' ? 'El ascensor del tejón sube suave como la seda.' : 'El ascensor apañado sube chirriando como un grillo con tos, pero aguanta.'};
   for(const k in input){ input[k] = false; tapped[k] = 0; }
   transit = {t:0, to:null, swapped:true, label:'El ascensor arranca…', ascensor:true}; SND('trampilla'); shakeKick = 3;
 }
 let wasStartedD = false, ascTexto = null;
+// derrumbe que vuelve a sellar el pozo: se genera entero de nuevo (con mineral nuevo); el contador sigue
+function sellarPozo(){
+  const st = MINA.stats; MINA = newMine(); MINA.stats = st;
+  W = MINA.tiros.principal; setTiro('principal'); persist();
+}
+// ---------- red de seguridad de materiales ----------
+// Si lo que queda en los pozos reales abiertos más lo del almacén no llega para el siguiente objetivo de la historia,
+// al empezar la bajada se meten vetas del mineral que falta en este pozo (en roca ya abierta por el generador, no en tus galerías).
+// Con más minas abiertas hay más mineral en juego, así que salta cada vez menos.
+const T2KEY = {[CLAY]:'arcilla', [COAL]:'carbon', [COPPER]:'cobre', [QUARTZ]:'cuarzo'};
+function siguienteObjetivo(){
+  if(Pa.bandera('ascensor_pozo1_apanado') && !Pa.bandera('ascensor_pozo1_fino')) return (D.ascensor && D.ascensor.fino) || null;
+  for(const m of D.minas) if(m.desbloqueo && !Pa.bandera('mina_' + m.id + '_abierta')) return m.desbloqueo;
+  return null;
+}
+function contarPozo(rows){ const n = {}; for(const R of rows) for(let c=0;c<COLS;c++){ const k = T2KEY[R.t ? R.t[c] : R.charCodeAt(c) - 65]; if(k) n[k] = (n[k]||0) + 1; } return n; }
+function redSeguridad(){
+  if(!P1.real) return 0;
+  const obj = siguienteObjetivo(); if(!obj) return 0;
+  if(isFinite(TC.fondo)) ensure(TC.fondo + 1);
+  const disp = contarPozo(W.rows);
+  // el resto de pozos reales abiertos (los de prueba no cuentan)
+  for(const m of D.minas){
+    const key = m.pozo; if(!key || key === PK || !POZOS[key] || !POZOS[key].real) continue;
+    if(!(m.abierta || Pa.bandera('mina_' + m.id + '_abierta'))) continue;
+    const sv = load(POZOS[key].guardado, null); if(!sv || !sv.tiros) continue;
+    for(const id in sv.tiros){ const c = contarPozo(sv.tiros[id].rows || []); for(const k in c) disp[k] = (disp[k]||0) + c[k]; }
+  }
+  let puestos = 0;
+  for(const [k, n] of Object.entries(obj)){
+    const falta = n - (Pa.almacen[k]||0) - (disp[k]||0);
+    if(falta <= 0) continue;
+    const quiero = Math.ceil(falta*1.5), tt = KEY2T[k];
+    const desde = ROOM_ROW.length ? ROOM_ROW[0] + ROOM_H : SURF + 3, hasta = Math.min(W.rows.length - 2, isFinite(TC.fondo) ? TC.fondo - 4 : W.rows.length - 2);
+    for(let i=0, intentos=0; i<quiero && intentos < 4000; intentos++){
+      const r = desde + Math.floor(Math.random()*(hasta - desde)), c = Math.floor(Math.random()*COLS);
+      if(layout(r).part !== undefined) continue;
+      const v = W.rows[r].t[c];
+      if(v === DIRT || v === STONE){ setT(r, c, tt); i++; puestos++; }
+    }
+  }
+  return puestos;
+}
 function openDrop(){
   if(!$('dropSheet').hidden) return;
   wasStartedD = started; started = false;
