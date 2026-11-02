@@ -12,13 +12,27 @@ window.Pueblo = (()=>{
   const h2 = (x, y, s) => { let n = Math.imul(x,374761393) + Math.imul(y,668265263) + Math.imul(s,982451653); n = Math.imul(n^(n>>>13),1274126177); return ((n^(n>>>16))>>>0)/4294967295; };
 
   // ---------- utilidades de lienzo ----------
-  function ajustar(cv, cont, W, H){
-    const r = cont.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
-    const fit = Math.min(r.width/W, r.height/H), n = Math.floor(fit * dpr);
-    // escala entera si no desperdicia mucho espacio; si no, se ajusta al hueco
-    const css = n >= 1 && (n/dpr) / fit > 0.85 ? n/dpr : fit;
+  // La imagen llena todo el hueco. Si sobra por un lado (la pantalla es más alargada que la imagen), se recorta
+  // y se puede arrastrar para ver lo que queda fuera (pan guarda cuánto se ha movido).
+  function ajustar(cv, cont, W, H, pan){
+    const r = cont.getBoundingClientRect();
+    const cubre = Math.max(r.width/W, r.height/H), cabe = Math.min(r.width/W, r.height/H);
+    const css = cubre/cabe <= 1.6 ? cubre : cabe;
+    const lim = (v, tam, hueco) => tam <= hueco ? (hueco - tam)/2 : Math.max(hueco - tam, Math.min(0, v));
+    const left = lim((r.width - W*css)/2 + (pan ? pan.x : 0), W*css, r.width), top = lim((r.height - H*css)/2 + (pan ? pan.y : 0), H*css, r.height);
+    if(pan){ pan.x = left - (r.width - W*css)/2; pan.y = top - (r.height - H*css)/2; }
     cv.width = W; cv.height = H; cv.style.width = (W*css)+'px'; cv.style.height = (H*css)+'px';
-    return {css, left:(r.width - W*css)/2, top:(r.height - H*css)/2};
+    cv.style.position = 'absolute'; cv.style.left = left + 'px'; cv.style.top = top + 'px';
+    return {css, left, top};
+  }
+  // arrastrar la imagen (si no cabe entera); un arrastre no cuenta como toque
+  function arrastrable(cont, pan, alMover){
+    let x0 = 0, y0 = 0, p0 = null, movido = false;
+    cont.addEventListener('pointerdown', e => { x0 = e.clientX; y0 = e.clientY; p0 = {x: pan.x, y: pan.y}; movido = false; });
+    cont.addEventListener('pointermove', e => { if(!p0 || !(e.buttons & 1)) return; const dx = e.clientX - x0, dy = e.clientY - y0;
+      if(!movido && Math.hypot(dx, dy) < 8) return; movido = true; pan.x = p0.x + dx; pan.y = p0.y + dy; alMover(); });
+    cont.addEventListener('pointerup', () => { p0 = null; });
+    cont.addEventListener('click', e => { if(movido){ e.stopPropagation(); e.preventDefault(); movido = false; } }, true);
   }
   const R = (x, c, X, Y, w, h) => { x.fillStyle = c; x.fillRect(X|0, Y|0, w|0, h|0); };
 
@@ -134,44 +148,56 @@ window.Pueblo = (()=>{
     v.setAttribute('aria-label', 'Casa del viejo topo');
     v.onclick = () => { mapaSel = 'viejo'; marcar(); };
     cont.appendChild(v);
-    marcar();
+    marcar(); encajarEtiquetas(cont);
+  }
+  const costeChips = c => '<span class="coste">' + Object.entries(c).map(([k, n]) => `<span class="chip${(Pa.almacen[k]||0) >= n ? '' : ' muted'}"><i style="background:${MAT[k].color}"></i>${MAT[k].nombre} <b>${Math.min(Pa.almacen[k]||0, n)}/${n}</b></span>`).join('') + '</span>';
+  // bocadillo encima de la imagen, junto a la mina (o la casa) que tocas; se cierra tocando fuera
+  function colocarBurbuja(x, y){
+    const el = $('mapaPanel'), g = mapaGeo; if(!g) return;
+    const cont = $('mapaLienzo').getBoundingClientRect(), X = g.left + x*g.css, Y = g.top + y*g.css;
+    el.hidden = false; const w = el.offsetWidth, h = el.offsetHeight;
+    let left = Math.max(8, Math.min(cont.width - w - 8, X - w/2));
+    let top = Y > cont.height*0.5 ? Y - h - 26 : Y + 26;
+    top = Math.max(8, Math.min(cont.height - h - 8, top));
+    el.style.left = left + 'px'; el.style.top = top + 'px';
   }
   function marcar(){
     const pts = document.querySelectorAll('#mapaPuntos .punto');
     pts.forEach((b, j) => b.classList.toggle('sel', mapaSel === 'viejo' ? j === pts.length - 1 : j-1 === mapaSel));
+    // objetivo: una etiqueta pequeña en una esquina
+    const o = Pa.objetivo(), oc = $('mapaObjetivo');
+    oc.hidden = !o; if(o) oc.textContent = '🎯 ' + o.corto[0].toUpperCase() + o.corto.slice(1);
     const btn = $('mpBoton'); $('mpBoton2').hidden = true;
+    if(mapaSel === null){ $('mapaPanel').hidden = true; return; }
+    if(mapaSel === 'objetivo'){
+      $('mpEyebrow').textContent = 'Siguiente objetivo'; $('mpTitulo').textContent = o ? o.nombre[0].toUpperCase() + o.nombre.slice(1) : '';
+      $('mpTexto').innerHTML = o ? costeChips(o.coste) : ''; btn.hidden = true;
+      colocarBurbuja(MW/2, 40); return;
+    }
     if(mapaSel === 'viejo'){
       $('mpEyebrow').textContent = 'Apartada del pueblo'; $('mpTitulo').textContent = 'Casa del viejo topo';
-      $('mpTexto').textContent = 'Una casita junto al camino del molino. Sale humo de la chimenea, pero las contraventanas están cerradas.';
-      btn.hidden = false; btn.disabled = false; btn.textContent = 'Llamar a la puerta'; return;
-    }
-    if(mapaSel === null){
-      $('mpEyebrow').textContent = 'Mapa'; $('mpTitulo').textContent = 'Elige adónde ir';
-      const o = Pa.objetivo();
-      $('mpTexto').innerHTML = 'Toca el pueblo para entrar en la plaza, o una mina para ver si puedes bajar.' + (o ? '<br><b>Siguiente objetivo:</b> ' + o.nombre + '<span class="coste">' +
-        Object.entries(o.coste).map(([k, n]) => `<span class="chip${(Pa.almacen[k]||0) >= n ? '' : ' muted'}"><i style="background:${MAT[k].color}"></i>${MAT[k].nombre} <b>${Math.min(Pa.almacen[k]||0, n)}/${n}</b></span>`).join('') + '</span>' : '');
-      btn.hidden = true; return;
+      $('mpTexto').innerHTML = ''; btn.hidden = false; btn.disabled = false; btn.textContent = 'Llamar a la puerta';
+      colocarBurbuja(VIEJO.x, VIEJO.y); return;
     }
     const m = D.minas[mapaSel];
-    $('mpEyebrow').textContent = 'Mina ' + m.id; $('mpTitulo').textContent = m.nombre; $('mpTexto').textContent = m.texto;
+    $('mpEyebrow').textContent = 'Mina ' + m.id; $('mpTitulo').textContent = m.nombre; $('mpTexto').innerHTML = '';
     btn.hidden = false;
     if(abierta(m)){
-      btn.disabled = false; btn.textContent = 'Bajar a la mina';
+      btn.disabled = false; btn.textContent = 'Bajar';
       // Pozo viejo: el ascensor según la historia
-      if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_roto') && !Pa.bandera('ascensor_pozo1_apanado')) $('mpTexto').textContent = m.texto + ' El ascensor del fondo está estropeado: así no hay forma de volver a subir.';
-      if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_fino')){ $('mpBoton2').hidden = false; btn.textContent = 'Bajar por la boca'; }
-      return;
-    }
-    if(m.desbloqueo){
+      if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_roto') && !Pa.bandera('ascensor_pozo1_apanado')) $('mpTexto').innerHTML = '<p>El ascensor del fondo está estropeado.</p>';
+      if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_fino')){ $('mpBoton2').hidden = false; $('mpBoton2').textContent = 'Ascensor (al fondo)'; btn.textContent = 'Bajar por la boca'; }
+    } else if(m.desbloqueo){
       // mina cerrada que se abre con materiales del almacén
-      const tiene = k => Pa.almacen[k] || 0, ok = Pa.puedePagar(m.desbloqueo);
-      $('mpTexto').innerHTML = m.texto + '<br><b>Para abrirla hace falta:</b><span class="coste">' +
-        Object.entries(m.desbloqueo).map(([k, n]) => `<span class="chip${tiene(k) >= n ? '' : ' muted'}"><i style="background:${MAT[k].color}"></i>${MAT[k].nombre} <b>${Math.min(tiene(k), n)}/${n}</b></span>`).join('') + '</span>';
+      const ok = Pa.puedePagar(m.desbloqueo);
+      $('mpTexto').innerHTML = costeChips(m.desbloqueo);
       btn.disabled = !ok; btn.textContent = ok ? 'Abrir la mina' : 'Faltan materiales';
-      return;
-    }
-    btn.disabled = true; btn.textContent = 'Cerrada por ahora';
+    } else { btn.hidden = true; $('mpTexto').innerHTML = '<p>🔒 Aún no se puede llegar.</p>'; }
+    colocarBurbuja(POS[mapaSel].x, POS[mapaSel].y);
   }
+  $('mapaObjetivo').onclick = e => { e.stopPropagation(); mapaSel = mapaSel === 'objetivo' ? null : 'objetivo'; marcar(); };
+  // tocar la imagen fuera de un punto cierra el bocadillo
+  $('mapaCv').addEventListener('click', () => { if(mapaSel !== null){ mapaSel = null; marcar(); } });
   $('mpBoton2').onclick = () => { if(mapaSel !== null && mapaSel !== 'viejo') window.Pantallas.mostrar('mina', D.minas[mapaSel].pozo || 'viejo', {fondo: true}); };
   $('mpBoton').onclick = () => {
     if(mapaSel === null) return;
@@ -288,8 +314,7 @@ window.Pueblo = (()=>{
       b.innerHTML = `<span class="zona" style="width:${(x1-x0)*g.css}px;height:${(y1-y0)*g.css}px"></span>` + (c.tipo === 'cerrada' ? '' : `<span class="etq">${c.nombre}</span>`);
       b.style.transform = `translate(-50%, -${(y1-y0)/2*g.css}px)`;
       b.setAttribute('aria-label', c.nombre);
-      b.onclick = () => { plazaSel = i;
-        $('ppEyebrow').textContent = c.dueno; $('ppTitulo').textContent = c.nombre; $('ppCuerpo').innerHTML = '<p class="note">Deep va hacia la puerta…</p>';
+      b.onclick = () => { plazaSel = i; $('plazaPanel').hidden = true;
         irA(puerta(i), () => {
           if(plazaSel !== i) return;
           // al llegar a la puerta: si toca conversación, primero el diálogo y luego la casa
@@ -305,6 +330,7 @@ window.Pueblo = (()=>{
     salida.setAttribute('aria-label', 'Salir al mapa');
     salida.onclick = () => { plazaSel = null; panelCasa(); irA(PL.salida, () => window.Pantallas.mostrar('mapa')); };
     cont.appendChild(salida);
+    encajarEtiquetas(cont);
   }
   const chip = (k, n) => `<span class="chip"><i style="background:${MAT[k] && MAT[k].color || '#999'}"></i>${MAT[k] ? MAT[k].nombre : k} <b>${n}</b></span>`;
   const precioTxt = p => Object.entries(p).map(([m, n]) => n + ' de ' + (MAT[m] ? MAT[m].nombre.toLowerCase() : m)).join(', ');
@@ -322,7 +348,8 @@ window.Pueblo = (()=>{
     document.querySelectorAll('#plazaPuntos .punto').forEach((b, j) => b.classList.toggle('sel', j === plazaSel));
     $('plazaKit').textContent = kitTxt();
     const cuerpo = $('ppCuerpo');
-    if(plazaSel === null){ $('ppEyebrow').textContent = 'Plaza del pueblo'; $('ppTitulo').textContent = '¿Dónde entras?'; cuerpo.innerHTML = '<p>Toca una casa. Para ir a las minas, sal al mapa.</p>'; return; }
+    if(plazaSel === null){ $('plazaPanel').hidden = true; return; }
+    $('plazaPanel').hidden = false;
     const c = D.casas[plazaSel];
     $('ppEyebrow').textContent = c.dueno; $('ppTitulo').textContent = c.nombre;
     if(c.tipo === 'tienda'){
@@ -386,6 +413,7 @@ window.Pueblo = (()=>{
     return ids.length ? ids.map(id => { const o = D.objetos[id]; return `<span class="chip" title="${o.texto}">${o.icono} ${o.nombre} <b>${Pa.coleccion[id]}</b></span>`; }).join('') : '<span class="chip muted">Aún nada</span>';
   }
   $('plazaVolver').onclick = () => window.Pantallas.mostrar('mapa');
+  $('ppCerrar').onclick = () => { plazaSel = null; panelCasa(); };
 
   // =================== bucle ===================
   let activa = null, t0 = performance.now();
@@ -397,13 +425,22 @@ window.Pueblo = (()=>{
   }
   requestAnimationFrame(bucle);
   function recolocar(){
-    if(activa === 'mapa'){ mapaGeo = ajustar(mapaCv, $('mapaLienzo'), MW, MH); montarPuntosMapa(); }
-    if(activa === 'plaza'){ plazaGeo = ajustar(plazaCv, $('plazaLienzo'), PW, PH); montarPuntosPlaza(); panelCasa(); }
+    if(activa === 'mapa'){ mapaGeo = ajustar(mapaCv, $('mapaLienzo'), MW, MH, panMapa); montarPuntosMapa(); }
+    if(activa === 'plaza'){ plazaGeo = ajustar(plazaCv, $('plazaLienzo'), PW, PH, panPlaza); montarPuntosPlaza(); panelCasa(); }
   }
+  const panMapa = {x: 0, y: 0}, panPlaza = {x: 0, y: 0};
+  // las etiquetas que se salen por un borde se meten dentro
+  function encajarEtiquetas(capa){
+    const r = capa.getBoundingClientRect();
+    capa.querySelectorAll('.etq').forEach(e => { e.style.transform = ''; const q = e.getBoundingClientRect();
+      const dx = q.left < r.left + 4 ? r.left + 4 - q.left : q.right > r.right - 4 ? r.right - 4 - q.right : 0; if(dx) e.style.transform = `translateX(${dx}px)`; });
+  }
+  arrastrable($('mapaLienzo'), panMapa, () => { mapaGeo = ajustar(mapaCv, $('mapaLienzo'), MW, MH, panMapa); montarPuntosMapa(); });
+  arrastrable($('plazaLienzo'), panPlaza, () => { plazaGeo = ajustar(plazaCv, $('plazaLienzo'), PW, PH, panPlaza); montarPuntosPlaza(); });
   const ro = new ResizeObserver(() => recolocar());
   ro.observe($('mapaLienzo')); ro.observe($('plazaLienzo'));
   return {
-    mapa(){ activa = 'mapa'; requestAnimationFrame(recolocar); },
+    mapa(){ activa = 'mapa'; mapaSel = null; $('mapaPanel').hidden = true; requestAnimationFrame(recolocar); },
     plaza(){ activa = 'plaza'; plazaSel = null; topo.x = SALIDA.x; topo.y = SALIDA.y; topo.camino = []; topo.alLlegar = null; irA(PL.inicio, null); requestAnimationFrame(recolocar); },
     parar(){ activa = null; },
   };
