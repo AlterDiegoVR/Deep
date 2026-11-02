@@ -107,21 +107,23 @@ window.PIEZAS = [
   },
   // ===================== Pozo 3: la Galería del río (el pozo del agua) =====================
   {
-    // La noria vieja: un depósito de agua tapado con un tapón de piedra. Si lo rompes, el agua baja por el canal
-    // hasta la rueda, que gira y abre la compuerta de una camarita con un cofre y una flor.
+    // La noria vieja: una cámara cerrada de roca madre a la que se baja por una escalera de la cuadrilla. Abajo, la rueda
+    // seca en un foso, una cadena que va hasta una reja y, detrás de la reja, un cofre y una flor. Arriba, en la repisa
+    // por la que se llega, un depósito de agua tapado con una piedra: si la rompes, el agua cae por el hueco de la
+    // escalera hasta la rueda, que gira y sube la reja.
     id: 'noria_pozo3',
     pozo: 'tres',
     tiro: 'principal',
     colocar: { fila: 50 },
     reflejar: true,
     filas: [
-      'ddddddddpptxxxx',
-      'd______dpptx__x',
-      'd~~~~~~p__tGfBx',
-      'ddddddddd_dxxxx',
-      'ddddddddd_ddddd',
-      'dddddddddWddddd',
-      'ddddddddddddddd',
+      'xxxxxx___xxxxxx',
+      'x~~~~p_____xxxx',
+      'xxxxxxxLxxxxxxx',
+      'x______L___Gf_x',
+      'x______L___GB_x',
+      'xxxxxxxWxxxxxxx',
+      'xxxxxxxxxxxxxxx',
     ],
   },
   {

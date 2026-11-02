@@ -106,7 +106,7 @@ const Pa = window.Partida;
 // ---------- mundo ----------
 let W = null;   // el tiro actual: {id, seed, rows, items, bag, ...}
 let MINA = null;   // la mina entera: {ver, seed, actual, tiros:{id: W}}
-const WORLD_VER = 9;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
+const WORLD_VER = 10;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
 function newTiroWorld(id, seed){ return {id, ver:WORLD_VER, seed, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0, record:0, doors:[], lastRun:0, cargaOk:[], ascUsado:false, escalas:[]}; }
 function newMine(){ const seed = (Math.random()*1e9)|0; return {ver:WORLD_VER, seed, actual:'principal', tiros:{principal: newTiroWorld('principal', seed)}, stats:{ext:{}, per:{}}}; }
 // contador de materiales del pozo: extraído (llegó al almacén) y perdido (escombro, mochila llena, soltado, explosiones, derrumbes)
@@ -247,11 +247,11 @@ function genRow(r){
     if(sg >= DT.cobre && !isSand(v) && vn(c/2, r/2, S+5) > 0.75 + esc) v = COPPER;
     if(sg >= DT.cuarzo && v === STONE && h2(c, r, S+12) < 0.008) v = QUARTZ;
     if(d > 3 && vn(c/3, r/3, S+6) > 0.84) v = HARD;
-    if(sg >= DT.cuevas && d > 6 && L.d > 1 && vn(c/4, r/3, S+7) > (TM.cuevas ?? 0.7)){
+    if(sg >= DT.cuevas && d > 6 && L.d > 1 && vn(c/4, r/3, S+7) > (TM.cuevas ?? P1.cuevasUmbral ?? 0.7)){
       v = AIR;
       // norma: no hay agua en la última sección (tras la última sala segura), salvo que el pozo diga lo contrario
       const ultima = TC.principal && sg === TRAMOS.length-1 && !P1.aguaUltimaSeccion;
-      if(ON('agua') && !ultima && sg >= DT.agua && vn(c/5, r/5, S+8) > (TM.agua ?? P1.aguaUmbral ?? 0.58)) v = WATER;
+      if(ON('agua') && !ultima && sg >= DT.agua && vn(c/(P1.aguaEscala || 5), r/(P1.aguaEscala || 5), S+8) > (TM.agua ?? P1.aguaUmbral ?? 0.58)) v = WATER;
       else if(ON('grisu') && sg >= DT.gas && vn(c/4, r/4, S+9) > (TM.gas ?? 0.6)) v = GAS;
       else if(ON('polillas') && sg >= DT.polillas && h2(c, r, S+13) < (TM.polillas ?? 0.025)) W.items.push({k:'moth', x:c+0.5, y:r+0.5, alive:true});
     }
@@ -851,7 +851,10 @@ function updatePlayer(dt){
       else if(it.k === 'herr'){ it.alive = false; SND('poner'); const n = RC.cantidad;
         if(it.tipo === 'puntal') props += n; else ladders += n; renderInv();
         burst(it.r+0.5, it.c+0.5, '#d9a066', 10); floats.push({x:it.c+0.5, y:it.r, txt:'+'+n+' '+(it.tipo === 'puntal' ? 'puntal' : 'escalera'), life:1.2, col:'#fbf236'}); }
-      else if(it.k === 'vent'){ if(!it.avisado){ it.avisado = true; decir('sorprendido', '¡Qué calor sube por esta grieta! La lámpara se aviva…'); } }
+      else if(it.k === 'vent'){ if(!it.avisado){ it.avisado = true; decir('sorprendido', '¡Qué calor sube por esta grieta! La lámpara se aviva…'); }
+        // respiradero abierto: en el mapa, la zona de esta mina reverdece
+        const mm = P1.real && D.minas.find(m => m.pozo === PK);
+        if(mm && !Pa.bandera('respiradero_' + mm.id)){ Pa.ponerBandera('respiradero_' + mm.id); SND('abrir'); } }
       else if(it.k === 'ascensor'){ if(!it.avisado){ it.avisado = true; const st = ascState();
         toast(st === 'roto' ? 'El hueco del ascensor' : 'El ascensor', st === 'roto' ? 'El ascensor se quedó arriba, roto' : st !== 'pieza' ? 'Arreglado por el tejón: pulsa el botón o arriba para subir' : bag['o:pieza_ascensor'] ? 'Tienes la pieza: pulsa el botón o arriba para ponerla' : 'Está roto: le falta una pieza del mecanismo'); } }
       else if(it.k === 'carga'){ verMontacargas(it); if(!it.avisado){ it.avisado = true; toast('Montacargas', W.cargaOk.includes(it.room) ? 'Manda la carga al almacén y sigue bajando' : kitPara(it) ? 'Está roto, pero llevas el kit del tejón para arreglarlo' : 'Está roto: pide ' + costTxt(it.room) + ' (o un kit del tejón)'); } }
@@ -1074,15 +1077,21 @@ function updateMoths(dt){
 // ---------- mecanismos de las piezas (pozo del agua) ----------
 // Noria: cuando le llega agua, gira y abre su compuerta (la roca maciza marcada con G).
 // Brasas: queman la lámpara si pasas por encima, hasta que el agua las apaga.
+let foco = null;   // la cámara mira un momento a otro sitio (la reja de la noria al abrirse)
 function mecanismos(top, bot){
   for(const it of W.items){
+    // al ver la noria seca por primera vez, Deep da la pista
+    if(it.alive && it.k === 'noria' && !it.activa && !it.vista && Math.abs(it.r - p.r) <= 3 && Math.abs(it.c - p.c) <= 6){ it.vista = true;
+      decir('pensativo', 'Una noria vieja, seca… y una cadena que va hasta esa reja. Si le llegara agua, ¿giraría?'); }
     if(!it.alive || it.r < top - 4 || it.r > bot + 4) continue;
     if(it.k === 'noria' && !it.activa && lvAt(it.r, it.c) >= 0.25){
       it.activa = true; SND('noria'); SND('trampilla'); shakeKick = Math.max(shakeKick, 2.5);
-      for(const k of (W.compuertas || [])){ const r = Math.floor(k/16), c = k % 16;
-        if(tAt(r, c) === ROCK){ setT(r, c, AIR); W.rows[r].nat[c] = 1; burst(r+0.5, c+0.5, '#847e87', 10); } }
+      const cs = (W.compuertas || []).map(k => [Math.floor(k/16), k % 16]);
+      for(const [r, c] of cs) if(tAt(r, c) === ROCK){ setT(r, c, AIR); W.rows[r].nat[c] = 1; burst(r+0.5, c+0.5, '#847e87', 10); }
       W.compuertas = [];
-      if(Math.abs(it.r - p.r) < 16) decir('sorprendido', '¡La noria gira! Algo se ha abierto por ahí…');
+      // la cámara se va un momento a la reja que se abre y vuelve a Deep
+      if(cs.length){ const g = cs[0]; foco = {r: g[0], c: g[1], t: 2.4}; }
+      decir('sorprendido', '¡La noria gira! La cadena tira de la reja… ¡se ha abierto!');
       persist();
     }
     if(it.k === 'brasa' && !it.apagada && lvAt(it.r, it.c) >= 0.15){
@@ -1638,7 +1647,7 @@ function render(){
   ctx.fillStyle = '#000'; ctx.fillRect(0,0,VW,VH);
   // zoom: se acerca al topo y lo centra; con zoom 1 la vista es la normal
   const k = Math.max(0, Math.min(1, zoom - 1));
-  const pyw = (p.y + 0.4 - cam)*T;
+  const pyw = ((foco ? foco.r : p.y) + 0.4 - cam)*T;
   const half = VW/(2*zoom);
   const fx = zoom <= 1 ? VW/2 : Math.max(half, Math.min(VW - half, VW/2 + (camX - VW/2)*k));
   const fy = VH*0.35 + (pyw - VH*0.35)*k;
@@ -1673,6 +1682,17 @@ function render(){
       const fl = Math.round(Math.sin(t*14 + cl)); ctx.fillStyle = '#df7126'; ctx.fillRect(X-2, Y+2+fl, 7, 9); ctx.fillStyle = '#fbf236'; ctx.fillRect(X, Y+5+fl, 3, 5); }
   }
   for(const it of W.items) if(it.alive && it.k !== 'moth' && it.r >= r0 && it.r <= r1 && !isSolid(tAt(it.r, it.c))) drawItem(it);
+  // rejas de la noria (compuertas cerradas) y la cadena que va de la rueda a la reja
+  for(const k of (W.compuertas || [])){ const r = Math.floor(k/16), c = k % 16; if(r < r0 || r > r1) continue;
+    const X = c*T, Y = Math.round((r-cam)*T); ctx.fillStyle = '#17111a'; ctx.fillRect(X, Y, T, T);
+    ctx.fillStyle = '#595652'; for(let i=0;i<4;i++) ctx.fillRect(X + 2 + i*6, Y, 3, T); ctx.fillStyle = '#847e87'; for(let i=0;i<4;i++) ctx.fillRect(X + 2 + i*6, Y, 1, T);
+    ctx.fillStyle = '#323c39'; ctx.fillRect(X, Y + 3, T, 2); ctx.fillRect(X, Y + T - 5, T, 2); }
+  for(const it of W.items) if(it.alive && it.k === 'noria' && !it.activa && it.r >= r0 - 2 && it.r <= r1 + 2 && (W.compuertas || []).length){
+    let best = null; for(const k of W.compuertas){ const r = Math.floor(k/16), c = k % 16, d = Math.abs(r - it.r) + Math.abs(c - it.c); if(!best || d < best.d) best = {r, c, d}; }
+    const x0 = it.c*T + T/2, y0 = (it.r - cam)*T + T/2, x1 = best.c*T + (best.c > it.c ? 0 : T), y1 = (best.r - cam)*T + T/2;
+    const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0)/4);
+    for(let i=0;i<=n;i++){ const tt = i/n, sag = Math.sin(tt*Math.PI)*6, xx = Math.round(x0 + (x1 - x0)*tt), yy = Math.round(y0 + (y1 - y0)*tt + sag);
+      ctx.fillStyle = '#000'; ctx.fillRect(xx - 1, yy - 1, 4, 4); ctx.fillStyle = i % 2 ? '#847e87' : '#9badb7'; ctx.fillRect(xx, yy, 2, 2); } }
   for(const k of rocks){ ctx.drawImage((TS[INFO[k.t].tile]||TS.piedra)[0], k.c*T, Math.round((k.y-cam)*T)); if(INFO[k.t].veta) ctx.drawImage(VS[INFO[k.t].veta][0], k.c*T, Math.round((k.y-cam)*T)); }
   for(const m of W.items) if(m.alive && m.k === 'moth' && m.y > r0 && m.y < r1+1) drawMoth(m);
   drawHero();
@@ -2021,9 +2041,13 @@ function actionHere(){
 // Cada montacargas pide un poco más que el anterior.
 const MC = D.montacargas || {cantidades:[3, 4], crece:1, kit:1.5};
 function liftCost(room){
-  const lista = ['cobre', 'carbon', 'arcilla'].filter(k => k === 'arcilla' || (DT[k] !== undefined && room >= DT[k])).slice(0, 2);
+  // nunca arcilla (es la moneda de la tienda) ni cuarzo (muy escaso)
+  const lista = ['cobre', 'carbon'].filter(k => DT[k] !== undefined && room >= DT[k]);
   let antes = 0; for(let i=0;i<room;i++) if(hasLift(i)) antes++;
-  const out = {}; lista.forEach((k, i) => out[k] = (MC.cantidades[i] ?? MC.cantidades[MC.cantidades.length-1]) + antes*(MC.crece||0));
+  const extra = antes*(MC.crece||0), out = {};
+  if(lista.length === 1) out[lista[0]] = (MC.soloCarbon ?? 5) + extra;
+  else lista.forEach((k, i) => out[k] = (MC.cantidades[i] ?? MC.cantidades[MC.cantidades.length-1]) + extra);
+  if(!lista.length) out.carbon = (MC.soloCarbon ?? 5) + extra;
   return out;
 }
 const costTxtOf = cost => Object.entries(cost).map(([m, n]) => n + ' ' + M[m].nombre.toLowerCase()).join(', ');
@@ -2035,7 +2059,8 @@ const kitPara = mc => kitLlevo && Pa.pueblo.kitMc && Pa.pueblo.kitMc.key === mcK
 function verMontacargas(mc){
   if(!P1.real || W.cargaOk.includes(mc.room)) return;
   const V = Pa.pueblo.mcVistos || (Pa.pueblo.mcVistos = {}), k = mcKey(mc.room);
-  if(!V[k]){ V[k] = {key:k, pozo:PK, pozoNombre:P1.nombre, sala:mc.room + 1, coste:liftCost(mc.room)}; Pa.guardar(); }
+  const coste = liftCost(mc.room);
+  if(!V[k] || JSON.stringify(V[k].coste) !== JSON.stringify(coste)){ V[k] = {key:k, pozo:PK, pozoNombre:P1.nombre, sala:mc.room + 1, coste}; Pa.guardar(); }
 }
 function fixLift(mc, conKit){
   if(conKit){
@@ -2422,6 +2447,7 @@ function frame(now){
     slideAnim(top, bot, dt);
     updateRocks(dt);
     if(!dead){
+      if(foco){ for(const k in input) input[k] = false; }
       updatePlayer(dt);
       updateMoths(dt);
       if(lamp <= 0){ lamp = 0; die('lamp'); }
@@ -2447,13 +2473,15 @@ function frame(now){
     if(window.Sonido) window.Sonido.retumbo(Math.min(1, (falling + cracking*0.4)/6));
     const Lz = layout(p.r), closeUp = !dead && ((Lz.surface && !bajadaBloqueada()) || (Lz.part !== undefined && Lz.part > 0 && Lz.part < ROOM_H-1));
     const zBase = cfg.zoom === 'siempre' ? Math.max(1, CA.zoomExplorar) : 1;
-    camX += ((p.x + 0.5)*T - camX)*Math.min(1, dt*CA.seguirLateral);
+    if(!foco) camX += ((p.x + 0.5)*T - camX)*Math.min(1, dt*CA.seguirLateral);
     const zT = looking ? CA.zoomVer : closeUp ? ZCLOSE : zBase;
     zoom += (zT - zoom)*Math.min(1, dt*(zT > zoom ? CA.velocidadAcercar : CA.velocidadAlejar));
     if(looking) zoom += (zT - zoom)*Math.min(1, dt*4);   // al mirar, rápido
     if(Math.abs(zoom - zT) < 0.004) zoom = zT;
-    const target = p.y - (VH/T)*0.35;
-    cam += (Math.max(-2, target) - cam)*Math.min(1, dt*6);
+    if(foco){ foco.t -= dt; if(foco.t <= 0) foco = null; }
+    const target = (foco ? foco.r : p.y) - (VH/T)*0.35;
+    if(foco) camX += ((foco.c + 0.5)*T - camX)*Math.min(1, dt*4);
+    cam += (Math.max(-2, target) - cam)*Math.min(1, dt*(foco ? 3 : 6));
   }
   else if(window.Sonido) window.Sonido.retumbo(0);
   if(activa && W && p){ render(); hud(); }

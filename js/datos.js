@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.213',
+  version: '0.214',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -15,16 +15,17 @@ window.DATOS = {
   // ---------- Ascensor del Pozo viejo ----------
   // Lo arregla el tejón: primero lo deja «apañado» (solo sube) y, si le llevas estos materiales, «fino» (baja y sube cuando quieras)
   ascensor: {
-    fino: { arcilla: 6, carbon: 5, cobre: 2 },   // lo que pide el tejón para dejarlo fino (poco: una bajada)
+    fino: { carbon: 6, cobre: 3 },              // lo que pide el tejón para dejarlo fino (poco: una bajada). La arcilla es solo la moneda de la tienda
     primeraCarga: 5,                             // la primera vez (con la pieza) solo sube con esta carga: el resto se queda abajo
   },
 
   // ---------- Montacargas ----------
-  // Cada montacargas pide los minerales del tramo de justo encima de su sala: los dos que más valen de los que salen ahí.
+  // Cada montacargas pide los minerales del tramo de justo encima de su sala: cobre y carbón si salen ahí (nunca arcilla,
+  // que es la moneda de la tienda, ni cuarzo, que es muy escaso). Si en ese tramo solo hay carbón, pide «soloCarbon».
   //   cantidades: lo que pide del más valioso y del segundo · crece: cuánto más pide cada montacargas que el anterior
   //   kit: el tejón fabrica un kit de reparación para un montacargas concreto que ya hayas visto (uno cada vez);
   //        cuesta «kit» veces lo que pide ese montacargas abajo (redondeando hacia arriba)
-  montacargas: { cantidades: [3, 4], crece: 1, kit: 1.5 },
+  montacargas: { cantidades: [3, 4], soloCarbon: 5, crece: 1, kit: 1.5 },
 
   // ---------- Aceite ----------
   // Los bidones se reparten por tramos: en los tramos cortos no hay; en los largos, entre «minimo» y «maximo» al azar.
@@ -96,10 +97,11 @@ window.DATOS = {
   ],
 
   // ---------- Tienda del pueblo ----------
+  // La arcilla es la moneda de la tienda: ningún objetivo, montacargas ni kit la pide.
   // precio: material -> cantidad. Materiales: arcilla, carbon, cobre, cuarzo
   tienda: [
-    { id: 'puntal',   nombre: 'Puntal',   texto: 'Sostiene el techo.',     da: { puntales: 1 },  precio: { arcilla: 3 } },
-    { id: 'escalera', nombre: 'Escalera', texto: 'Para subir escalones.',  da: { escaleras: 1 }, precio: { arcilla: 2 } },
+    { id: 'puntal',   nombre: 'Puntal',   texto: 'Sostiene el techo.',     da: { puntales: 1 },  precio: { arcilla: 2 } },
+    { id: 'escalera', nombre: 'Escalera', texto: 'Para subir escalones.',  da: { escaleras: 1 }, precio: { arcilla: 1 } },
   ],
 
   // ---------- Lámpara ----------
@@ -259,19 +261,22 @@ window.DATOS = {
   },
 
   // ---------- Mapa: las minas alrededor del pueblo ----------
+  // boca: dónde está su entrada en la imagen del mapa (píxeles de js/escenarios.js, 286x512). Cada mina tiene su zona
+  // del mapa alrededor (la más cercana a su boca): al abrir su respiradero (llegar al fondo), esa zona reverdece.
+  mapa: { pueblo: [150, 280], viejo: [222, 150] },
   minas: [
-    { id: 1, nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin grisú. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
-    { id: 2, nombre: 'Cantera del molino',  abierta: false, pozo: 'dos', desbloqueo: { arcilla: 20, carbon: 20, cobre: 10 },
-      texto: 'Prototipo del segundo pozo: más largo que el primero, con dos ramales, algo de agua y de barro al final, puertas con llave, cuarzo y hongos luminosos. Está cerrada: se abre con materiales del Pozo viejo.' },
-    { id: 3, nombre: 'Galería del río',     abierta: false, pozo: 'tres', desbloqueo: { carbon: 25, cobre: 15, cuarzo: 6 },
+    { id: 1, boca: [147, 212], nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin grisú. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
+    { id: 2, boca: [255, 90], nombre: 'Cantera del molino',  abierta: false, pozo: 'dos', desbloqueo: { carbon: 25, cobre: 12 },
+      texto: 'Prototipo del segundo pozo: más largo que el primero, con dos ramales, algo de agua y de barro al final, puertas con llave, cuarzo y hongos luminosos. Está cerrada: se abre con carbón y cobre del Pozo viejo.' },
+    { id: 3, boca: [248, 245], nombre: 'Galería del río',     abierta: false, pozo: 'tres', desbloqueo: { carbon: 40, cobre: 30, cuarzo: 3 },
       texto: 'El pozo del agua: galerías inundadas, pozas hondas y aire que hay que vigilar. Tiene una noria vieja y una galería de la cuadrilla. Está cerrada: se abre con materiales de la Cantera del molino.' },
-    { id: 4, nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
-    { id: 5, nombre: 'Socavón de cobre',    abierta: false, texto: 'Próximamente.' },
-    { id: 6, nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
-    { id: 7, nombre: 'Pozo del grisú',      abierta: false, texto: 'Próximamente.' },
-    { id: 8, nombre: 'La sima',             abierta: false, texto: 'Próximamente.' },
-    { id: 'S', nombre: 'Pozo sin fondo',    abierta: true,  pozo: 'viejo',   texto: 'Vertical slice: un pozo sin fondo con lo básico (picar, la lámpara, los derrumbes, los puntales, la mochila y los montacargas) para probar la jugabilidad en sesiones largas.' },
-    { id: 'P', nombre: 'Pozo de pruebas',   abierta: true,  pozo: 'pruebas', texto: 'Banco de pruebas: aquí está todo lo que se va probando (agua, barro, grisú, polillas, cartas, puertas, ramal…).' },
+    { id: 4, boca: [150, 475], nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
+    { id: 5, boca: [267, 150], nombre: 'El socavón del viejo', abierta: false, texto: 'Junto a la casa del viejo topo. Próximamente.' },
+    { id: 6, boca: [22, 407], nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
+    { id: 7, boca: [30, 250], nombre: 'Pozo del grisú',      abierta: false, texto: 'Próximamente.' },
+    { id: 8, boca: [37, 145], nombre: 'La sima',             abierta: false, texto: 'Próximamente.' },
+    { id: 'S', boca: [145, 74], nombre: 'Pozo sin fondo',    abierta: true,  pozo: 'viejo',   texto: 'Vertical slice: un pozo sin fondo con lo básico (picar, la lámpara, los derrumbes, los puntales, la mochila y los montacargas) para probar la jugabilidad en sesiones largas.' },
+    { id: 'P', boca: [52, 70], nombre: 'Pozo de pruebas',   abierta: true,  pozo: 'pruebas', texto: 'Banco de pruebas: aquí está todo lo que se va probando (agua, barro, grisú, polillas, cartas, puertas, ramal…).' },
   ],
 
   // ---------- Pozos ----------
@@ -415,10 +420,12 @@ window.DATOS = {
       altoSala: 4,
       escasez: 0.02,
       arenaUmbral: 0.84,
-      aguaUmbral: 0.42,            // mucha agua en los huecos
+      aguaUmbral: 0.5,             // mucha agua en los huecos, pero en masas no tan grandes...
+      aguaEscala: 4,               // ...(más pequeño = charcas más pequeñas; normal 5)
+      cuevasUmbral: 0.64,          // más cuevas (normal 0.7): muchas quedan secas y sirven para llevar el agua
       montacargasCada: 2,
       sueltos: { flor_mina: { cada: 30, desdeFila: 16 }, hongo_azul: { cada: 40, desdeFila: 20 }, lampara_vieja: { cada: 70, desdeFila: 40 } },
-      sueltosRamal: { hongo_azul: { cada: 10, desdeFila: 4 } },
+      sueltosRamal: { hongo_azul: { cada: 10, desdeFila: 4 }, flor_mina: { cada: 18, desdeFila: 6 } },
       cofreEspecial: [
         { texto: '5 de cuarzo', material: { cuarzo: 5 } },
         { texto: '7 de cobre', material: { cobre: 7 } },
@@ -446,7 +453,7 @@ window.DATOS = {
   // categoria: herbario · bestiario · mineralogia · mineria (secciones del futuro museo).
   // suelto: aparecen sueltos por la mina, uno cada tantas filas (aprox.), a partir de desdeFila. Sin «suelto» solo salen en piezas.
   objetos: {
-    flor_mina:      { nombre: 'Flor de mina', plural: 'flores de mina',       categoria: 'herbario', icono: '🌸', dibujo: 'flor',     brilla: true,
+    flor_mina:      { nombre: 'Flor de mina', plural: 'flores de mina',       categoria: 'herbario', icono: '🌸', dibujo: 'flor',     brilla: true, suelto: { cada: 28, desdeFila: 8 },
                       texto: 'Una flor que brilla en la oscuridad. Solo crece en lo hondo de las minas.' },
     lampara_vieja:  { nombre: 'Lámpara de carburo', categoria: 'mineria',  icono: '🏮', dibujo: 'reliquia', suelto: { cada: 45, desdeFila: 16 },
                       texto: 'Una lámpara de la época dorada de las minas. Ya no alumbra.' },
@@ -457,7 +464,7 @@ window.DATOS = {
     hongo_azul:     { nombre: 'Hongo luminoso', plural: 'hongos luminosos', categoria: 'herbario', icono: '🍄', dibujo: 'hongo', brilla: true,
                       texto: 'Un hongo que da una luz azul y fría. Crece en las galerías húmedas de la Cantera del molino.' },
     nota_1:         { nombre: 'Nota de la cuadrilla (1)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
-                      texto: '«Tercer día bajo tierra. El derrumbe nos ha cerrado la galería. Somos seis. Hay aire, y un calor raro que sube del fondo.»' },
+                      texto: '«Tercer día bajo tierra. El derrumbe nos ha cerrado la galería. Somos seis. El respiradero de esta mina estaba casi tapado; cada vez es más difícil mantenerlos limpios…»' },
     nota_2:         { nombre: 'Nota de la cuadrilla (2)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
                       texto: '«Hemos encontrado un paso entre las minas. Las galerías de los antiguos llegan mucho más lejos de lo que nadie sabía.»' },
     nota_3:         { nombre: 'Nota de la cuadrilla (3)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
@@ -500,5 +507,10 @@ window.DATOS = {
     { id: 'taller',   nombre: 'Taller del tejón', dueno: 'El tejón',     tipo: 'taller',  color: '#df7126' },
     { id: 'alcaldia', nombre: 'Ayuntamiento',    dueno: 'El alcalde',    tipo: 'vecino',  color: '#3f3f74' },
     { id: 'casa',     nombre: 'Casa de Deep',   dueno: 'Tu casa',       tipo: 'vecino',  color: '#37946e' },
+    // cerradas al principio: el museo lo recuperará Deep; en las casas de paja irán llegando vecinos nuevos
+    { id: 'museo',    nombre: 'Museo de minería', dueno: 'Cerrado',      tipo: 'cerrada', texto: 'El viejo museo de minería. Las puertas están clavadas con tablas y el letrero, comido por el polvo.' },
+    { id: 'paja1',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Las ventanas están tapadas con tablas. Hace años que aquí no vive nadie.' },
+    { id: 'paja2',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Una casita de paja con la puerta clavada. Alguien dejó unas macetas secas en la ventana.' },
+    { id: 'paja3',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Tapiada. Por una rendija se ven muebles cubiertos con sábanas.' },
   ],
 };

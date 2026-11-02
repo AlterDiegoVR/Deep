@@ -41,70 +41,79 @@ window.Pueblo = (()=>{
   const abierta = m => !!(m.abierta || Pa.bandera('mina_' + m.id + '_abierta'));
 
   // =================== MAPA ===================
-  const MW = 200, MH = 300;
+  // Imagen de la montaña (js/escenarios.js) en dos versiones: seca y verde. Cada mina tiene su zona (la parte del mapa
+  // más cercana a su boca, con el borde irregular); al abrir su respiradero (llegar al fondo), esa zona reverdece.
+  // La primera vez que vuelves al mapa después, el verde crece desde la boca hacia fuera.
+  const ESC = window.ESCENARIOS;
+  const MW = ESC.mapa.ancho, MH = ESC.mapa.alto;
   const mapaCv = $('mapaCv'), mx = mapaCv.getContext('2d');
   let mapaSel = null, mapaGeo = null;
-  // posiciones: el pueblo en el centro y las minas alrededor
-  const CENTRO = {x: 100, y: 150};
-  const POS = D.minas.map((m, i) => {
-    const a = -Math.PI/2 + i * (Math.PI*2/D.minas.length);
-    return {x: Math.round(CENTRO.x + Math.cos(a)*74), y: Math.round(CENTRO.y + Math.sin(a)*112)};
-  });
-  // la casa del viejo topo: apartada del pueblo, junto al camino del molino (mina 2)
-  const VIEJO = {x: Math.round(CENTRO.x + (POS[1].x - CENTRO.x)*0.55 + 16), y: Math.round(CENTRO.y + (POS[1].y - CENTRO.y)*0.55)};
-  function dibujarMapa(t){
-    const x = mx;
-    // hierba con textura
-    R(x, C.verdeO, 0, 0, MW, MH);
-    for(let y=0;y<MH;y+=2) for(let i=0;i<MW;i+=2){ const k = h2(i, y, 3); if(k < 0.18) R(x, C.verdeM, i, y, 2, 2); else if(k > 0.95) R(x, C.verde, i, y, 1, 1); }
-    // río
-    x.fillStyle = C.azul;
-    for(let y=0;y<MH;y++){ const cx = 18 + Math.sin(y/23)*8; x.fillRect(cx|0, y, 7, 1); }
-    x.fillStyle = C.celeste;
-    for(let y=0;y<MH;y+=5){ const cx = 18 + Math.sin(y/23)*8; if((y + Math.floor(t*6)) % 15 < 5) x.fillRect((cx+2)|0, y, 2, 1); }
-    // árboles
-    for(let i=0;i<70;i++){ const ax = h2(i, 1, 9)*MW, ay = h2(i, 2, 9)*MH;
-      if(Math.hypot(ax-CENTRO.x, (ay-CENTRO.y)*0.7) < 40 || POS.some(p => Math.hypot(ax-p.x, ay-p.y) < 16)) continue;
-      R(x, C.neg, ax-3, ay-4, 7, 7); R(x, C.verdeM, ax-2, ay-3, 5, 5); R(x, C.verde, ax-2, ay-3, 2, 2); R(x, C.marron, ax, ay+3, 1, 2); }
-    // caminos del pueblo a cada mina
-    for(const [i, p] of POS.entries()){
-      const n = Math.ceil(Math.hypot(p.x-CENTRO.x, p.y-CENTRO.y));
-      for(let k=0;k<n;k+=1){ const px = CENTRO.x + (p.x-CENTRO.x)*k/n, py = CENTRO.y + (p.y-CENTRO.y)*k/n;
-        R(x, abierta(D.minas[i]) ? C.tostado : C.oliva, px-1, py-1, 3, 3); }
+  const CENTRO = {x: D.mapa.pueblo[0], y: D.mapa.pueblo[1]};
+  const POS = D.minas.map(m => ({x: m.boca[0], y: m.boca[1]}));
+  const VIEJO = {x: D.mapa.viejo[0], y: D.mapa.viejo[1]};
+  // ruido suave para los bordes de las zonas y el crecimiento
+  const vn = (x, y, s) => { const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi, u = xf*xf*(3-2*xf), v = yf*yf*(3-2*yf);
+    const a = h2(xi, yi, s), b = h2(xi+1, yi, s), c = h2(xi, yi+1, s), d = h2(xi+1, yi+1, s); return a + (b-a)*u + (c-a)*v + (a-b-c+d)*u*v; };
+  // carga una imagen y devuelve sus píxeles
+  function pixeles(src, w, h, listo){ const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d'); x.drawImage(im, 0, 0); listo(x.getImageData(0, 0, w, h).data); }; im.src = src; }
+  const MAPA = {seca: null, viva: null, dueno: null, dist: null, fino: null, img: null, cv: document.createElement('canvas'), firma: ''};
+  MAPA.cv.width = MW; MAPA.cv.height = MH;
+  pixeles(ESC.mapa.seca, MW, MH, d => { MAPA.seca = d; MAPA.firma = ''; });
+  pixeles(ESC.mapa.viva, MW, MH, d => { MAPA.viva = d; MAPA.firma = ''; });
+  // zona de cada mina: la boca más cercana, con el borde deformado por ruido
+  (function zonas(){
+    const n = MW*MH; MAPA.dueno = new Uint8Array(n); MAPA.dist = new Float32Array(n); MAPA.fino = new Float32Array(n);
+    for(let y=0;y<MH;y++) for(let x=0;x<MW;x++){
+      const ox = (vn(x/14, y/14, 3) - 0.5)*40, oy = (vn(x/14, y/14, 4) - 0.5)*40;
+      let best = 1e9, bi = 0;
+      POS.forEach((p, i) => { const d = Math.hypot(x + ox - p.x, (y + oy - p.y)*0.9); if(d < best){ best = d; bi = i; } });
+      const k = y*MW + x; MAPA.dueno[k] = bi; MAPA.dist[k] = best; MAPA.fino[k] = h2(x, y, 9);
     }
-    // pueblo
-    R(x, C.oliva, CENTRO.x-26, CENTRO.y-18, 52, 36); R(x, C.marronC, CENTRO.x-24, CENTRO.y-16, 48, 32);
-    const casitas = [[-18,-12, C.rojo],[ 6,-12, C.azulO],[-18, 4, C.verdeM],[ 6, 4, C.naranja]];
-    for(const [dx, dy, col] of casitas){ const X = CENTRO.x+dx, Y = CENTRO.y+dy;
-      R(x, C.neg, X-1, Y-1, 14, 11); R(x, C.crema, X, Y+3, 12, 7); R(x, col, X, Y, 12, 4); R(x, C.marron, X+5, Y+6, 2, 4); R(x, C.cian, X+2, Y+5, 2, 2); }
-    R(x, C.neg, CENTRO.x-4, CENTRO.y-3, 8, 7); R(x, C.gris, CENTRO.x-3, CENTRO.y-2, 6, 5); R(x, C.cian, CENTRO.x-2, CENTRO.y-1, 4, 3);
-    if(Math.floor(t*3) % 2) R(x, C.blanco, CENTRO.x-1, CENTRO.y-1, 1, 1);
-    // casa del viejo topo (con humo en la chimenea)
-    { const X = VIEJO.x, Y = VIEJO.y;
-      R(x, C.neg, X-8, Y-4, 16, 10); R(x, C.marron, X-7, Y-3, 14, 8); R(x, C.marronC, X-7, Y-3, 14, 2);
-      for(let i=0;i<6;i++) R(x, C.neg, X-9+i, Y-5-i, 18-i*2, 1);
-      for(let i=0;i<5;i++) R(x, C.grisB, X-8+i, Y-5-i, 16-i*2, 1);
-      R(x, C.neg, X+3, Y-11, 3, 5); R(x, C.marron, X-1, Y+1, 3, 4); R(x, C.amarillo, X+3, Y-1, 2, 2);
-      for(let i=0;i<3;i++){ const ph = (t*0.4 + i*0.33) % 1; R(x, C.gris, X+4 + Math.sin(t+i)*2, Y-13 - ph*10, 2, 2); }
-      if(mapaSel === 'viejo'){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(X-11.5, Y-14.5, 23, 22); } }
-    // minas
+  })();
+  // cuánto ha revivido cada zona: 0 seca, 1 verde (con el crecimiento animado la primera vez)
+  const respiradero = m => Pa.bandera('respiradero_' + m.id);
+  let crece = null;   // {i, t0}: zona que está reverdeciendo ahora
+  function progreso(t){
+    if(!crece){ const i = D.minas.findIndex(m => respiradero(m) && !Pa.bandera('respiradero_visto_' + m.id)); if(i >= 0) crece = {i, t0: t + 0.6}; }
+    return D.minas.map((m, i) => { if(crece && crece.i === i) return Math.max(0, Math.min(1, (t - crece.t0)/2.2)); return respiradero(m) ? 1 : 0; });
+  }
+  function componerMapa(prog){
+    const firma = prog.map(v => v.toFixed(3)).join(',');
+    if(firma === MAPA.firma || !MAPA.seca || !MAPA.viva) return;
+    MAPA.firma = firma;
+    const out = mx.createImageData(MW, MH), o = out.data, S = MAPA.seca, V = MAPA.viva;
+    for(let k=0;k<MW*MH;k++){
+      const p = prog[MAPA.dueno[k]];
+      const viva = p >= 1 || (p > 0 && MAPA.dist[k] < p*160 + (MAPA.fino[k] - 0.5)*18);
+      const src = viva ? V : S, j = k*4; o[j] = src[j]; o[j+1] = src[j+1]; o[j+2] = src[j+2]; o[j+3] = 255;
+    }
+    MAPA.cv.getContext('2d').putImageData(out, 0, 0);
+  }
+  function dibujarMapa(t){
+    const x = mx, prog = progreso(t);
+    componerMapa(prog);
+    if(crece && t > crece.t0 + 2.4){ Pa.ponerBandera('respiradero_visto_' + D.minas[crece.i].id); crece = null; }
+    if(crece && Math.abs(t - crece.t0) < 0.05) window.Sonido && window.Sonido.tocar('abrir', 0.6);
+    x.drawImage(MAPA.cv, 0, 0);
+    // minas cerradas: un candado sobre la boca
     D.minas.forEach((m, i) => {
-      const p = POS[i], X = p.x, Y = p.y;
-      R(x, C.neg, X-9, Y-5, 18, 12); R(x, abierta(m) ? C.piedra : C.grisO, X-8, Y-4, 16, 10);
-      R(x, C.neg, X-4, Y-1, 8, 7);                                       // boca
-      R(x, abierta(m) ? C.marronC : C.marron, X-6, Y-10, 2, 9); R(x, abierta(m) ? C.marronC : C.marron, X+4, Y-10, 2, 9); R(x, abierta(m) ? C.marronC : C.marron, X-7, Y-11, 14, 2);   // castillete
-      if(abierta(m)){ R(x, C.amarillo, X-1, Y+1, 2, 2); }
-      else { R(x, C.grisM, X-2, Y+1, 4, 3); R(x, C.grisM, X-1, Y-1, 2, 2); }   // candado
-      if(mapaSel === i){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(X-11.5, Y-13.5, 23, 22); }
+      const p = POS[i];
+      if(!abierta(m)){ R(x, C.neg, p.x-4, p.y-4, 9, 8); R(x, C.grisM, p.x-3, p.y-3, 7, 6); R(x, C.neg, p.x, p.y-1, 1, 2);
+        R(x, C.neg, p.x-3, p.y-8, 7, 5); R(x, C.grisM, p.x-2, p.y-7, 5, 4); R(x, C.neg, p.x-1, p.y-6, 3, 3); }
+      if(mapaSel === i){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(p.x-12.5, p.y-12.5, 25, 23); }
     });
+    if(mapaSel === 'viejo'){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(VIEJO.x-20.5, VIEJO.y-20.5, 41, 37); }
+    // zona reverdeciendo: chispas verdes sobre la boca
+    if(crece && t > crece.t0){ const p = POS[crece.i]; for(let i=0;i<6;i++){ const ph = (t*0.8 + i/6) % 1; R(x, i%2 ? C.verdeC : C.amarillo, p.x - 10 + i*4, p.y - 4 - ph*24, 1, 1); } }
   }
   function montarPuntosMapa(){
     const cont = $('mapaPuntos'); cont.innerHTML = '';
     const g = mapaGeo, at = (px, py) => ({left: g.left + px*g.css, top: g.top + py*g.css});
     const pueblo = document.createElement('button'); pueblo.className = 'punto';
     const a = at(CENTRO.x, CENTRO.y); pueblo.style.left = a.left+'px'; pueblo.style.top = a.top+'px';
-    pueblo.innerHTML = `<span class="zona" style="width:${54*g.css}px;height:${38*g.css}px"></span><span class="etq">El pueblo</span>`;
-    pueblo.style.transform = `translate(-50%, -${19*g.css}px)`;
+    pueblo.innerHTML = `<span class="zona" style="width:${110*g.css}px;height:${80*g.css}px"></span><span class="etq">El pueblo</span>`;
+    pueblo.style.transform = `translate(-50%, -${40*g.css}px)`;
     pueblo.onclick = () => { mapaSel = null; marcar(); window.Pantallas.mostrar('plaza'); };
     pueblo.setAttribute('aria-label', 'Entrar al pueblo');
     cont.appendChild(pueblo);
@@ -120,7 +129,8 @@ window.Pueblo = (()=>{
     const v = document.createElement('button'); v.className = 'punto';
     const qv = at(VIEJO.x, VIEJO.y); v.style.left = qv.left+'px'; v.style.top = qv.top+'px';
     v.style.transform = `translate(-50%, -${12*g.css}px)`;
-    v.innerHTML = `<span class="zona" style="width:${22*g.css}px;height:${20*g.css}px"></span><span class="etq">Viejo topo</span>`;
+    v.innerHTML = `<span class="zona" style="width:${40*g.css}px;height:${34*g.css}px"></span><span class="etq">Viejo topo</span>`;
+    v.style.transform = `translate(-50%, -${17*g.css}px)`;
     v.setAttribute('aria-label', 'Casa del viejo topo');
     v.onclick = () => { mapaSel = 'viejo'; marcar(); };
     cont.appendChild(v);
@@ -182,72 +192,87 @@ window.Pueblo = (()=>{
   };
 
   // =================== PLAZA ===================
-  const PW = 200, PH = 260;
+  // Imagen de la plaza (js/escenarios.js), seca y verde: revive según los respiraderos abiertos (provisional).
+  // Deep anda por los caminos de tierra (rejilla de paso) buscando el camino más corto hasta la puerta.
+  const PL = ESC.plaza, PW = PL.ancho, PH = PL.alto, CEL = PL.celda;
   const plazaCv = $('plazaCv'), px = plazaCv.getContext('2d');
   let plazaSel = null, plazaGeo = null;
-  // casas: tres arriba, dos a los lados, una abajo a la izquierda (la salida va abajo a la derecha)
-  const HUECOS = [{x:12, y:22}, {x:76, y:14}, {x:140, y:22}, {x:6, y:118}, {x:146, y:118}, {x:20, y:196}];
-  function casa(x, X, Y, col, sel, t){
-    const W = 48, H = 44;
-    R(x, C.neg, X-1, Y+12, W+2, H-11);                      // contorno muro
-    R(x, C.crema, X, Y+13, W, H-13); R(x, C.tostado, X, Y+H-4, W, 3);
-    for(let i=0;i<6;i++) R(x, C.tostado, X + 4 + i*8, Y + 18 + (i%2)*9, 3, 1);
-    // tejado
-    for(let i=0;i<14;i++){ R(x, C.neg, X - 3 + i, Y + 13 - i, W + 6 - i*2, 1); }
-    for(let i=0;i<13;i++){ R(x, col, X - 2 + i, Y + 12 - i, W + 4 - i*2, 1); }
-    R(x, C.neg, X-3, Y+13, W+6, 1);
-    // puerta y ventanas
-    R(x, C.neg, X+W/2-6, Y+H-18, 12, 18); R(x, C.marron, X+W/2-5, Y+H-17, 10, 17); R(x, C.marronC, X+W/2-5, Y+H-17, 10, 2); R(x, C.amarillo, X+W/2+2, Y+H-9, 1, 1);
-    for(const wx of [X+5, X+W-15]){ R(x, C.neg, wx-1, Y+20, 12, 10); R(x, C.cian, wx, Y+21, 10, 8); R(x, C.neg, wx+4, Y+21, 1, 8); R(x, C.hielo, wx+1, Y+22, 2, 2); }
-    if(sel){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(X-4.5, Y-2.5, W+9, H+5); }
+  const PLZ = {seca: null, viva: null, cv: document.createElement('canvas'), firma: '', ruido: new Float32Array(PW*PH)};
+  PLZ.cv.width = PW; PLZ.cv.height = PH;
+  for(let y=0;y<PH;y++) for(let x=0;x<PW;x++) PLZ.ruido[y*PW + x] = vn(x/18, y/18, 13)*0.7 + h2(x, y, 14)*0.3;
+  pixeles(PL.seca, PW, PH, d => { PLZ.seca = d; PLZ.firma = ''; });
+  pixeles(PL.viva, PW, PH, d => { PLZ.viva = d; PLZ.firma = ''; });
+  // cuánto ha revivido el pueblo (provisional: la parte de las 8 minas con el respiradero abierto)
+  const vidaPueblo = () => Math.min(1, D.minas.filter(m => typeof m.id === 'number' && respiradero(m)).length / 8);
+  function componerPlaza(){
+    const f = vidaPueblo(), firma = f.toFixed(3);
+    if(firma === PLZ.firma || !PLZ.seca || !PLZ.viva) return;
+    PLZ.firma = firma;
+    const out = px.createImageData(PW, PH), o = out.data;
+    for(let k=0;k<PW*PH;k++){ const src = PLZ.ruido[k] < f*1.05 ? PLZ.viva : PLZ.seca, j = k*4; o[j] = src[j]; o[j+1] = src[j+1]; o[j+2] = src[j+2]; o[j+3] = 255; }
+    PLZ.cv.getContext('2d').putImageData(out, 0, 0);
   }
+  const CASA = c => PL.edificios[c.id];
   function dibujarPlaza(t){
     const x = px;
-    // suelo de adoquines
-    R(x, C.piedra, 0, 0, PW, PH);
-    for(let y=0;y<PH;y+=6) for(let i=(y/6%2)*4;i<PW;i+=8){ R(x, C.grisB, i, y, 7, 5); if(h2(i,y,4) < 0.3) R(x, C.grisM, i+1, y+1, 3, 1); }
-    // hierba en los bordes
-    for(let i=0;i<PW;i+=3){ R(x, C.verdeO, i, 0, 3, 8 + (h2(i,0,5)*4|0)); R(x, C.verdeO, i, PH-6 - (h2(i,1,5)*3|0), 3, 9); }
-    // fuente
-    const fx = 100, fy = 132;
-    x.fillStyle = C.neg; x.beginPath(); x.ellipse(fx, fy, 30, 18, 0, 0, Math.PI*2); x.fill();
-    x.fillStyle = C.gris; x.beginPath(); x.ellipse(fx, fy, 29, 17, 0, 0, Math.PI*2); x.fill();
-    x.fillStyle = C.azul; x.beginPath(); x.ellipse(fx, fy+1, 25, 13, 0, 0, Math.PI*2); x.fill();
-    for(let i=0;i<10;i++){ const a = t*0.8 + i*0.63; R(x, C.celeste, fx + Math.cos(a)*18, fy + 1 + Math.sin(a)*8, 3, 1); }
-    R(x, C.neg, fx-4, fy-20, 8, 22); R(x, C.gris, fx-3, fy-19, 6, 20); R(x, C.hielo, fx-3, fy-19, 2, 20);
-    R(x, C.neg, fx-9, fy-23, 18, 4); R(x, C.gris, fx-8, fy-22, 16, 2);
-    for(let i=0;i<6;i++){ const k = (t*2 + i/6) % 1, side = i%2 ? 1 : -1;      // chorros
-      R(x, C.cian, fx + side*(3 + k*12), fy - 22 + k*k*22 - k*6, 2, 2); }
-    // casas
-    D.casas.forEach((c, i) => { const h = HUECOS[i % HUECOS.length]; casa(x, h.x, h.y, c.color, plazaSel === i, t); });
-    // salida hacia el mapa
-    R(x, C.tostado, 150, 212, 50, 30); for(let i=0;i<6;i++) R(x, C.marronC, 152 + i*8, 216 + (i%2)*10, 4, 2);
-    R(x, C.neg, 172, 196, 3, 26); R(x, C.marron, 173, 197, 1, 24); R(x, C.neg, 160, 196, 26, 9); R(x, C.marronC, 161, 197, 24, 7);
-    R(x, C.crema, 164, 199, 3, 3); R(x, C.crema, 170, 199, 10, 1); R(x, C.crema, 170, 202, 8, 1);
-    // Deep: junto a la fuente o andando hacia la puerta de la casa que elegiste
+    componerPlaza();
+    x.drawImage(PLZ.cv, 0, 0);
+    if(plazaSel !== null){ const e = CASA(D.casas[plazaSel]); if(e){ const [x0, y0, x1, y1] = e.caja, k = Math.floor(t*4)%2;
+      x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 2; x.strokeRect(x0 + 1, y0 + 1, x1 - x0 - 2, y1 - y0 - 2); } }
     moverTopo(t);
     const andando = topo.camino.length > 0, frs = andando ? TOPO_ANDAR : TOPO_REPOSO;
     const fr = frs[Math.floor(t*(andando ? 9 : 2)) % frs.length];
+    const X = Math.round(topo.x - 16), Y = Math.round(topo.y - 29);
+    x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(Math.round(topo.x), Math.round(topo.y), 9, 3, 0, 0, Math.PI*2); x.fill();
     x.save();
-    if(topo.cara < 0){ x.translate(Math.round(topo.x) + 32, Math.round(topo.y)); x.scale(-1, 1); x.drawImage(fr, 0, 0); }
-    else x.drawImage(fr, Math.round(topo.x), Math.round(topo.y));
+    if(topo.cara < 0){ x.translate(X + 32, Y); x.scale(-1, 1); x.drawImage(fr, 0, 0); }
+    else x.drawImage(fr, X, Y);
     x.restore();
   }
-  // Deep camina por la plaza: rodea la fuente por abajo y llega a la puerta de la casa; al llegar se abre el panel
-  const INICIO = {x: 122, y: 116};
+  // ---- caminos: búsqueda en la rejilla de paso (8 direcciones) y alisado en línea recta donde se pueda
+  const pasa = (cx, cy) => cx >= 0 && cy >= 0 && cx < PL.cols && cy < PL.filas && PL.paso[cy][cx] === '1';
+  const celdaDe = (x, y) => [Math.floor(x/CEL), Math.floor(y/CEL)];
+  const centro = ([cx, cy]) => ({x: cx*CEL + CEL/2, y: cy*CEL + CEL/2});
+  function cercana(cx, cy){
+    if(pasa(cx, cy)) return [cx, cy];
+    for(let r=1;r<40;r++) for(let dy=-r;dy<=r;dy++) for(let dx=-r;dx<=r;dx++) if(Math.max(Math.abs(dx), Math.abs(dy)) === r && pasa(cx+dx, cy+dy)) return [cx+dx, cy+dy];
+    return [cx, cy];
+  }
+  function buscar(a, b){
+    const W2 = PL.cols, key = (x, y) => y*W2 + x, g = new Float32Array(W2*PL.filas).fill(Infinity), de = new Int32Array(W2*PL.filas).fill(-1);
+    const abiertos = [[a[0], a[1], 0]]; g[key(a[0], a[1])] = 0;
+    const hz = (x, y) => Math.hypot(x - b[0], y - b[1]);
+    while(abiertos.length){
+      let bi = 0; for(let i=1;i<abiertos.length;i++) if(abiertos[i][2] < abiertos[bi][2]) bi = i;
+      const [x, y] = abiertos.splice(bi, 1)[0];
+      if(x === b[0] && y === b[1]) break;
+      for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++){
+        if(!dx && !dy) continue; const nx = x+dx, ny = y+dy; if(!pasa(nx, ny)) continue;
+        if(dx && dy && (!pasa(x+dx, y) || !pasa(x, y+dy))) continue;   // sin cortar esquinas
+        const ng = g[key(x, y)] + (dx && dy ? 1.414 : 1);
+        if(ng < g[key(nx, ny)]){ g[key(nx, ny)] = ng; de[key(nx, ny)] = key(x, y); abiertos.push([nx, ny, ng + hz(nx, ny)]); }
+      }
+    }
+    const camino = []; let k = key(b[0], b[1]); if(de[k] < 0 && !(a[0] === b[0] && a[1] === b[1])) return [];
+    while(k >= 0){ camino.unshift([k % W2, Math.floor(k / W2)]); k = de[k]; }
+    // alisar: de cada punto, saltar al más lejano que se vea en línea recta por el camino
+    const visto = (p, q) => { const n = Math.ceil(Math.hypot(q[0]-p[0], q[1]-p[1])*2); for(let i=0;i<=n;i++){ const tt = i/n; if(!pasa(Math.round(p[0] + (q[0]-p[0])*tt), Math.round(p[1] + (q[1]-p[1])*tt))) return false; } return true; };
+    const liso = [camino[0]]; let i = 0;
+    while(i < camino.length - 1){ let j = camino.length - 1; while(j > i + 1 && !visto(camino[i], camino[j])) j--; liso.push(camino[j]); i = j; }
+    return liso.slice(1).map(centro);
+  }
+  const INICIO = centro(PL.inicio), SALIDA = centro(PL.salida);
   const topo = {x: INICIO.x, y: INICIO.y, cara: 1, camino: [], alLlegar: null, tPaso: 0, tUlt: 0};
-  const puerta = i => { const h = HUECOS[i % HUECOS.length]; return {x: h.x + 24 - 16, y: h.y + 44 - 30}; };
-  function irA(dest, alLlegar){
-    // pasa por el pasillo de debajo de la fuente si hay que cruzar de un lado a otro
-    const ruta = [], bajo = 158;
-    if(Math.abs(dest.x - topo.x) > 40){ ruta.push({x: topo.x, y: bajo}, {x: dest.x, y: bajo}); }
-    ruta.push(dest);
-    topo.camino = ruta; topo.alLlegar = alLlegar;
+  const puerta = i => { const e = CASA(D.casas[i]); return e ? e.puerta : PL.inicio; };
+  function irA(celda, alLlegar){
+    const a = cercana(...celdaDe(topo.x, topo.y)), b = cercana(celda[0], celda[1]);
+    topo.camino = buscar(a, b); topo.alLlegar = alLlegar;
+    if(!topo.camino.length && alLlegar){ topo.alLlegar = null; alLlegar(); }
   }
   function moverTopo(t){
     const dt = Math.min(0.05, Math.max(0, t - topo.tUlt)); topo.tUlt = t;
     if(!topo.camino.length) return;
-    const p = topo.camino[0], dx = p.x - topo.x, dy = p.y - topo.y, d = Math.hypot(dx, dy), v = 70*dt;
+    const p = topo.camino[0], dx = p.x - topo.x, dy = p.y - topo.y, d = Math.hypot(dx, dy), v = 90*dt;
     if(Math.abs(dx) > 0.5) topo.cara = Math.sign(dx);
     if(d <= v){ topo.x = p.x; topo.y = p.y; topo.camino.shift(); if(!topo.camino.length && topo.alLlegar){ const f = topo.alLlegar; topo.alLlegar = null; f(); } }
     else { topo.x += dx/d*v; topo.y += dy/d*v; }
@@ -257,28 +282,28 @@ window.Pueblo = (()=>{
     const cont = $('plazaPuntos'); cont.innerHTML = '';
     const g = plazaGeo, at = (qx, qy) => ({left: g.left + qx*g.css, top: g.top + qy*g.css});
     D.casas.forEach((c, i) => {
-      const h = HUECOS[i % HUECOS.length], b = document.createElement('button');
-      b.className = 'punto'; const q = at(h.x + 24, h.y + 22); b.style.left = q.left+'px'; b.style.top = q.top+'px';
-      b.style.transform = `translate(-50%, -${24*g.css}px)`;
-      b.innerHTML = `<span class="zona" style="width:${50*g.css}px;height:${46*g.css}px"></span><span class="etq">${c.nombre}</span>`;
+      const e = CASA(c); if(!e) return;
+      const [x0, y0, x1, y1] = e.caja, b = document.createElement('button');
+      b.className = 'punto' + (c.tipo === 'cerrada' ? ' cerrada' : ''); const q = at((x0 + x1)/2, (y0 + y1)/2); b.style.left = q.left+'px'; b.style.top = q.top+'px';
+      b.innerHTML = `<span class="zona" style="width:${(x1-x0)*g.css}px;height:${(y1-y0)*g.css}px"></span>` + (c.tipo === 'cerrada' ? '' : `<span class="etq">${c.nombre}</span>`);
+      b.style.transform = `translate(-50%, -${(y1-y0)/2*g.css}px)`;
       b.setAttribute('aria-label', c.nombre);
-      b.onclick = () => { plazaSel = i; document.querySelectorAll('#plazaPuntos .punto').forEach((bb, j) => bb.classList.toggle('sel', j === i));
-        $('ppEyebrow').textContent = D.casas[i].dueno; $('ppTitulo').textContent = D.casas[i].nombre; $('ppCuerpo').innerHTML = '<p class="note">Deep va hacia la puerta…</p>';
+      b.onclick = () => { plazaSel = i;
+        $('ppEyebrow').textContent = c.dueno; $('ppTitulo').textContent = c.nombre; $('ppCuerpo').innerHTML = '<p class="note">Deep va hacia la puerta…</p>';
         irA(puerta(i), () => {
           if(plazaSel !== i) return;
           // al llegar a la puerta: si toca conversación, primero el diálogo y luego la casa
-          const conv = window.Conversaciones && window.Conversaciones.alEntrar(D.casas[i].id);
+          const conv = window.Conversaciones && window.Conversaciones.alEntrar(c.id);
           if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); panelCasa(); });
           else panelCasa();
         }); };
       cont.appendChild(b);
     });
     const salida = document.createElement('button'); salida.className = 'punto';
-    const q = at(173, 222); salida.style.left = q.left+'px'; salida.style.top = q.top+'px';
-    salida.style.transform = `translate(-50%, -${16*g.css}px)`;
-    salida.innerHTML = `<span class="zona" style="width:${34*g.css}px;height:${30*g.css}px"></span><span class="etq">Al mapa</span>`;
+    const q = at(SALIDA.x, SALIDA.y - 34); salida.style.left = q.left+'px'; salida.style.top = q.top+'px';
+    salida.innerHTML = `<span class="zona" style="width:${50*g.css}px;height:${30*g.css}px"></span><span class="etq">Al mapa</span>`;
     salida.setAttribute('aria-label', 'Salir al mapa');
-    salida.onclick = () => { plazaSel = null; panelCasa(); irA({x: 158, y: 196}, () => window.Pantallas.mostrar('mapa')); };
+    salida.onclick = () => { plazaSel = null; panelCasa(); irA(PL.salida, () => window.Pantallas.mostrar('mapa')); };
     cont.appendChild(salida);
   }
   const chip = (k, n) => `<span class="chip"><i style="background:${MAT[k] && MAT[k].color || '#999'}"></i>${MAT[k] ? MAT[k].nombre : k} <b>${n}</b></span>`;
@@ -348,6 +373,8 @@ window.Pueblo = (()=>{
         for(const [k, n] of Object.entries(u.precio)){ Pa.coleccion[k] -= n; if(Pa.coleccion[k] <= 0) delete Pa.coleccion[k]; }
         const UU = Pa.kit.unguentos || (Pa.kit.unguentos = {}); UU[b.dataset.u] = (UU[b.dataset.u] || 0) + 1; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
       cuerpo.querySelectorAll('input[data-l]').forEach(i => i.onchange = () => { const L2 = Pa.kit.llevarUng || (Pa.kit.llevarUng = {}); L2[i.dataset.l] = i.checked; Pa.guardar(); });
+    } else if(c.tipo === 'cerrada'){
+      cuerpo.innerHTML = `<p>${c.texto || 'Está cerrada.'}</p>`;
     } else {
       cuerpo.innerHTML = '<p>Aún no tiene nada que pedirte. Pronto vendrán aquí los encargos.</p>';
     }
@@ -377,7 +404,7 @@ window.Pueblo = (()=>{
   ro.observe($('mapaLienzo')); ro.observe($('plazaLienzo'));
   return {
     mapa(){ activa = 'mapa'; requestAnimationFrame(recolocar); },
-    plaza(){ activa = 'plaza'; plazaSel = null; topo.x = INICIO.x; topo.y = INICIO.y; topo.camino = []; topo.alLlegar = null; requestAnimationFrame(recolocar); },
+    plaza(){ activa = 'plaza'; plazaSel = null; topo.x = SALIDA.x; topo.y = SALIDA.y; topo.camino = []; topo.alLlegar = null; irA(PL.inicio, null); requestAnimationFrame(recolocar); },
     parar(){ activa = null; },
   };
 })();

@@ -223,3 +223,7 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 
 .llevar{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;margin-top:4px}
 .llevar input{width:18px;height:18px}
+/* plaza: la imagen es alta; el panel solo ocupa lo que necesita */
+#plazaPanel{height:auto;max-height:38%;min-height:110px}
+#plazaLienzo{background:#2d3b22}
+#mapaLienzo{background:#2d3b22}
