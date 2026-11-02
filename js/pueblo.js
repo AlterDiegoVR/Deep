@@ -104,6 +104,12 @@ window.Pueblo = (()=>{
     }
     MAPA.cv.getContext('2d').putImageData(out, 0, 0);
   }
+  // lo elegido en el mapa: un anillo blanco de un píxel que late suave
+  function anillo(x, cx, cy, rx, ry, t){
+    x.globalAlpha = 0.35 + 0.65*(0.5 + 0.5*Math.sin(t*4)); x.fillStyle = C.blanco;
+    for(let a=0;a<Math.PI*2;a+=0.03) x.fillRect(Math.round(cx + Math.cos(a)*rx), Math.round(cy + Math.sin(a)*ry), 1, 1);
+    x.globalAlpha = 1;
+  }
   function dibujarMapa(t){
     const x = mx, prog = progreso(t);
     componerMapa(prog);
@@ -115,9 +121,9 @@ window.Pueblo = (()=>{
       const p = POS[i];
       if(!abierta(m)){ R(x, C.neg, p.x-4, p.y-4, 9, 8); R(x, C.grisM, p.x-3, p.y-3, 7, 6); R(x, C.neg, p.x, p.y-1, 1, 2);
         R(x, C.neg, p.x-3, p.y-8, 7, 5); R(x, C.grisM, p.x-2, p.y-7, 5, 4); R(x, C.neg, p.x-1, p.y-6, 3, 3); }
-      if(mapaSel === i){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(p.x-12.5, p.y-12.5, 25, 23); }
+      if(mapaSel === i) anillo(x, p.x, p.y - 1, 12, 10, t);
     });
-    if(mapaSel === 'viejo'){ const k = Math.floor(t*4)%2; x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 1; x.strokeRect(VIEJO.x-20.5, VIEJO.y-20.5, 41, 37); }
+    if(mapaSel === 'viejo') anillo(x, VIEJO.x, VIEJO.y - 2, 20, 17, t);
     // zona reverdeciendo: chispas verdes sobre la boca
     if(crece && t > crece.t0){ const p = POS[crece.i]; for(let i=0;i<6;i++){ const ph = (t*0.8 + i/6) % 1; R(x, i%2 ? C.verdeC : C.amarillo, p.x - 10 + i*4, p.y - 4 - ph*24, 1, 1); } }
   }
@@ -243,8 +249,11 @@ window.Pueblo = (()=>{
     const x = px;
     componerPlaza();
     x.drawImage(PLZ.cv, 0, 0);
-    if(plazaSel !== null){ const e = CASA(D.casas[plazaSel]); if(e){ const [x0, y0, x1, y1] = e.caja, k = Math.floor(t*4)%2;
-      x.strokeStyle = k ? C.amarillo : C.blanco; x.lineWidth = 2; x.strokeRect(x0 + 1, y0 + 1, x1 - x0 - 2, y1 - y0 - 2); } }
+    // casa elegida: su contorno en blanco, latiendo suave
+    if(plazaSel !== null){ const ct = PL.contornos && PL.contornos[D.casas[plazaSel].id]; if(ct){
+      x.globalAlpha = 0.35 + 0.65*(0.5 + 0.5*Math.sin(t*4)); x.fillStyle = C.blanco;
+      for(const [y, x0, x1] of ct) x.fillRect(x0, y, x1 - x0 + 1, 1);
+      x.globalAlpha = 1; } }
     moverTopo(t);
     const andando = topo.camino.length > 0, frs = andando ? TOPO_ANDAR : TOPO_REPOSO;
     const fr = frs[Math.floor(t*(andando ? 9 : 2)) % frs.length];
@@ -437,6 +446,8 @@ window.Pueblo = (()=>{
   }
   arrastrable($('mapaLienzo'), panMapa, () => { mapaGeo = ajustar(mapaCv, $('mapaLienzo'), MW, MH, panMapa); montarPuntosMapa(); });
   arrastrable($('plazaLienzo'), panPlaza, () => { plazaGeo = ajustar(plazaCv, $('plazaLienzo'), PW, PH, panPlaza); montarPuntosPlaza(); });
+  // cuando termina de cargar la letra de las etiquetas, se ensanchan: se vuelven a encajar
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(() => { encajarEtiquetas($('mapaPuntos')); encajarEtiquetas($('plazaPuntos')); });
   const ro = new ResizeObserver(() => recolocar());
   ro.observe($('mapaLienzo')); ro.observe($('plazaLienzo'));
   return {
