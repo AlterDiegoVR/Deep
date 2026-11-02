@@ -6,7 +6,7 @@
 // =====================================================================
 window.Dialogo = (()=>{
   const R = window.RETRATOS || {}, $ = id => document.getElementById(id);
-  const NOMBRES = { deep: 'Deep', coneja: 'Señora Coneja', tejon: 'El tejón', viejo: 'El viejo topo' };
+  const NOMBRES = { deep: 'Deep', coneja: 'Señora Coneja', tejon: 'El tejón', viejo: 'El viejo topo', ardilla: 'La ardilla' };
   const LADO = { deep: 'izq' };   // el resto, a la derecha
   let lineas = [], i = 0, escrito = 0, timer = 0, fin = null, abierto = false;
   function cara(quien, c){ const set = R[quien] || {}; return set[c] || set[Object.keys(set)[0]] || ''; }

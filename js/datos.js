@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.212',
+  version: '0.213',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -19,12 +19,22 @@ window.DATOS = {
     primeraCarga: 5,                             // la primera vez (con la pieza) solo sube con esta carga: el resto se queda abajo
   },
 
+  // ---------- Montacargas ----------
+  // Cada montacargas pide los minerales del tramo de justo encima de su sala: los dos que más valen de los que salen ahí.
+  //   cantidades: lo que pide del más valioso y del segundo · crece: cuánto más pide cada montacargas que el anterior
+  //   kit: el tejón fabrica un kit de reparación para un montacargas concreto que ya hayas visto (uno cada vez);
+  //        cuesta «kit» veces lo que pide ese montacargas abajo (redondeando hacia arriba)
+  montacargas: { cantidades: [3, 4], crece: 1, kit: 1.5 },
+
   // ---------- Aceite ----------
   // Los bidones se reparten por tramos: en los tramos cortos no hay; en los largos, entre «minimo» y «maximo» al azar.
   aceite: { desdeLargo: 20, minimo: 1, maximo: 2 },
 
   // ---------- Daño por caída ----------
   caida: { arena: 0.25 },      // caer sobre arena hace esta parte del daño; caer en agua o barro (media casilla o más) no hace daño
+
+  // ---------- Brasas (pozo del agua) ----------
+  brasas: { quema: 9 },        // % de lámpara por segundo mientras pisas brasas encendidas (el agua las apaga)
 
   // ---------- Arena ----------
   arena: { caeCadaTicks: 2 },  // la arena se mueve un paso de cada tantos de la simulación (más despacio = se ve derramarse)
@@ -38,6 +48,9 @@ window.DATOS = {
   herramientas: {
     inicial: { puntales: 15, escaleras: 9 },       // con lo que empieza una partida nueva
     minimoPorBajada: { puntales: 1, escaleras: 1 },  // al empezar cada bajada tienes al menos esto (lo que gastas se queda en la mina: puedes volver a recogerlo)
+    // Las herramientas se guardan en el almacén. En cada bajada te llevas esta cifra (si las tienes; si no, todas) y el resto
+    // se queda arriba a salvo. Lo que encuentras abajo se suma sin límite y se arriesga en esa bajada. (Más adelante, una mejora del tejón la sube.)
+    llevarPorBajada: { puntales: 12, escaleras: 8 },
     recogerPuntales: true,                          // pulsar Puntal encima de un puntal (o dentro de un tablón) lo recoge. Más adelante lo enseñará el topo viejo
     alMorir: 'perder',                              // 'perder' = se quedan en tu mochila, enterrada donde mueres (recupérala y vuelven); 'conservar' = no pierdes nada
   },
@@ -249,8 +262,9 @@ window.DATOS = {
   minas: [
     { id: 1, nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin grisú. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
     { id: 2, nombre: 'Cantera del molino',  abierta: false, pozo: 'dos', desbloqueo: { arcilla: 20, carbon: 20, cobre: 10 },
-      texto: 'Prototipo del segundo pozo: más grande y más enrevesado, con dos ramales, grisú, barro, puertas con llave y cuarzo. Está cerrada: se abre con materiales del Pozo viejo.' },
-    { id: 3, nombre: 'Galería del río',     abierta: false, texto: 'Próximamente.' },
+      texto: 'Prototipo del segundo pozo: más largo que el primero, con dos ramales, algo de agua y de barro al final, puertas con llave, cuarzo y hongos luminosos. Está cerrada: se abre con materiales del Pozo viejo.' },
+    { id: 3, nombre: 'Galería del río',     abierta: false, pozo: 'tres', desbloqueo: { carbon: 25, cobre: 15, cuarzo: 6 },
+      texto: 'El pozo del agua: galerías inundadas, pozas hondas y aire que hay que vigilar. Tiene una noria vieja y una galería de la cuadrilla. Está cerrada: se abre con materiales de la Cantera del molino.' },
     { id: 4, nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
     { id: 5, nombre: 'Socavón de cobre',    abierta: false, texto: 'Próximamente.' },
     { id: 6, nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
@@ -304,8 +318,7 @@ window.DATOS = {
       nombresTramos: ['Galerías de tierra', 'Vetas de carbón', 'Piedra vieja', 'Filón de cobre', 'Roca profunda'],
       altoSala: 4,
       aceiteCada: 9,
-      montacargasCada: 3,          // una sala de cada tantas tiene montacargas (para mandar la carga arriba y seguir bajando)
-      costeMontacargas: { arcilla: 4, carbon: 3 },   // materiales que cuesta arreglarlo (se paga con lo que llevas; siempre de lo que ya sale más arriba)
+      montacargasCada: 3,          // una sala de cada tantas tiene montacargas (para mandar la carga arriba y seguir bajando; su coste, en «montacargas»)
       contenido: { agua: false, grisu: false, polillas: false, barro: false, cartas: false, puertas: false, llaves: false,
                    ramales: false, objetos: false, salaSellada: false, piezas: false },
       desdeTramo: { carbon: 1, cuarzo: 3, cobre: 3, cuevas: 0 },
@@ -337,7 +350,6 @@ window.DATOS = {
       salaSellada: { fila: 6, columna: 9, ancho: 5, alto: 4 },  // roca maciza con cofre (hace falta taladro)
       arenaArcillosa: 0.5,         // parte de la arena que es arcillosa (hace barro con el agua)
       montacargasCada: 2,
-      costeMontacargas: { arcilla: 3, carbon: 2 },
       aguaUltimaSeccion: true,     // en el banco de pruebas sí hay agua en la última sección
       ramales: [ { id: 'ramal1', nombre: 'Ramal del carbón', fila: 48, lado: 'izquierda', largo: 24 } ],
       contenido: {},               // todo
@@ -356,17 +368,16 @@ window.DATOS = {
         { nombre: 'Boca de la cantera',  largo: 16 },
         { nombre: 'Galerías del molino', largo: 20 },
         { nombre: 'Vetas negras',        largo: 24 },
-        { nombre: 'Cuevas de barro',     largo: 28 },
-        { nombre: 'Bolsas de grisú',     largo: 32 },
+        { nombre: 'Cuevas húmedas',      largo: 28 },
+        { nombre: 'Galerías hondas',     largo: 32 },
         { nombre: 'Cuarzo y cobre',      largo: 36 },
         { nombre: 'Lo más hondo',        largo: 40 },
       ],
       conFondo: true,
       altoSala: 4,
       escasez: 0.02,
-      arenaArcillosa: 0.35,
+      arenaArcillosa: 0.12,        // poca: solo algún charco de barro como aviso (el barro de verdad tendrá su propio pozo)
       montacargasCada: 2,
-      costeMontacargas: { arcilla: 5, carbon: 4 },
       sueltos: { flor_mina: { cada: 30, desdeFila: 20 }, hongo_azul: { cada: 45, desdeFila: 30 }, lampara_vieja: { cada: 60, desdeFila: 30 }, foto_cuadrilla: { cada: 90, desdeFila: 60 } },
       sueltosRamal: { hongo_azul: { cada: 7, desdeFila: 4 }, flor_mina: { cada: 15, desdeFila: 8 } },   // en los ramales, más coleccionables propios del pozo
       cofreEspecial: [
@@ -379,8 +390,47 @@ window.DATOS = {
         { id: 'molino_a', nombre: 'Galería de los carros', fila: 30, lado: 'izquierda', largo: 30 },
         { id: 'molino_b', nombre: 'Tiro de los cuervos',   fila: 85, lado: 'derecha',   largo: 40 },
       ],
-      contenido: { salaSellada: false },
-      desdeTramo: { carbon: 0, cobre: 2, cuarzo: 3, cuevas: 0, agua: 1, polillas: 1, gas: 4 },
+      contenido: { salaSellada: false, grisu: false },   // sin grisú: irá en un pozo propio
+      desdeTramo: { carbon: 0, cobre: 2, cuarzo: 3, cuevas: 0, agua: 1, polillas: 1, barro: 5 },
+    },
+    // Pozo 3 (mina 3, la Galería del río): el pozo del agua. Largo parecido al 2, con mucha agua y pozas.
+    // Piezas propias (js/piezas.js): la noria (hay que llevarle agua para que abra una compuerta) y las brasas
+    // (queman la lámpara hasta que las inundas). Dos ramales: la galería del abismo (un precipicio que no se puede
+    // cruzar todavía: hará falta el salto u otra habilidad) y la galería de la cuadrilla (ya entibada por ellos).
+    tres: {
+      nombre: 'Galería del río',
+      real: true,
+      guardado: 'deep-pozo3',
+      columnas: 15,
+      tramos: [
+        { nombre: 'Boca del río',        largo: 16 },
+        { nombre: 'Filtraciones',        largo: 20 },
+        { nombre: 'La noria vieja',      largo: 24 },
+        { nombre: 'Pozas hondas',        largo: 28 },
+        { nombre: 'Las brasas',          largo: 30 },
+        { nombre: 'Galerías anegadas',   largo: 32 },
+        { nombre: 'El lecho del río',    largo: 36 },
+      ],
+      conFondo: true,
+      altoSala: 4,
+      escasez: 0.02,
+      arenaUmbral: 0.84,
+      aguaUmbral: 0.42,            // mucha agua en los huecos
+      montacargasCada: 2,
+      sueltos: { flor_mina: { cada: 30, desdeFila: 16 }, hongo_azul: { cada: 40, desdeFila: 20 }, lampara_vieja: { cada: 70, desdeFila: 40 } },
+      sueltosRamal: { hongo_azul: { cada: 10, desdeFila: 4 } },
+      cofreEspecial: [
+        { texto: '5 de cuarzo', material: { cuarzo: 5 } },
+        { texto: '7 de cobre', material: { cobre: 7 } },
+        { texto: '4 de cuarzo y 4 de cobre', material: { cuarzo: 4, cobre: 4 } },
+        { texto: 'Tres hongos luminosos y 3 de cuarzo', objeto: 'hongo_azul', cantidadObjeto: 3, material: { cuarzo: 3 } },
+      ],
+      ramales: [
+        { id: 'rio_abismo',    nombre: 'Galería del abismo',     fila: 35, lado: 'izquierda', largo: 40 },
+        { id: 'rio_cuadrilla', nombre: 'Galería de la cuadrilla', fila: 90, lado: 'derecha',   largo: 44 },
+      ],
+      contenido: { salaSellada: false, grisu: false, barro: false },
+      desdeTramo: { carbon: 0, cobre: 1, cuarzo: 2, cuevas: 0, agua: 0, polillas: 2 },
     },
   },
 
@@ -396,7 +446,7 @@ window.DATOS = {
   // categoria: herbario · bestiario · mineralogia · mineria (secciones del futuro museo).
   // suelto: aparecen sueltos por la mina, uno cada tantas filas (aprox.), a partir de desdeFila. Sin «suelto» solo salen en piezas.
   objetos: {
-    flor_mina:      { nombre: 'Flor de mina',       categoria: 'herbario', icono: '🌸', dibujo: 'flor',     brilla: true,
+    flor_mina:      { nombre: 'Flor de mina', plural: 'flores de mina',       categoria: 'herbario', icono: '🌸', dibujo: 'flor',     brilla: true,
                       texto: 'Una flor que brilla en la oscuridad. Solo crece en lo hondo de las minas.' },
     lampara_vieja:  { nombre: 'Lámpara de carburo', categoria: 'mineria',  icono: '🏮', dibujo: 'reliquia', suelto: { cada: 45, desdeFila: 16 },
                       texto: 'Una lámpara de la época dorada de las minas. Ya no alumbra.' },
@@ -404,7 +454,7 @@ window.DATOS = {
                       texto: 'Varios topos mineros posan a la entrada del pozo. Uno se parece mucho a ti.' },
     pico_padre:     { nombre: 'Pico con un símbolo', categoria: 'mineria', icono: '⛏️', dibujo: 'pico', brilla: true,
                       texto: 'Un pico de topo minero, gastado de tanto uso. En el mango hay un símbolo grabado.' },
-    hongo_azul:     { nombre: 'Hongo luminoso', categoria: 'herbario', icono: '🍄', dibujo: 'hongo', brilla: true,
+    hongo_azul:     { nombre: 'Hongo luminoso', plural: 'hongos luminosos', categoria: 'herbario', icono: '🍄', dibujo: 'hongo', brilla: true,
                       texto: 'Un hongo que da una luz azul y fría. Crece en las galerías húmedas de la Cantera del molino.' },
     nota_1:         { nombre: 'Nota de la cuadrilla (1)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
                       texto: '«Tercer día bajo tierra. El derrumbe nos ha cerrado la galería. Somos seis. Hay aire, y un calor raro que sube del fondo.»' },
@@ -412,16 +462,42 @@ window.DATOS = {
                       texto: '«Hemos encontrado un paso entre las minas. Las galerías de los antiguos llegan mucho más lejos de lo que nadie sabía.»' },
     nota_3:         { nombre: 'Nota de la cuadrilla (3)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
                       texto: '«Si alguien encuentra esto: no estamos perdidos. Estamos donde tenemos que estar. Cuidad del pueblo.»' },
+    casco_cuadrilla: { nombre: 'Casco abollado', categoria: 'mineria', icono: '⛑️', dibujo: 'reliquia', brilla: true,
+                      texto: 'Un casco de minero con el símbolo de la cuadrilla. Tiene una abolladura enorme, pero aguantó.' },
     pieza_ascensor: { nombre: 'Pieza del ascensor', categoria: 'mineria', icono: '⚙️', dibujo: 'pieza',
                       texto: 'Un engranaje grande, viejo pero entero. Parece del mecanismo de un ascensor.' },
+  },
+
+  // ---------- Herboristería de la ardilla ----------
+  // La ardilla colecciona plantas de las minas. Sus encargos van uno detrás de otro; cada uno da una recompensa y
+  // enseña a preparar un ungüento. Los ungüentos se compran con plantas y son de un solo uso: si llevas uno a la mina,
+  // se gasta cuando hace efecto (si no hace falta, vuelve contigo).
+  herboristeria: {
+    encargos: [
+      { id: 'hongos_1', nombre: 'Hongos luminosos', pide: { hongo_azul: 5 }, receta: 'pulmones', regalo: { pulmones: 1 },
+        texto: 'Cinco hongos luminosos de la Cantera del molino.' },
+      { id: 'flores_1', nombre: 'Un ramo de flores de mina', pide: { flor_mina: 15 }, receta: 'piel', regalo: { piel: 1 },
+        texto: 'Quince flores de mina.' },
+      { id: 'flores_2', nombre: 'El gran ramo', pide: { flor_mina: 25 }, receta: 'segunda', regalo: { segunda: 1 },
+        texto: 'Veinticinco flores de mina.' },
+    ],
+    // carta: el efecto que da en la mina (el mismo que la carta de la ruleta con ese id)
+    unguentos: {
+      pulmones: { nombre: 'Ungüento de pulmones de topo', icono: '🫧', carta: 'pulmones', precio: { hongo_azul: 2 },
+                  texto: 'El aire bajo el agua o el barro dura el doble durante una bajada. Se gasta al meterte bajo el agua.' },
+      piel:     { nombre: 'Ungüento de piel dura',        icono: '🛡️', carta: 'casco',    precio: { flor_mina: 3 },
+                  texto: 'Aguantas una piedra encima, una vez.' },
+      segunda:  { nombre: 'Ungüento de segunda oportunidad', icono: '💖', carta: 'segunda', precio: { flor_mina: 4, hongo_azul: 2 },
+                  texto: 'Si mueres, vuelves a la última sala segura con tu mochila. Una vez.' },
+    },
   },
 
   // ---------- Pueblo: casas de la plaza ----------
   casas: [
     { id: 'tienda',   nombre: 'Tienda',          dueno: 'Señora Coneja',   tipo: 'tienda',  color: '#ac3232' },
     { id: 'almacen',  nombre: 'Almacén',         dueno: 'Tu almacén',    tipo: 'almacen', color: '#8f563b' },
-    { id: 'herreria', nombre: 'Herrería',        dueno: 'Don Ernesto',   tipo: 'vecino',  color: '#595652' },
-    { id: 'taller',   nombre: 'Taller del tejón', dueno: 'El tejón',     tipo: 'vecino',  color: '#df7126' },
+    { id: 'herboristeria', nombre: 'Herboristería', dueno: 'La ardilla', tipo: 'herbolaria', color: '#6abe30' },
+    { id: 'taller',   nombre: 'Taller del tejón', dueno: 'El tejón',     tipo: 'taller',  color: '#df7126' },
     { id: 'alcaldia', nombre: 'Ayuntamiento',    dueno: 'El alcalde',    tipo: 'vecino',  color: '#3f3f74' },
     { id: 'casa',     nombre: 'Casa de Deep',   dueno: 'Tu casa',       tipo: 'vecino',  color: '#37946e' },
   ],

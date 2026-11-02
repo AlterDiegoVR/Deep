@@ -6,7 +6,7 @@
 <title>Deep</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
-<link rel="stylesheet" href="css/estilo.css?v=0.212">
+<link rel="stylesheet" href="css/estilo.css?v=0.213">
 </head>
 <body>
 <div id="app">
@@ -165,6 +165,18 @@
         </div>
       </div>
 
+      <!-- tarjeta de hallazgo: notas y coleccionables nuevos (pausa el juego hasta que toques) -->
+      <div class="sheet" id="tarjeta" hidden>
+        <div class="card tarjeta">
+          <div class="tjIcono" id="tjIcono"></div>
+          <span class="eyebrow" id="tjEyebrow"></span>
+          <h2 id="tjTitulo"></h2>
+          <p id="tjTexto"></p>
+          <p class="note" id="tjNota"></p>
+          <button class="btn" id="tjBtn">Seguir</button>
+        </div>
+      </div>
+
       <div class="sheet" id="dropSheet" hidden>
         <div class="card">
           <h2>Soltar material</h2>
@@ -200,6 +212,8 @@
           <label class="sl">Caída: cuánto aumenta por casilla (%)<output id="o_caidaCrece"></output><input type="range" id="s_caidaCrece" min="0" max="20" step="1"></label>
           <label class="sl">Puntales al empezar cada bajada (mínimo)<output id="o_minP"></output><input type="range" id="s_minP" min="0" max="30" step="1"></label>
           <label class="sl">Escaleras al empezar cada bajada (mínimo)<output id="o_minL"></output><input type="range" id="s_minL" min="0" max="20" step="1"></label>
+          <label class="sl">Puntales que te llevas del almacén en cada bajada<output id="o_llevP"></output><input type="range" id="s_llevP" min="1" max="40" step="1"></label>
+          <label class="sl">Escaleras que te llevas del almacén en cada bajada<output id="o_llevL"></output><input type="range" id="s_llevL" min="1" max="30" step="1"></label>
           <label class="sl">Escaleras (prueba de la 0.207b)<output></output>
             <select id="s_escala"><option value="1">Desplegables: 2.º toque despliega hacia abajo o guarda; 3.º guarda</option><option value="0">Normales (como antes)</option></select></label>
           <label class="sl">Recoger puntales<output></output>
@@ -233,16 +247,16 @@
   <div class="dlg-caja" id="dlgCaja"><b id="dlgNombre"></b><p id="dlgTexto"></p><span id="dlgSig" hidden>▼</span></div>
 </div>
 
-<script src="js/datos.js?v=0.212"></script>
-  <script src="js/piezas.js?v=0.212"></script>
-<script src="js/sprites.js?v=0.212"></script>
-<script src="js/retratos.js?v=0.212"></script>
-  <script src="js/sonido.js?v=0.212"></script>
-<script src="js/partida.js?v=0.212"></script>
-<script src="js/mina.js?v=0.212"></script>
-<script src="js/conversaciones.js?v=0.212"></script>
-<script src="js/dialogo.js?v=0.212"></script>
-<script src="js/pueblo.js?v=0.212"></script>
-<script src="js/main.js?v=0.212"></script>
+<script src="js/datos.js?v=0.213"></script>
+  <script src="js/piezas.js?v=0.213"></script>
+<script src="js/sprites.js?v=0.213"></script>
+<script src="js/retratos.js?v=0.213"></script>
+  <script src="js/sonido.js?v=0.213"></script>
+<script src="js/partida.js?v=0.213"></script>
+<script src="js/mina.js?v=0.213"></script>
+<script src="js/conversaciones.js?v=0.213"></script>
+<script src="js/dialogo.js?v=0.213"></script>
+<script src="js/pueblo.js?v=0.213"></script>
+<script src="js/main.js?v=0.213"></script>
 </body>
 </html>

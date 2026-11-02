@@ -5,6 +5,7 @@
 //  Caras de la Señora Coneja: contenta, alegre, emocionada, sorprendida, triste, pensativa
 //  Caras del tejón: contento, alegre, sorprendido, pensativo, sudando
 //  Caras del viejo topo: gruñon, sorprendido, triste, pensativo, cansado
+//  Caras de la ardilla: contenta, alegre, emocionada, sorprendida, pensativa, despistada
 // =====================================================================
 window.Conversaciones = (()=>{
   const Pa = window.Partida;
@@ -12,6 +13,7 @@ window.Conversaciones = (()=>{
   const c = (cara, texto) => ({quien:'coneja', cara, texto});
   const t = (cara, texto) => ({quien:'tejon', cara, texto});
   const v = (cara, texto) => ({quien:'viejo', cara, texto});
+  const a = (cara, texto) => ({quien:'ardilla', cara, texto});
   const D = window.DATOS, MAT = D.materiales;
   const listaMat = o => Object.entries(o).map(([k, n]) => n + ' de ' + MAT[k].nombre.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' y $1');
 
@@ -60,6 +62,69 @@ window.Conversaciones = (()=>{
   ];
   const azar = L => L[Math.floor(Math.random()*L.length)];
 
+  // Vuelve de la Cantera del molino con un hongo luminoso: la coneja le manda a la herboristería
+  const CONEJA_HONGO = [
+    d('sorprendido', 'Señora Coneja, ¿sabe qué es esto? Brilla con una luz azul, como las flores, pero fría.'),
+    c('sorprendida', '¡Un hongo luminoso! Hacía años que no veía uno. Los topos los subían de la Cantera del molino.'),
+    c('pensativa', 'Yo de plantas solo sé lo justo para hacer infusiones. La que sabe de verdad es la ardilla de la herboristería.'),
+    c('contenta', 'Es un poco despistada y siempre está liada con sus frascos, pero tiene buen corazón. Llévaselo: se va a volver loca de alegría.'),
+    d('contento', '¡Voy ahora mismo!'),
+  ];
+
+  // ---------- Herboristería de la ardilla ----------
+  const H = D.herboristeria || {encargos: [], unguentos: {}};
+  const OBJ = D.objetos || {};
+  const listaObj = o => Object.entries(o).map(([k, n]) => n + ' ' + (OBJ[k] ? (n > 1 && OBJ[k].plural ? OBJ[k].plural : OBJ[k].nombre.toLowerCase()) : k)).join(', ').replace(/, ([^,]*)$/, ' y $1');
+  // antes de que la coneja te mande, la ardilla está demasiado liada para atenderte
+  const ARDILLA_OCUPADA = [
+    [a('despistada', '¡Ahora no, ahora no! Estoy en mitad de una infusión y si se me pasa el punto… ¡Vuelve otro día, cielo!'), d('pensativo', 'Vale…')],
+    [a('pensativa', 'Raíz de brezo, tres hojas de menta… ¿Dónde habré puesto el mortero? …¿Querías algo? Ay, luego, luego.'), d('pensativo', '…')],
+  ];
+  const ARDILLA_INTRO = () => [
+    d('pensativo', 'Hola… La señora Coneja me ha dicho que usted sabe de plantas.'),
+    a('despistada', '¿Plantas? Sé un poco de todo y de nada en particular. ¿Dónde habré dejado las gafas…? Ah, las llevo puestas.'),
+    d('decidido', 'Le traigo esto. Lo encontré en la Cantera del molino.'),
+    a('sorprendida', '¿Eso es…? ¡Un hongo luminoso! ¡Uno de verdad! Déjame verlo, déjame verlo…'),
+    a('emocionada', '¡Míralo, cómo brilla! Con estos hongos se preparaba un ungüento que te deja aguantar la respiración el doble. Los mineros no bajaban sin él.'),
+    a('pensativa', 'Antes los topos me traían de todo: hongos, flores de mina, raíces que solo crecen a oscuras… Desde que dejaron de bajar, mis frascos están vacíos.'),
+    d('contento', 'Yo puedo traerle más. Bajo a las minas.'),
+    a('alegre', '¿Harías eso por una ardilla vieja? ¡Ay, qué alegría!'),
+    a('contenta', 'Tráeme ' + listaObj(H.encargos[0] ? H.encargos[0].pide : {}) + ' y te enseñaré lo que sé hacer con ellos. Te prepararé ungüentos para tus bajadas.'),
+  ];
+  // entrega de un encargo
+  const ARDILLA_ENTREGA = {
+    hongos_1: () => [
+      d('alegre', '¡Le traigo los hongos!'),
+      a('emocionada', '¡Cinco hongos luminosos! Mira cómo llenan el estante… Hacía años que esta tienda no brillaba así.'),
+      a('contenta', 'Toma: un ungüento de pulmones de topo, recién hecho. Úntatelo antes de bajar y el aire bajo el agua te durará el doble.'),
+      a('pensativa', 'Y ahora que me acuerdo de la receta, te puedo preparar más cuando quieras: dos hongos por tarro.'),
+      a('despistada', 'Ah, y otra cosa… Las flores de mina. Necesito muchas, muchas, para unas pomadas. ¿Me traerías quince?'),
+      d('decidido', '¡Quince flores! Haré lo que pueda.'),
+    ],
+    flores_1: () => [
+      d('alegre', '¡Quince flores de mina!'),
+      a('emocionada', '¡Qué ramo tan precioso! Brillan todas a la vez, como un farolillo.'),
+      a('contenta', 'Con ellas sale el ungüento de piel dura: si te cae una piedra encima, aguantas el golpe. Toma el primero. Los siguientes, tres flores por tarro.'),
+      a('pensativa', 'Hay una receta más, la más difícil… Para esa me harían falta veinticinco flores. Sí, ya sé, ya sé. Pero vale la pena.'),
+      d('pensativo', 'Veinticinco… Vale. Bajaré a por ellas.'),
+    ],
+    flores_2: () => [
+      d('cansado', 'Veinticinco flores de mina… Uf. Aquí están.'),
+      a('sorprendida', '¡Lo has hecho de verdad! Ni los mejores topos me traían tantas de una vez.'),
+      a('emocionada', 'Esta es la receta más antigua de la herboristería: el ungüento de segunda oportunidad. Si algo sale mal allí abajo, te devuelve a la última sala segura.'),
+      a('contenta', 'Toma el primero. Y prométeme que no lo vas a necesitar.'),
+      d('contento', 'Se lo prometo.'),
+    ],
+  };
+  const ARDILLA_ESPERA = e => [[a('pensativa', 'Recuerda: me hacen falta ' + listaObj(e.pide) + '. Cuando los tengas, aquí estaré. Creo.'), d('decidido', 'No se me olvida.')],
+    [a('despistada', '¿Ya me traes ' + listaObj(e.pide) + '? Ah, no, aún no… Ay, perdona, es que hoy no sé dónde tengo la cabeza.'), d('contento', 'Pronto.')]];
+  const ARDILLA_DESPUES = [
+    [a('contenta', 'Desde que me traes plantas, vienen vecinos a por infusiones. ¡Hasta el alcalde me ha pedido una para los nervios!'), d('alegre', '¡Qué bien!')],
+    [a('pensativa', 'Dicen que en las minas más hondas crecen plantas que ni yo conozco. Si ves alguna rara, tráemela, ¿eh?'), d('decidido', 'Prometido.')],
+  ];
+  const encargoActual = () => H.encargos.find(e => Pa.pueblo.encargos[e.id] !== 'hecho') || null;
+  const tieneObj = pide => Object.entries(pide).every(([k, n]) => (Pa.coleccion[k] || 0) >= n);
+
   // ---------- Taller del tejón: el ascensor del Pozo viejo ----------
   const FINO = (D.ascensor && D.ascensor.fino) || {arcilla: 15, carbon: 12, cobre: 6};
   const TEJON_ASCENSOR = () => [
@@ -91,7 +156,7 @@ window.Conversaciones = (()=>{
   ];
   const TEJON_DESPUES = [
     [t('contento', '¿Qué tal funciona mi ascensor? Si oyes un chirrido raro, ni caso. Es su forma de saludar.'), d('alegre', 'Va de maravilla.')],
-    [t('pensativo', 'Estoy pensando en un trasto para subir la carga por los pozos sin que tengas que cargar con ella… Algún día.'), d('sorprendido', '¿Como un montacargas?')],
+    [t('pensativo', 'Si ves un montacargas roto allí abajo y no encuentras con qué arreglarlo, dímelo: te preparo un kit. Eso sí, sale más caro que apañarlo con lo que encuentres.'), d('pensativo', 'Lo tendré en cuenta.')],
   ];
 
   // ---------- Casa del viejo topo ----------
@@ -134,6 +199,22 @@ window.Conversaciones = (()=>{
       if((Pa.coleccion.pico_padre || 0) > 0 && !Pa.bandera('viejo_pico')) return {lineas: VIEJO_PICO, fin: () => { Pa.ponerBandera('viejo_pico'); }};
       return {lineas: azar(Pa.bandera('viejo_pico') ? VIEJO_DESPUES : VIEJO_CERRADO), fin: null};
     }
+    if(casa === 'herboristeria'){
+      if(!Pa.bandera('ardilla_intro')){
+        if(Pa.bandera('coneja_hongo')) return {lineas: ARDILLA_INTRO(), fin: () => { Pa.ponerBandera('ardilla_intro'); const e = encargoActual(); if(e) Pa.pueblo.encargos[e.id] = 'activo'; Pa.sumarProsperidad(1); }};
+        return {lineas: azar(ARDILLA_OCUPADA), fin: null};
+      }
+      const e = encargoActual();
+      if(e && tieneObj(e.pide) && ARDILLA_ENTREGA[e.id]) return {lineas: ARDILLA_ENTREGA[e.id](), fin: () => {
+        for(const [k, n] of Object.entries(e.pide)){ Pa.coleccion[k] -= n; if(Pa.coleccion[k] <= 0) delete Pa.coleccion[k]; }
+        Pa.pueblo.encargos[e.id] = 'hecho';
+        if(e.receta) Pa.ponerBandera('receta_' + e.receta);
+        const U = Pa.kit.unguentos || (Pa.kit.unguentos = {}); for(const [k, n] of Object.entries(e.regalo || {})) U[k] = (U[k] || 0) + n;
+        const sig = encargoActual(); if(sig) Pa.pueblo.encargos[sig.id] = 'activo';
+        Pa.sumarProsperidad(1); Pa.guardar();
+      }};
+      return {lineas: azar(e ? ARDILLA_ESPERA(e) : ARDILLA_DESPUES), fin: null};
+    }
     if(casa !== 'tienda') return null;
     if(!Pa.bandera('coneja_intro')) return {lineas: CONEJA_ANTES, fin: () => Pa.ponerBandera('coneja_intro')};
     if(!Pa.bandera('flor_entregada') && (Pa.coleccion.flor_mina || 0) > 0)
@@ -142,6 +223,8 @@ window.Conversaciones = (()=>{
         Pa.kit.puntales = (Pa.kit.puntales || 0) + 2;
         Pa.ponerBandera('flor_entregada'); Pa.sumarProsperidad(1);
       }};
+    // con un hongo luminoso en la colección: la coneja te manda a la herboristería
+    if(!Pa.bandera('coneja_hongo') && (Pa.coleccion.hongo_azul || 0) > 0) return {lineas: CONEJA_HONGO, fin: () => Pa.ponerBandera('coneja_hongo')};
     return {lineas: azar(Pa.bandera('flor_entregada') ? CONEJA_DESPUES : CONEJA_ESPERA), fin: null};
   }
   return { alEntrar };

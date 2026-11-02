@@ -137,7 +137,10 @@ window.Pueblo = (()=>{
     }
     if(mapaSel === null){
       $('mpEyebrow').textContent = 'Mapa'; $('mpTitulo').textContent = 'Elige adónde ir';
-      $('mpTexto').textContent = 'Toca el pueblo para entrar en la plaza, o una mina para ver si puedes bajar.'; btn.hidden = true; return;
+      const o = Pa.objetivo();
+      $('mpTexto').innerHTML = 'Toca el pueblo para entrar en la plaza, o una mina para ver si puedes bajar.' + (o ? '<br><b>Siguiente objetivo:</b> ' + o.nombre + '<span class="coste">' +
+        Object.entries(o.coste).map(([k, n]) => `<span class="chip${(Pa.almacen[k]||0) >= n ? '' : ' muted'}"><i style="background:${MAT[k].color}"></i>${MAT[k].nombre} <b>${Math.min(Pa.almacen[k]||0, n)}/${n}</b></span>`).join('') + '</span>' : '');
+      btn.hidden = true; return;
     }
     const m = D.minas[mapaSel];
     $('mpEyebrow').textContent = 'Mina ' + m.id; $('mpTitulo').textContent = m.nombre; $('mpTexto').textContent = m.texto;
@@ -280,7 +283,16 @@ window.Pueblo = (()=>{
   }
   const chip = (k, n) => `<span class="chip"><i style="background:${MAT[k] && MAT[k].color || '#999'}"></i>${MAT[k] ? MAT[k].nombre : k} <b>${n}</b></span>`;
   const precioTxt = p => Object.entries(p).map(([m, n]) => n + ' de ' + (MAT[m] ? MAT[m].nombre.toLowerCase() : m)).join(', ');
-  function kitTxt(){ return 'Llevas ' + (Pa.kit.puntales||0) + ' puntales y ' + (Pa.kit.escaleras||0) + ' escaleras'; }
+  // las herramientas se guardan en el almacén; en cada bajada te llevas una tanda (ajustes de la mina)
+  const LLEVAR = () => { let c = {}; try{ c = JSON.parse(localStorage.getItem('deep-cfg') || '{}') || {}; }catch(e){}
+    const L = D.herramientas.llevarPorBajada || {puntales: 12, escaleras: 8}; return {p: c.llevP ?? L.puntales, l: c.llevL ?? L.escaleras}; };
+  function kitTxt(){ const L = LLEVAR(); return 'En el almacén: ' + (Pa.kit.puntales||0) + ' puntales y ' + (Pa.kit.escaleras||0) + ' escaleras. En cada bajada te llevas ' + L.p + ' y ' + L.l + ' (si los tienes)'; }
+  const OBJ = D.objetos || {}, HB = D.herboristeria || {encargos: [], unguentos: {}};
+  const objTxt = o => Object.entries(o).map(([k, n]) => n + ' ' + (OBJ[k] ? (n > 1 && OBJ[k].plural ? OBJ[k].plural : OBJ[k].nombre.toLowerCase()) : k)).join(', ');
+  const puedeObj = o => Object.entries(o).every(([k, n]) => (Pa.coleccion[k] || 0) >= n);
+  const objChip = (k, tiene, n) => `<span class="chip${tiene >= n ? '' : ' muted'}">${OBJ[k] ? OBJ[k].icono : ''} ${OBJ[k] ? OBJ[k].nombre : k} <b>${Math.min(tiene, n)}/${n}</b></span>`;
+  // kit del tejón: 1,5 veces lo que pide ese montacargas abajo (redondeando hacia arriba)
+  const kitPrecio = c => Object.fromEntries(Object.entries(c).map(([k, n]) => [k, Math.ceil(n * ((D.montacargas && D.montacargas.kit) || 1.5))]));
   function panelCasa(){
     document.querySelectorAll('#plazaPuntos .punto').forEach((b, j) => b.classList.toggle('sel', j === plazaSel));
     $('plazaKit').textContent = kitTxt();
@@ -305,6 +317,37 @@ window.Pueblo = (()=>{
         if(!armado){ armado = true; $('borrarTodo').textContent = 'Pulsa otra vez para borrarlo todo'; return; }
         Pa.borrarTodo(); panelCasa();
       };
+    } else if(c.tipo === 'taller'){
+      // kits de reparación: uno para cada montacargas roto que ya hayas visto; solo se puede tener uno a la vez
+      const V = Object.values(Pa.pueblo.mcVistos || {}), K = Pa.pueblo.kitMc;
+      let h = '<p class="note">Kits de reparación de montacargas: arreglan uno concreto allí mismo, sin gastar lo que lleves. Cuestan más que arreglarlo abajo, y solo puedes llevar uno a la vez.</p>';
+      if(K) h += `<p><b>Tienes un kit</b> para ${K.pozoNombre}, sala ${K.sala}${Pa.pueblo.kitMcMochila ? ' (está en tu mochila perdida: recupérala)' : ''}.</p>`;
+      if(!V.length) h += '<p>Aún no has visto ningún montacargas roto.</p>';
+      else h += '<div class="shop">' + V.map((v, j) => { const pr = kitPrecio(v.coste);
+        return `<div class="row"><span>${v.pozoNombre}, sala ${v.sala}<small>Abajo pide ${precioTxt(v.coste)}. El kit: ${precioTxt(pr)}.</small></span><button data-j="${j}" ${!K && Pa.puedePagar(pr) ? '' : 'disabled'}>Fabricar</button></div>`; }).join('') + '</div>';
+      cuerpo.innerHTML = h;
+      cuerpo.querySelectorAll('button[data-j]').forEach(b => b.onclick = () => {
+        const v = V[+b.dataset.j], pr = kitPrecio(v.coste); if(Pa.pueblo.kitMc || !Pa.puedePagar(pr)) return;
+        for(const [k, n] of Object.entries(pr)) Pa.almacen[k] -= n;
+        Pa.pueblo.kitMc = {key: v.key, pozo: v.pozo, pozoNombre: v.pozoNombre, sala: v.sala}; Pa.pueblo.kitMcMochila = false; Pa.guardar();
+        window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
+    } else if(c.tipo === 'herbolaria'){
+      if(!Pa.bandera('ardilla_intro')){ cuerpo.innerHTML = '<p>La ardilla va de un lado a otro entre frascos y manojos de hierbas. No te hace ni caso.</p>'; return; }
+      const e = HB.encargos.find(x => Pa.pueblo.encargos[x.id] !== 'hecho');
+      let h = e ? `<p class="lbl">Encargo · ${e.nombre}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => objChip(k, Pa.coleccion[k] || 0, n)).join('')}</div>` : '<p class="note">No hay encargos pendientes. ¡Gracias por todas las plantas!</p>';
+      const U = Pa.kit.unguentos || {}, LL = Pa.kit.llevarUng || {};
+      const recetas = Object.entries(HB.unguentos).filter(([id]) => Pa.bandera('receta_' + id) || U[id]);
+      if(recetas.length){
+        h += '<p class="lbl">Ungüentos</p><div class="shop">' + recetas.map(([id, u]) => `<div class="row"><span>${u.icono} ${u.nombre} · tienes ${U[id] || 0}<small>${u.texto}${Pa.bandera('receta_' + id) ? ' Cuesta ' + objTxt(u.precio) + '.' : ''}</small>
+          <label class="llevar"><input type="checkbox" data-l="${id}" ${LL[id] !== false ? 'checked' : ''}> Llevármelo a la mina</label></span>
+          ${Pa.bandera('receta_' + id) ? `<button data-u="${id}" ${puedeObj(u.precio) ? '' : 'disabled'}>Preparar</button>` : ''}</div>`).join('') + '</div>';
+        h += '<p class="note">Los ungüentos se gastan cuando hacen efecto. Si no hace falta, vuelve contigo.</p>';
+      }
+      cuerpo.innerHTML = h;
+      cuerpo.querySelectorAll('button[data-u]').forEach(b => b.onclick = () => { const u = HB.unguentos[b.dataset.u]; if(!puedeObj(u.precio)) return;
+        for(const [k, n] of Object.entries(u.precio)){ Pa.coleccion[k] -= n; if(Pa.coleccion[k] <= 0) delete Pa.coleccion[k]; }
+        const UU = Pa.kit.unguentos || (Pa.kit.unguentos = {}); UU[b.dataset.u] = (UU[b.dataset.u] || 0) + 1; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
+      cuerpo.querySelectorAll('input[data-l]').forEach(i => i.onchange = () => { const L2 = Pa.kit.llevarUng || (Pa.kit.llevarUng = {}); L2[i.dataset.l] = i.checked; Pa.guardar(); });
     } else {
       cuerpo.innerHTML = '<p>Aún no tiene nada que pedirte. Pronto vendrán aquí los encargos.</p>';
     }

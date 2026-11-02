@@ -99,7 +99,23 @@ button:focus-visible{outline:3px solid var(--amarillo);outline-offset:2px}
 #cashBtn,#dropBtn{position:absolute;left:50%;top:112px;transform:translateX(-50%);z-index:3;font-family:var(--f-display);font-size:19px;
   padding:9px 18px;border-radius:16px;border:3px solid var(--madera-oo);background:var(--amarillo);color:var(--tinta);cursor:pointer;box-shadow:0 4px 0 var(--madera-oo);white-space:nowrap}
 .toast{position:absolute;top:8px;left:50%;transform:translateX(-50%);z-index:4;text-align:center;pointer-events:none;background:var(--perg-c);color:var(--tinta);
-  border:3px solid var(--madera-oo);border-radius:12px;padding:5px 14px;white-space:nowrap;animation:toast 2.8s ease-out forwards;max-width:92%;box-shadow:0 3px 0 var(--madera-oo)}
+  border:3px solid var(--madera-oo);border-radius:12px;padding:5px 14px;white-space:nowrap;animation:toastIn .25s ease-out both;max-width:92%;box-shadow:0 3px 0 var(--madera-oo)}
+.toast.fuera{animation:toastOut .3s ease-in forwards}
+.toast.listo::after{content:'';position:absolute;right:6px;bottom:4px;width:6px;height:6px;border-radius:2px;background:var(--madera);opacity:.5}
+/* Deep habla dentro de la mina: su cara en una esquina con la caja de texto */
+.toast.habla{left:8px;transform:none;text-align:left;display:flex;gap:8px;align-items:center;padding:5px 12px 5px 5px;max-width:min(92%, 420px);white-space:normal;animation:hablaIn .25s ease-out both}
+.toast.habla.fuera{animation:hablaOut .3s ease-in forwards}
+.toast.habla img{width:52px;height:52px;flex:none;image-rendering:pixelated;image-rendering:crisp-edges;border-radius:8px;background:#45283c}
+.toast.habla b{font-size:16px;color:var(--madera-oo)}
+.toast.habla span{font-size:15px}
+@keyframes toastIn{0%{opacity:0;transform:translate(-50%,-8px)}100%{opacity:1;transform:translate(-50%,0)}}
+@keyframes toastOut{0%{opacity:1;transform:translate(-50%,0)}100%{opacity:0;transform:translate(-50%,-6px)}}
+@keyframes hablaIn{0%{opacity:0;transform:translateX(-10px)}100%{opacity:1;transform:none}}
+@keyframes hablaOut{0%{opacity:1}100%{opacity:0;transform:translateX(-8px)}}
+.tarjeta{align-items:center;text-align:center}
+.tjIcono{font-size:44px;line-height:1;filter:drop-shadow(0 3px 0 rgba(0,0,0,.25))}
+.tarjeta #tjTexto{font-style:italic}
+.mision{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:4px}
 .toast b{display:block;font-family:var(--f-display);font-weight:400;font-size:20px;color:var(--naranja)}
 .toast span{font-size:14px;font-weight:800;white-space:normal}
 @keyframes toast{0%{opacity:0;transform:translate(-50%,-8px)}10%,80%{opacity:1;transform:translate(-50%,0)}100%{opacity:0}}
@@ -198,8 +214,12 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 .dlg-caja.der b{right:18px;background:#ffb3e0}
 .dlg-caja.der.tejon b{background:#9badb7}
 .dlg-caja.der.viejo b{background:#cbdbfc}
+.dlg-caja.der.ardilla b{background:#99e550}
 .dlg-caja p{margin:6px 0 0;font-size:18px;line-height:1.4;font-weight:700}
 #dlgSig{position:absolute;right:16px;bottom:6px;font-size:14px;color:var(--madera);animation:dlgsig 0.8s ease-in-out infinite}
 @keyframes dlgsig{50%{transform:translateY(3px)}}
 /* mapa: desbloquear minas */
 .coste{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0}
+
+.llevar{display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;margin-top:4px}
+.llevar input{width:18px;height:18px}

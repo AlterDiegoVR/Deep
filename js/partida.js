@@ -29,6 +29,15 @@ window.Partida = (()=>{
     // ---- colección ----
     guardarEnColeccion(id, n){ P.coleccion[id] = (P.coleccion[id] || 0) + n; P.visto[id] = true; },
     marcarVisto(id){ P.visto[id] = true; },
+    // siguiente objetivo de la historia: lo que hace falta y para qué (dejar fino el ascensor, abrir la siguiente mina…)
+    objetivo(){
+      if(!P.bandera('ascensor_pozo1_roto')) return null;   // en el prólogo (la flor, el fondo del Pozo viejo) aún no hay objetivo de materiales
+      if(P.bandera('ascensor_pozo1_apanado') && !P.bandera('ascensor_pozo1_fino') && D.ascensor && D.ascensor.fino)
+        return {nombre: 'dejar fino el ascensor del Pozo viejo', corto: 'el ascensor fino', coste: D.ascensor.fino};
+      for(const m of D.minas) if(m.desbloqueo && !m.abierta && !P.bandera('mina_' + m.id + '_abierta'))
+        return {nombre: 'abrir la mina ' + m.id + ' (' + m.nombre + ')', corto: 'abrir la mina ' + m.id, coste: m.desbloqueo};
+      return null;
+    },
     puedePagar(precio){ return Object.entries(precio).every(([m, n]) => (P.almacen[m] || 0) >= n); },
     comprar(item){
       if(!P.puedePagar(item.precio)) return false;

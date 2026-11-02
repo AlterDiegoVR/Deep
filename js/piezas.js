@@ -28,6 +28,10 @@
 //    A  ascensor viejo (roto: hace falta su pieza)   Z  pieza del ascensor   K  pico con un símbolo
 //    V  respiradero (sube aire caliente desde abajo)
 //    N  nota de la cuadrilla (sale la siguiente que aún no tengas; si ya las tienes todas, nada)
+//    L  escalera de la cuadrilla   I  puntal de la cuadrilla   =  tablón de la cuadrilla (bien clavados: no se recogen)
+//    W  noria vieja (gira cuando le llega agua y abre las compuertas G)   G  compuerta (roca maciza que abre la noria)
+//    b  brasas (queman la lámpara al pisarlas; el agua las apaga)   X  puerta de la cuadrilla (atrancada)
+//    Q  casco de la cuadrilla (coleccionable)
 // =====================================================================
 window.PIEZAS = [
   {
@@ -99,6 +103,130 @@ window.PIEZAS = [
       'x__B_m.........',
       'x_f__m.........',
       'xxxxxm.........',
+    ],
+  },
+  // ===================== Pozo 3: la Galería del río (el pozo del agua) =====================
+  {
+    // La noria vieja: un depósito de agua tapado con un tapón de piedra. Si lo rompes, el agua baja por el canal
+    // hasta la rueda, que gira y abre la compuerta de una camarita con un cofre y una flor.
+    id: 'noria_pozo3',
+    pozo: 'tres',
+    tiro: 'principal',
+    colocar: { fila: 50 },
+    reflejar: true,
+    filas: [
+      'ddddddddpptxxxx',
+      'd______dpptx__x',
+      'd~~~~~~p__tGfBx',
+      'ddddddddd_dxxxx',
+      'ddddddddd_ddddd',
+      'dddddddddWddddd',
+      'ddddddddddddddd',
+    ],
+  },
+  {
+    // Las brasas: un pasillo cerrado con ascuas en el suelo y un cofre al final. Bajas por la escalera de la cuadrilla;
+    // si cruzas a pelo, te quema la lámpara. Arriba, un depósito de agua tapado: rompe el tapón y el agua las apaga.
+    id: 'brasas_pozo3',
+    pozo: 'tres',
+    tiro: 'principal',
+    colocar: { fila: 115 },
+    reflejar: true,
+    filas: [
+      'xxxxxx.........',
+      'x~~~~p__.......',
+      'xxxxxxxLxxxxxxx',
+      'xxxx_bbLbbbbBxx',
+      'xxxxxxxxxxxxxxx',
+    ],
+  },
+  {
+    // Fondo de la Galería del río: el ascensor, un respiradero, un cofre y una flor.
+    id: 'fondo_pozo3',
+    pozo: 'tres',
+    tiro: 'principal',
+    colocar: { fondo: true },
+    filas: [
+      '...............',
+      'x_____________x',
+      'xA__f__B__V__ox',
+    ],
+  },
+  {
+    // Galería del abismo: un precipicio de roca madre de 5 casillas. El puente más largo que se puede tender
+    // desde un lado (3 tablones en voladizo, y el 4.º si llega a la otra orilla) se queda a una casilla.
+    // Al otro lado, una puerta de la cuadrilla: hará falta el salto u otra habilidad. Si caes al fondo,
+    // el agua amortigua y un montacargas viejo te sube al tiro principal.
+    id: 'abismo_pozo3',
+    pozo: 'tres',
+    tiro: 'rio_abismo',
+    colocar: { fondo: true },
+    filas: [
+      'xxxxxxxxxx.....',
+      'xxxxxxxxxx.....',
+      'xxxxxxxxxx.....',
+      '_______________',
+      '_______________',
+      '__X____________',
+      'xxxx_____xxxxxx',
+      'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
+      'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
+      'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
+      'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
+      'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
+      'xxxx~~~_Mxxxxxx',
+      'xxxxxxxxxxxxxxx',
+      'xxxxxxxxxxxxxxx',
+    ],
+  },
+  {
+    // Galería de la cuadrilla: hasta la mitad, galerías ya hechas por los topos de la cuadrilla, con sus escaleras,
+    // puntales y un tablón sobre una poza (no se pueden recoger). Después, un derrumbe de roca dura y escombro.
+    id: 'cuadrilla_pozo3',
+    pozo: 'tres',
+    tiro: 'rio_cuadrilla',
+    colocar: { fila: 0 },
+    filas: [
+      '..._I____I___pp',
+      '...ppppppppdLpp',
+      'ppppppppppcpLpp',
+      'pppptppppppdLpp',
+      'pppppppppppdLpp',
+      'pp_I___I____L_p',
+      'ppLpp===ppppppp',
+      'ppLpp~~~ppppppp',
+      'ppLpppppcpppppp',
+      'p_L___I____I__p',
+      'ppppppppppppLpp',
+      'pppdppppppppLpp',
+      'pppppppcppppLpp',
+      'p__I_____I__L_p',
+      'p_o_________L_p',
+      'ppppLpppppppppp',
+      'ppppLpppcpppppp',
+      'ppppLpppppppppp',
+      'pI__L_____I___p',
+      'ppppppppppppepp',
+      'pppddeedeeeddpp',
+      'ppddedddeeedLpp',
+      'pdddeeddddeeedp',
+      'pdeeddddeedddpp',
+      'ppdddeeddddeppp',
+      'pppdeedddeedppp',
+      'pppppddeddppppp',
+    ],
+  },
+  {
+    // Al fondo de la galería de la cuadrilla: una camarita con algo suyo (un casco abollado y una nota).
+    id: 'fondo_cuadrilla_pozo3',
+    pozo: 'tres',
+    tiro: 'rio_cuadrilla',
+    colocar: { fondo: true },
+    filas: [
+      'pppdddddddddppp',
+      'ppd_________dpp',
+      'pd__N_____Q_Mdp',
+      'pdddddddddddddp',
     ],
   },
 ];

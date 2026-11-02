@@ -14,7 +14,7 @@ window.Sonido = (()=>{
     const AC = window.AudioContext || window.webkitAudioContext; if(!AC) return;
     ac = new AC();
     master = ac.createGain(); master.gain.value = on ? CFG.volumen : 0; master.connect(ac.destination);
-    noiseBuf = ac.createBuffer(1, ac.sampleRate*2, ac.sampleRate);
+    noiseBuf = ac.createBuffer(1, ac.sampleRate*4, ac.sampleRate);
     const d = noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i] = Math.random()*2-1;
     // rumor de fondo para cuando cae cosa: ruido grave en bucle
     rumble = ac.createBufferSource(); rumble.buffer = noiseBuf; rumble.loop = true;
@@ -75,6 +75,14 @@ window.Sonido = (()=>{
     // mina desbloqueada
     abrir(t,v){ [392,523,659,784,1047].forEach((f,i) => tone(t+i*0.09, 0.3, 0.18*v, 'triangle', f)); noise(t, 0.4, 0.2*v, 'lowpass', 600, 100); },
     // clic de los menús: un toque de madera corto y suave
+    // chirrido de hierro (el ascensor viejo)
+    chirrido(t,v){ tone(t, 0.22, 0.12*v, 'sawtooth', 1900 + Math.random()*500, 1300); tone(t + 0.04, 0.18, 0.08*v, 'square', 2600, 2100); },
+    // soplido grave y lento del respiradero (aire caliente desde lo hondo)
+    soplido(t,v){ noise(t, 1.6, 0.22*v, 'lowpass', 260, 120); tone(t, 1.4, 0.06*v, 'sine', 70, 55); },
+    // agua sobre brasas
+    siseo(t,v){ noise(t, 0.7, 0.35*v, 'highpass', 4000, 2500); noise(t, 0.4, 0.2*v, 'bandpass', 1200, 0, 2); },
+    // la noria vieja girando
+    noria(t,v){ tone(t, 0.3, 0.1*v, 'triangle', 180, 140); noise(t + 0.15, 0.12, 0.15*v, 'bandpass', 700, 0, 3); },
     clic(t,v){ tone(t, 0.05, 0.16*v, 'triangle', 880, 620); noise(t, 0.025, 0.12*v, 'bandpass', 2400, 0, 2); },
     // pasos en la plaza (sobre adoquines)
     pasoPlaza(t,v){ noise(t, 0.04, 0.1*v, 'bandpass', 1300 + Math.random()*400, 0, 1.5); },
