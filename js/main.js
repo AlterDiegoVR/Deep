@@ -2,14 +2,17 @@
 //  PANTALLAS: mapa, plaza y mina
 // =====================================================================
 window.Pantallas = (()=>{
-  const ids = {mapa:'pantalla-mapa', plaza:'pantalla-plaza', mina:'pantalla-mina'};
+  const ids = {mapa:'pantalla-mapa', plaza:'pantalla-plaza', mina:'pantalla-mina', editor:'pantalla-editor'};
   let actual = null;
   function mostrar(nombre, pozo, opts){
     if(actual === 'mina' && nombre !== 'mina') window.Mina.salir();
+    if(actual === 'editor' && nombre !== 'editor') window.Editor.cerrar();
+    document.getElementById('app').classList.toggle('ancho', nombre === 'editor');
     for(const [k, id] of Object.entries(ids)) document.getElementById(id).hidden = k !== nombre;
     actual = nombre;
     if(nombre === 'mapa'){ window.Pueblo.mapa(); }
     else if(nombre === 'plaza'){ window.Pueblo.plaza(); }
+    else if(nombre === 'editor'){ window.Pueblo.parar(); window.Editor.abrir(); }
     else { window.Pueblo.parar(); window.Mina.entrar(pozo, opts); }
   }
   return {mostrar, get actual(){ return actual; }};
@@ -18,7 +21,8 @@ window.Pantallas = (()=>{
 document.getElementById('verLbl').textContent = 'v' + window.DATOS.version;
 document.querySelectorAll('.verTxt').forEach(e => e.textContent = window.DATOS.version);
 document.title = 'Deep v' + window.DATOS.version;
-window.Pantallas.mostrar('mapa');
+window.Pantallas.mostrar(location.hash === '#editor' ? 'editor' : 'mapa');
+document.getElementById('abrirEditor').onclick = () => window.Pantallas.mostrar('editor');
 
 // sonido al pulsar cualquier botón o desplegable de los menús (no los mandos de la mina, que ya suenan a su manera)
 document.addEventListener('click', e => {

@@ -252,3 +252,57 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 #plazaPuntos .etq{font-size:11px;padding:0 6px}
 #mapaLienzo, #plazaLienzo{touch-action:none}
 .hoja, .burbuja{touch-action:pan-y}
+/* ---- 0.215: editor de niveles (PC) ---- */
+.ed-entrar{margin-left:auto;font-size:13px;padding:2px 10px}
+.ed-entrar + .ver{margin-left:6px}
+@media (hover:none), (max-width:820px){ .ed-entrar{display:none} .ed-entrar + .ver{margin-left:auto} }
+#app.ancho{max-width:none}
+#pantalla-editor{height:100%}
+#editor{height:100%;display:flex;flex-direction:column;gap:8px;color:var(--tinta);font-size:14px}
+.ed-barra{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--madera);border:3px solid var(--madera-oo);border-radius:12px;padding:6px 10px}
+.ed-barra h1{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0 6px;color:var(--amarillo);text-shadow:0 2px 0 var(--madera-oo)}
+.ed-barra button, .ed-barra select, .ed-file, #editor aside button{font:inherit;font-weight:800;border:2px solid var(--madera-oo);border-radius:10px;background:var(--perg-c);color:var(--tinta);padding:4px 10px;cursor:pointer}
+.ed-barra .pri, #editor .pri{background:var(--amarillo)}
+#editor .peligro{background:#e7b3a6}
+.ed-file input{display:none}
+.ed-hueco{flex:1}
+.ed-cuerpo{flex:1;min-height:0;display:grid;grid-template-columns:230px 1fr 300px;gap:8px}
+.ed-izq, .ed-der{background:var(--perg-c);border:3px solid var(--madera-oo);border-radius:12px;padding:8px;overflow:auto;display:flex;flex-direction:column;gap:6px}
+.ed-der section{display:flex;flex-direction:column;gap:5px;border-bottom:2px dashed var(--perg);padding-bottom:8px}
+.ed-der h3, .ed-izq h4{margin:4px 0 0;font-family:var(--f-display);font-weight:400;color:var(--madera-oo)}
+.ed-der h3{font-size:18px} .ed-izq h4{font-size:15px}
+.ed-der label{display:flex;flex-direction:column;gap:2px;font-weight:800;font-size:13px}
+.ed-der input, .ed-der select, .ed-der textarea{font:inherit;font-weight:600;border:2px solid var(--perg);border-radius:8px;padding:3px 6px;background:#fffdf8}
+.ed-der .ed-check, .ed-izq .ed-check{flex-direction:row;align-items:center;gap:6px;font-weight:700}
+.ed-pozos{display:flex;flex-wrap:wrap;gap:2px 10px;font-weight:800;font-size:13px}
+.ed-dos{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ed-nota{margin:0;font-size:12px;color:var(--tinta-s);font-weight:600}
+.ed-herr{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.ed-herr button{font-size:12px !important;padding:3px 4px !important}
+.ed-herr button.sel{background:var(--amarillo) !important}
+.ed-grupo{display:flex;flex-direction:column;gap:2px}
+.ed-col{display:flex !important;align-items:center;gap:6px;text-align:left;padding:2px 6px !important;font-size:12px !important;font-weight:700 !important;background:transparent !important;border-color:transparent !important}
+.ed-col.sel{background:var(--amarillo) !important;border-color:var(--madera-oo) !important}
+.ed-col i{width:22px;height:22px;flex:none;border-radius:4px;display:flex;align-items:center;justify-content:center;font-style:normal;font-size:13px;background:#1b1426;color:#fff;border:1px solid rgba(0,0,0,.4)}
+.ed-col i.libre{background:repeating-conic-gradient(#3a3340 0 25%, #2f2935 0 50%) 0 0/10px 10px}
+.ed-centro{display:flex;flex-direction:column;gap:6px;min-height:0;align-items:center}
+.ed-scroll{flex:1;min-height:0;overflow:auto;display:flex;gap:4px;background:#17111a;border:3px solid var(--madera-oo);border-radius:12px;padding:8px;width:fit-content;max-width:100%}
+.ed-scroll canvas{cursor:crosshair;image-rendering:pixelated;flex:none}
+.ed-nums{display:flex;flex-direction:column;color:#9badb7;font-size:11px;font-weight:800;text-align:right;min-width:26px}
+.ed-nums span{display:flex;align-items:center;justify-content:flex-end}
+.ed-filas{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ed-filas button{font:inherit;font-weight:800;font-size:12px;border:2px solid var(--madera-oo);border-radius:10px;background:var(--perg-c);padding:3px 8px;cursor:pointer}
+.ed-filas span{font-weight:800;color:var(--perg)}
+#edContador{border-collapse:collapse;font-size:13px}
+#edContador td, #edContador th{padding:1px 6px;text-align:right} #edContador td:first-child{text-align:left}
+#edContador tr.dif td{color:#ac3232;font-weight:900}
+.ed-modal{position:fixed;inset:0;background:rgba(34,32,52,.6);display:flex;align-items:center;justify-content:center;z-index:60}
+.ed-modal[hidden]{display:none}
+.ed-modal-caja{background:var(--perg-c);border:3px solid var(--madera-oo);border-radius:14px;padding:16px;max-width:460px;display:flex;flex-direction:column;gap:12px;font-weight:700}
+.ed-modal-bot{display:flex;gap:8px;justify-content:flex-end}
+.ed-modal-bot button{font:inherit;font-weight:800;border:2px solid var(--madera-oo);border-radius:10px;background:var(--perg);padding:5px 12px;cursor:pointer}
+.ed-aviso{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--perg-c);border:3px solid var(--madera-oo);border-radius:12px;padding:8px 16px;font-weight:800;z-index:61;box-shadow:0 4px 0 var(--madera-oo)}
+.ed-aviso[hidden]{display:none}
+/* cartel de tutorial con gif, dentro de la mina */
+.toast.cartel{white-space:normal;max-width:min(92%, 380px)}
+.toast.cartel img{display:block;max-width:100%;max-height:150px;margin:4px auto;border-radius:8px;image-rendering:pixelated}

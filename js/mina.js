@@ -146,12 +146,14 @@ function natFromSeed(w){
   finally{ W = keep; lastOil = keepOil; }
 }
 // ---------- piezas hechas a mano (js/piezas.js) ----------
-const PZ_TILE = {'_':AIR, t:DIRT, p:STONE, d:HARD, m:ROCK, x:BEDROCK, g:CSAND, a:SAND, '~':WATER, e:RUBBLE, r:CLAY, c:COAL, u:COPPER, q:QUARTZ, P:DOOR};
+const PZ_TILE = {'_':AIR, t:DIRT, p:STONE, d:HARD, m:ROCK, x:BEDROCK, g:CSAND, a:SAND, '~':WATER, e:RUBBLE, r:CLAY, c:COAL, u:COPPER, q:QUARTZ, P:DOOR, '*':GAS, '&':MUD};
 function tramoRows(i){ let r = SURF; for(let k=0;k<i;k++){ r += TRAMOS[k].len + (k < ROOM_ROW.length ? ROOM_H : 0); } return [r, r + (TRAMOS[i] ? Math.min(TRAMOS[i].len, 60) : 0)]; }
 function placePieces(){
   const out = [], seed = W ? W.seed : 0;
   if(!ON('piezas')) return out;
-  for(const pz of (window.PIEZAS || [])){
+  let lista = window.piezasActivas ? window.piezasActivas() : (window.PIEZAS || []);
+  if(prueba) lista = lista.filter(pz => pz.id !== prueba.pieza.id).concat([Object.assign({}, prueba.pieza, {pozo: PK})]);
+  for(const pz of lista){
     { const pp = pz.pozo || 'pruebas'; if(Array.isArray(pp) ? !pp.includes(PK) : pp !== PK) continue; }
     const tiro = pz.tiro || 'principal';
     if(!(tiro === TC.id || (tiro === 'ramales' && !TC.principal))) continue;
@@ -164,7 +166,9 @@ function placePieces(){
     if(r0 === null) continue;
     const mir = pz.reflejar && h2(hid, 3, seed + 83) < 0.5;
     const rows = pz.filas.map(l => { l = (l + '.'.repeat(COLS)).slice(0, COLS); return mir ? [...l].reverse().join('') : l; });
-    out.push({id:pz.id, r0, rows});
+    // textos de carteles y frases de Deep: clave «fila,columna» de la pieza (dada la vuelta si se refleja)
+    const textos = {}; for(const [k, v] of Object.entries(pz.textos || {})){ const [f, c] = k.split(',').map(Number); textos[f + ',' + (mir ? COLS-1-c : c)] = v; }
+    out.push({id:pz.id, r0, rows, textos});
   }
   return out;
 }
@@ -208,6 +212,12 @@ function applyPieces(r, Tt){
       else if(ch === 'W') W.items.push({k:'noria', r, c, alive:true, activa:false});
       else if(ch === 'b') W.items.push({k:'brasa', r, c, alive:true, apagada:false});
       else if(ch === 'X') W.items.push({k:'portal', r, c, alive:true});
+      else if(ch === 'j') W.items.push({k:'obj', id:'hongo_azul', r, c, alive:true});
+      else if(ch === 'R') W.items.push({k:'obj', id:'lampara_vieja', r, c, alive:true});
+      else if(ch === 'F') W.items.push({k:'obj', id:'foto_cuadrilla', r, c, alive:true});
+      else if(ch === 'w') W.items.push({k:'moth', x:c+0.5, y:r+0.5, alive:true});
+      // cartel (banner con texto y, si quieres, un gif) o frase de Deep: salen al pasar por esa casilla
+      else if(ch === 'T' || ch === 'D'){ const tx = P.textos && P.textos[k + ',' + c] || {}; W.items.push(Object.assign({k:'texto', tipo: ch === 'T' ? 'cartel' : 'deep', r, c, alive:true}, tx)); }
     }
   }
 }
@@ -859,6 +869,8 @@ function updatePlayer(dt){
         toast(st === 'roto' ? 'El hueco del ascensor' : 'El ascensor', st === 'roto' ? 'El ascensor se quedó arriba, roto' : st !== 'pieza' ? 'Arreglado por el tejón: pulsa el botón o arriba para subir' : bag['o:pieza_ascensor'] ? 'Tienes la pieza: pulsa el botón o arriba para ponerla' : 'Está roto: le falta una pieza del mecanismo'); } }
       else if(it.k === 'carga'){ verMontacargas(it); if(!it.avisado){ it.avisado = true; toast('Montacargas', W.cargaOk.includes(it.room) ? 'Manda la carga al almacén y sigue bajando' : kitPara(it) ? 'Está roto, pero llevas el kit del tejón para arreglarlo' : 'Está roto: pide ' + costTxt(it.room) + ' (o un kit del tejón)'); } }
       else if(it.k === 'lift'){ if(!it.avisado){ it.avisado = true; toast('Montacargas viejo', 'Pulsa arriba para subir al tiro principal'); } }
+      else if(it.k === 'texto'){ if(!it.avisado){ it.avisado = true;
+        if(it.tipo === 'deep') decir(it.cara || 'pensativo', it.texto || '…'); else cartel(it.titulo || '', it.texto || '', it.gif || ''); } }
       else if(it.k === 'portal'){ if(!it.avisado){ it.avisado = true; decir('pensativo', 'Una puerta de la cuadrilla… Está atrancada por dentro.'); } }
       else if(it.k === 'oil'){ const g = cfg.oilGain*(has('bidon_grande') ? cv_('bidon_grande', 2) : 1); it.alive = false; SND('aceite'); lamp = Math.min(100, lamp + g); burst(it.r+0.5, it.c+0.5, '#fbf236', 14); floats.push({x:it.c+0.5, y:it.r, txt:'+'+g+'% luz', life:1.2, col:'#fbf236'}); }
       else if(it.k === 'cofreSala' && !W.rewarded.includes(it.room)) openRoomChest(it);
@@ -1163,6 +1175,7 @@ function cashOut(info){
   showEnd();
 }
 function persist(){
+  if(prueba) return;   // probando una pieza del editor: nada se guarda
   const tiros = {}; for(const id in MINA.tiros) tiros[id] = packWorld(MINA.tiros[id]);
   save(P1.guardado, {ver:WORLD_VER, seed:MINA.seed, tiros, stats:MINA.stats});
 }
@@ -2024,6 +2037,7 @@ function itemHere(k){ return W.items.find(i => i.alive && i.k === k && i.r === p
 function actionHere(){
   if(!p) return null;
   const L = layout(p.r);
+  if(prueba && !itemHere('carga') && !itemHere('ascensor')) return {txt:'Volver al editor', fn: salirPrueba};
   if(L.surface && maxDepth > 2 && TC.principal) return {txt:'Volver al pueblo', fn: () => cashOut()};
   const mc = itemHere('carga');
   if(mc){
@@ -2209,6 +2223,73 @@ function drawEscena(){
   if(E.fase === 'fin'){ g.fillStyle = `rgba(0,0,0,${Math.min(1, E.ft*3)})`; g.fillRect(0, 0, VW, VH); }
 }
 let wasStartedD = false, ascTexto = null;
+// ---------- modo prueba (editor de niveles) ----------
+// Se baja a una mina nueva con la pieza que estás editando, empezando justo encima. No se guarda nada:
+// al salir, la partida (almacén, colección, historia…) vuelve a estar como antes y el pozo de verdad sigue igual.
+let prueba = null, recargar = false;
+function iniciarPrueba(key, pz){
+  prueba = {pieza: pz, copia: JSON.stringify({almacen:Pa.almacen, kit:Pa.kit, coleccion:Pa.coleccion, visto:Pa.visto, pueblo:Pa.pueblo})};
+  setPozo(key); MINA = newMine(); W = MINA.tiros.principal; setTiro('principal'); recargar = true;
+  startOpts = null; activa = true; resize(); startRun();
+  props = 30; ladders = 20; llaves = 3; renderInv();
+  // si la pieza va en un ramal, se pasa a ese ramal
+  const tiro = pz.tiro || 'principal';
+  if(tiro !== 'principal'){ const ra = RAMALES.find(x => x.id === tiro) || RAMALES[0]; if(ra) doSwap({tiro: ra.id, r: SURF, c: ra.lado === 'izquierda' ? COLS-2 : 1, nombre: ra.nombre}); }
+  // empezar justo encima de la pieza
+  const P = PLACED.find(x => x.id === pz.id);
+  if(P){ let r = Math.max(TC.principal ? SURF + 1 : SURF, P.r0 - 2); const c = 4; ensure(r + 40);   // (no en la columna de la ruleta)
+    // si encima hay una sala segura, se empieza dentro de ella (sin romper su suelo ni su techo)
+    const Lr = layout(r); if(Lr.part !== undefined) r = ROOM_ROW[Lr.room] + ROOM_H - 2;
+    for(const rr of [r, r+1]) if(rr < P.r0 && layout(rr).part === undefined && isSolid(tAt(rr, c))) setT(rr, c, AIR);
+    p.onPlat = false; platOpen = 1; p.r = p.y = r; p.c = p.x = p.sx = c; p.falling = false;
+    cam = p.y - (VH/T)*0.35; camX = (p.x+0.5)*T; }
+  colaAvisos = []; aviso = null; $('toastHost').innerHTML = '';
+  toast('Probando: ' + pz.id, P ? 'Empiezas justo encima de la pieza. «Volver al editor» para salir' : 'La pieza no ha salido en este pozo: revisa dónde se coloca');
+  hud(true);
+}
+function salirPrueba(){
+  if(!prueba) return;
+  const c = JSON.parse(prueba.copia); for(const k in c) Pa[k] = c[k]; Pa.guardar();
+  prueba = null; started = false; transit = null; escena = null; $('over').hidden = true; $('pad').style.visibility = '';
+  window.Pantallas.mostrar('editor');
+}
+// genera un trozo de un pozo con las reglas del juego (sin piezas) y lo devuelve en el formato de las piezas
+const T2CH = {[AIR]:'_', [DIRT]:'t', [STONE]:'p', [HARD]:'d', [ROCK]:'m', [BEDROCK]:'x', [CSAND]:'g', [SAND]:'a', [WATER]:'~', [RUBBLE]:'e', [CLAY]:'r', [COAL]:'c',
+  [COPPER]:'u', [QUARTZ]:'q', [DOOR]:'P', [GAS]:'*', [MUD]:'&', [PASS]:'.', [BEAM]:'.', [LADDER]:'L', [PROP]:'I', [PLANK]:'='};
+const OBJ2CH = {flor_mina:'f', hongo_azul:'j', lampara_vieja:'R', foto_cuadrilla:'F', nota_1:'N', nota_2:'N', nota_3:'N', casco_cuadrilla:'Q', pico_padre:'K', pieza_ascensor:'Z'};
+function item2ch(it){
+  return it.k === 'oil' ? 'o' : it.k === 'llave' ? 'k' : it.k === 'herr' ? (it.tipo === 'puntal' ? 'H' : 'h') : it.k === 'obj' ? (OBJ2CH[it.id] || 'f') :
+    it.k === 'chest' || it.k === 'cofrePieza' ? 'B' : it.k === 'vent' ? 'V' : it.k === 'lift' ? 'M' : it.k === 'ascensor' ? 'A' : it.k === 'noria' ? 'W' : it.k === 'brasa' ? 'b' : it.k === 'portal' ? 'X' : null;
+}
+function generarSector(key, tiro, desde, hasta, semilla){
+  const keep = {PK, P1, RAMALES, DT, SECRET, W, MINA, TC, TRAMOS, ROOM_ROW, PLACED, lastOil};
+  try{
+    setPozo(key); W = newTiroWorld(tiro, semilla || ((Math.random()*1e9)|0)); setTiro(tiro); PLACED = []; lastOil = SURF;
+    const r1 = SURF + hasta; ensure(Math.min(r1 + 2, isFinite(TC.fondo) ? TC.fondo + 2 : r1 + 2));
+    const filas = [], salas = [];
+    for(let r = SURF + desde; r <= r1; r++){
+      if(!W.rows[r]){ filas.push('x'.repeat(COLS)); continue; }
+      const L = layout(r); if(L.part !== undefined){ filas.push('.'.repeat(COLS)); salas.push(r - SURF); continue; }
+      let line = '';
+      for(let c=0;c<COLS;c++){
+        const it = W.items.find(i => i.alive && (i.k === 'moth' ? Math.floor(i.y) === r && Math.floor(i.x) === c : i.r === r && i.c === c));
+        const ch = it ? (it.k === 'moth' ? 'w' : item2ch(it)) : null;
+        line += ch || T2CH[W.rows[r].t[c]] || 'p';
+      }
+      filas.push(line);
+    }
+    return {filas, salas, semilla: W.seed};
+  } finally { ({PK, P1, RAMALES, DT, SECRET, W, MINA, TC, TRAMOS, ROOM_ROW, PLACED, lastOil} = keep); }
+}
+// tramos de un pozo (para el editor): nombre, primera y última fila de cada tramo y de cada sala
+function tramosDe(key){
+  const keep = {PK, P1, RAMALES, DT, SECRET};
+  try{
+    setPozo(key); const tc = tiroCfg('principal'), out = []; let r = 0;
+    tc.tramos.forEach((t, i) => { if(!isFinite(t.len) && i > 12) return; const len = isFinite(t.len) ? t.len : 40; out.push({n: t.n, desde: r, hasta: r + len - 1}); r += len; if(i < tc.rooms.length) r += ROOM_H; });
+    return {tramos: out.slice(0, 14), ramales: RAMALES.map(ra => ({id: ra.id, nombre: ra.nombre, largo: ra.largo, fila: ra.fila})), fondo: isFinite(tc.fondo) ? tc.fondo - SURF : null};
+  } finally { ({PK, P1, RAMALES, DT, SECRET} = keep); }
+}
 // ---------- depósito del pozo ----------
 // Lo que no cabe al recuperar la mochila, lo que sueltas en las salas y la carga que se deja en la primera subida
 // no se pierde: se guarda en el depósito del pozo y, en la siguiente bajada, se reparte por él como vetas nuevas.
@@ -2375,11 +2456,14 @@ function pintarAviso(a){
   const host = $('toastHost');
   if(a.cara){ const src = (window.RETRATOS && window.RETRATOS.deep && (window.RETRATOS.deep[a.cara] || window.RETRATOS.deep.contento)) || '';
     host.innerHTML = `<div class="toast habla"><img src="${src}" alt=""><div><b>Deep</b><span>${a.sub}</span></div></div>`; }
+  else if(a.gif) host.innerHTML = `<div class="toast cartel">${a.title ? `<b>${a.title}</b>` : ''}<img src="${a.gif}" alt=""><span>${a.sub}</span></div>`;
   else host.innerHTML = `<div class="toast"><b>${a.title}</b><span>${a.sub}</span></div>`;
   aviso = {t0:t, min:minAviso((a.title||'') + a.sub), listo:false};
 }
 function toast(title, sub){ const a = {title, sub}; if(aviso && !aviso.listo && colaAvisos.length < 4) colaAvisos.push(a); else { colaAvisos = []; pintarAviso(a); } }
 // Deep habla dentro de la mina: con su cara, en una esquina (se quita igual que los avisos)
+// cartel de tutorial: título, texto y, si lo tiene, un gif que enseña la acción
+function cartel(title, sub, gif){ const a = {title, sub, gif}; if(aviso && !aviso.listo && colaAvisos.length < 4) colaAvisos.push(a); else { colaAvisos = []; pintarAviso(a); } }
 function decir(cara, texto){ const a = {cara, sub:texto}; if(aviso && !aviso.listo && colaAvisos.length < 4) colaAvisos.push(a); else { colaAvisos = []; pintarAviso(a); } }
 function avisoTick(){
   if(!aviso || aviso.listo || t - aviso.t0 < aviso.min) return;
@@ -2427,7 +2511,7 @@ function showEnd(){
   }
   $('over').hidden = false;
 }
-function toVillage(){ Pa.pasarDia(); started = false; $('over').hidden = true; window.Pantallas.mostrar('plaza'); }
+function toVillage(){ if(prueba){ salirPrueba(); return; } Pa.pasarDia(); started = false; $('over').hidden = true; window.Pantallas.mostrar('plaza'); }
 
 // ---------- bucle ----------
 let lastT = performance.now();
@@ -2574,7 +2658,12 @@ lamp = 100; bag = {}; props = 0; ladders = 0; wick = 1; rocks = []; particles = 
 requestAnimationFrame(frame);
 return {
   // entrar en la mina con el pozo que toque ('viejo' o 'pruebas')
-  entrar(key, opts){ if(key && key !== PK) cargarMundo(key); startOpts = opts || null; activa = true; resize(); startRun(); },
+  entrar(key, opts){
+    if(opts && opts.prueba){ iniciarPrueba(key, opts.prueba); return; }
+    if(recargar || (key && key !== PK)){ recargar = false; cargarMundo(key || PK); }
+    startOpts = opts || null; activa = true; resize(); startRun(); },
+  // editor de niveles
+  generar: generarSector, tramos: tramosDe, get probando(){ return !!prueba; },
   salir(){ activa = false; started = false; },
   borrar(){ for(const k in POZOS) save(POZOS[k].guardado, null); cargarMundo(PK); },
   get pozo(){ return PK; },

@@ -32,6 +32,13 @@
 //    W  noria vieja (gira cuando le llega agua y abre las compuertas G)   G  compuerta (roca maciza que abre la noria)
 //    b  brasas (queman la lámpara al pisarlas; el agua las apaga)   X  puerta de la cuadrilla (atrancada)
 //    Q  casco de la cuadrilla (coleccionable)
+//    j  hongo luminoso   R  lámpara de carburo   F  foto de una cuadrilla   w  polilla
+//    *  grisú            &  barro
+//    T  cartel de tutorial (título, texto y, si quieres, un gif)   D  frase de Deep (con su cara)
+//       (los textos van en «textos»: { 'fila,columna': { titulo, texto, gif } } o { texto, cara })
+//
+//  Las piezas que hagas en el editor de niveles se guardan en tu navegador y se suman a estas
+//  (si tienen el mismo id, mandan las tuyas). Con «Exportar» se pasan aquí.
 // =====================================================================
 window.PIEZAS = [
   {
@@ -232,3 +239,11 @@ window.PIEZAS = [
     ],
   },
 ];
+
+// piezas del juego más las del editor de niveles guardadas en este navegador (solo las marcadas como activas)
+window.piezasActivas = () => {
+  let loc = {}; try{ loc = (JSON.parse(localStorage.getItem('deep-editor') || '{}') || {}).piezas || {}; }catch(e){}
+  const mias = Object.values(loc).filter(p => p && p.activa !== false && Array.isArray(p.filas));
+  const ids = new Set(mias.map(p => p.id));
+  return window.PIEZAS.filter(p => !ids.has(p.id)).concat(mias);
+};
