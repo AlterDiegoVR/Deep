@@ -106,7 +106,7 @@ const Pa = window.Partida;
 // ---------- mundo ----------
 let W = null;   // el tiro actual: {id, seed, rows, items, bag, ...}
 let MINA = null;   // la mina entera: {ver, seed, actual, tiros:{id: W}}
-const WORLD_VER = 10;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
+const WORLD_VER = 11;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
 function newTiroWorld(id, seed){ return {id, ver:WORLD_VER, seed, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0, record:0, doors:[], lastRun:0, cargaOk:[], ascUsado:false, escalas:[]}; }
 function newMine(){ const seed = (Math.random()*1e9)|0; return {ver:WORLD_VER, seed, actual:'principal', tiros:{principal: newTiroWorld('principal', seed)}, stats:{ext:{}, per:{}}}; }
 // contador de materiales del pozo: extraído (llegó al almacén) y perdido (escombro, mochila llena, soltado, explosiones, derrumbes)

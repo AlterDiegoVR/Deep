@@ -114,39 +114,43 @@ window.PIEZAS = [
   },
   // ===================== Pozo 3: la Galería del río (el pozo del agua) =====================
   {
-    // La noria vieja: una cámara cerrada de roca madre a la que se baja por una escalera de la cuadrilla. Abajo, la rueda
-    // seca en un foso, una cadena que va hasta una reja y, detrás de la reja, un cofre y una flor. Arriba, en la repisa
-    // por la que se llega, un depósito de agua tapado con una piedra: si la rompes, el agua cae por el hueco de la
-    // escalera hasta la rueda, que gira y sube la reja.
+    // La noria vieja (0.217b): una cámara de roca madre junto al pozo, con un paso de 2 casillas al lado para seguir bajando.
+    // Arriba, un depósito de agua tapado por 3 casillas de tierra: hay que picarlas a propósito desde el rellano.
+    // El agua baja por la escalera de la cuadrilla y se queda en el suelo de tierra de la cámara; para que llegue a la
+    // noria hay que abrir el agujero justo encima de ella. La noria abre la reja del cuartito del cofre.
+    // Se refleja al azar (el paso sale a un lado u otro).
     id: 'noria_pozo3',
     pozo: 'tres',
     tiro: 'principal',
     colocar: { fila: 50 },
     reflejar: true,
     filas: [
-      'xxxxxx___xxxxxx',
-      'x~~~~p_____xxxx',
-      'xxxxxxxLxxxxxxx',
-      'x______L___Gf_x',
-      'x______L___GB_x',
-      'xxxxxxxWxxxxxxx',
-      'xxxxxxxxxxxxxxx',
+      'xxxxxxxx__xx..x',
+      'x~~~~ttt__xx..x',
+      'x~~~~xxxLxxx..x',
+      'x_______LGfx..x',
+      'x_______LGBx..x',
+      'xttttttttxxx..x',
+      'xx_xxxxxxxxx..x',
+      'xxWxxxxxxxxx..x',
+      'xxxxxxxxxxxx..x',
     ],
   },
   {
-    // Las brasas: un pasillo cerrado con ascuas en el suelo y un cofre al final. Bajas por la escalera de la cuadrilla;
-    // si cruzas a pelo, te quema la lámpara. Arriba, un depósito de agua tapado: rompe el tapón y el agua las apaga.
+    // Las brasas (0.217b): un pasillo con ascuas y un cofre al fondo, junto a un paso de 1 casilla para seguir bajando.
+    // Desde el rellano, el depósito de agua está tapado por 2 piedras: pícalas y el agua baja por la escalera y apaga
+    // las brasas. Si cruzas a pelo, te queman la lámpara. Se refleja al azar.
     id: 'brasas_pozo3',
     pozo: 'tres',
     tiro: 'principal',
     colocar: { fila: 115 },
     reflejar: true,
     filas: [
-      'xxxxxx.........',
-      'x~~~~p__.......',
-      'xxxxxxxLxxxxxxx',
-      'xxxx_bbLbbbbBxx',
-      'xxxxxxxxxxxxxxx',
+      'xxxx.x__xxxxxxx',
+      'xxxx.x____pp~~x',
+      'xxxx.xxxLxxx~~x',
+      'xxxx.xbbLbbbbBx',
+      'xxxx.xxxxxxxxxx',
     ],
   },
   {
