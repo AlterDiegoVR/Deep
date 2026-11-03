@@ -78,7 +78,7 @@ window.Arcade = (()=>{
   const nombreMat = k => M[k] ? M[k].nombre : k;
   const pideTxt = p => Object.entries(p).map(([k, n]) => n + ' de ' + nombreMat(k).toLowerCase()).join(', ');
   const numero = n => Math.round(n).toLocaleString('es-ES');
-  const comboNuevo = () => ({n: 0, mult: 0, ultimo: null, pot: 0, t: 0});
+  const comboNuevo = () => ({n: 0, mult: 0, ultimo: null, pot: 0, t: 0, tipos: {}, puro: true, tono: 0, enMax: 0});
   function empezar(modo, vidas){
     const MO = MODOS[modo];
     LF = listaFases(!!MO.sinFin);
@@ -104,19 +104,29 @@ window.Arcade = (()=>{
     const C = S.combo;
     if(esMineral){
       const antes = C.mult;
-      C.mult = C.n === 0 ? 1 : Math.min(CB.tope, C.mult + (key === C.ultimo ? 2 : 1));
+      C.mult = C.n === 0 ? 1 : Math.min(CB.tope, C.mult + 1);
+      if(C.n && key !== C.ultimo) C.puro = false;
       C.n++; C.ultimo = key; C.t = CB.cobrar;
+      const nuevoTipo = !C.tipos[key]; C.tipos[key] = true;
       const pts = (A.puntos[key] || 10)*C.mult; C.pot += pts;
-      Mi.flotar('+' + pts, C.mult >= CB.tope ? '#ff7bd5' : C.mult >= 3 ? '#99e550' : '#fbf236');
-      if(C.mult >= (CB.fuegoDesde || 3) && So && So.pling) So.pling(Math.min(24, (C.n - 1)*2));
-      if(C.mult >= CB.tope && antes < CB.tope){ Mi.flotar('¡MAX!', '#ff7bd5', 0.6); desbloquear('asp_neon'); }
-      pintar(); pulso('arcCombo');
+      // el pling sube siempre de tono; en ¡MAX!, doble toque y vuelve a subir desde abajo
+      if(So && So.pling){
+        if(C.mult >= CB.tope){ So.pling((C.enMax % 7)*2, 1, true); C.enMax++; }
+        else So.pling(Math.min(24, (C.n - 1)*2));
+      }
+      const EN = CB.enlace;
+      if(EN && nuevoTipo && Object.keys(C.tipos).length === EN.tipos) Mi.flotar('¡Enlace a punto!', '#5fcde4', 1.2);
+      if(C.mult >= CB.tope && antes < CB.tope){ desbloquear('asp_neon'); }
+      pintar();
     } else if(C.n) perder();
   }
   function cobrar(){
     const C = S.combo; if(!C.n) return;
+    const puro = C.puro && C.n >= (CB.puroDesde || 3), EN = CB.enlace, enlace = EN && Object.keys(C.tipos).length >= EN.tipos;
+    if(puro) C.pot *= (CB.puroMult || 2);
     S.puntos += C.pot; S.ptsFase += C.pot;
-    if(C.n >= 2){ Mi.flotar('Combo ×' + C.mult + ': +' + numero(C.pot), '#fbf236', 0.6); Mi.sonar('cobrar', 0.8); pulso('arcPuntos'); }
+    if(C.n >= 2){ Mi.flotar((puro ? '¡PURO! ' : '') + 'Combo ×' + C.mult + ': +' + numero(C.pot), puro ? '#ff7bd5' : '#fbf236', 0.6); Mi.sonar('cobrar', 0.8); pulso('arcPuntos'); }
+    if(enlace){ Mi.arcadeDar({puntales: EN.puntales || 0, escaleras: EN.escaleras || 0}); Mi.flotar('¡ENLACE! +' + (EN.puntales || 0) + ' puntales y +' + (EN.escaleras || 0) + ' escaleras', '#5fcde4', 1.3); Mi.sonar('desbloqueo', 0.7); }
     S.combo = comboNuevo(); pintar();
   }
   function perder(){
@@ -283,7 +293,9 @@ window.Arcade = (()=>{
     set('arcTiempo', (parado ? '⏸ ' : '') + mmss(MO.siempre || S.metros ? S.tiempo : S.tFase), forzar);
     $('arcTiempo').classList.toggle('parado', parado);
     const C = S.combo, hayC = MO.puntos && C.n > 0;
-    $('arcComboCaja').hidden = !hayC;
+    $('arcComboCaja').hidden = true;   // el combo se ve encima de Deep (la caja de la barra hacía moverse la pantalla)
+    Mi.combo(hayC ? {mult: C.mult, max: C.mult >= CB.tope, pot: numero(C.pot), t: Math.max(0, Math.min(1, C.t/CB.cobrar)), puro: C.puro && C.n >= 2,
+      tipos: ['arcilla', 'carbon', 'cobre', 'cuarzo'].map(k => C.tipos[k] ? k : null)} : null);
     if(hayC){ set('arcCombo', C.mult >= CB.tope ? '¡MAX!' : '×' + C.mult, forzar); $('arcCombo').classList.toggle('max', C.mult >= CB.tope);
       set('arcPot', '+' + numero(C.pot), forzar); $('arcCobrar').style.width = Math.max(0, Math.min(100, C.t/CB.cobrar*100)) + '%'; }
     let obj = '';

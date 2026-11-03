@@ -144,25 +144,28 @@ window.PIEZAS = [
   },
   // ===================== Pozo 3: la Galería del río (el pozo del agua) =====================
   {
-    // La noria vieja (0.217b): una cámara de roca madre junto al pozo, con un paso de 2 casillas al lado para seguir bajando.
-    // Arriba, un depósito de agua tapado por 3 casillas de tierra: hay que picarlas a propósito desde el rellano.
-    // El agua baja por la escalera de la cuadrilla y se queda en el suelo de tierra de la cámara; para que llegue a la
-    // noria hay que abrir el agujero justo encima de ella. La noria abre la reja del cuartito del cofre.
-    // Se refleja al azar (el paso sale a un lado u otro).
+    // La noria vieja (0.218b): el agua está a tres barreras de la noria y hay que abrirlas por orden.
+    //   1. Entras desde arriba por la escalera hasta un rellano. A la izquierda, el depósito de agua tapado por tierra:
+    //      pícala y el agua se queda en el rellano.
+    //   2. En el suelo del rellano hay tierra: pícala y el agua baja a una cámara.
+    //   3. En el suelo de la cámara hay más tierra: el agua cae al canal y corre hasta la noria, al fondo a la izquierda.
+    //   La noria abre la compuerta del cuartito del cofre (al otro lado del canal). Si te quedas encerrado sin agua, las paredes de
+    //   tierra de la derecha dan al pozo: siempre se puede salir picando. Al volver a bajar, con la noria ya movida y el
+    //   cofre abierto, su hueco sale tapiado con piedra. Se refleja al azar (el paso para seguir bajando sale a un lado u otro).
     id: 'noria_pozo3',
     pozo: 'tres',
     tiro: 'principal',
     colocar: { fila: 50 },
     reflejar: true,
     filas: [
-      'xxxxxxxx__xx..x',
-      'x~~~~ttt__xx..x',
-      'x~~~~xxxLxxx..x',
-      'x_______LGfx..x',
-      'x_______LGBx..x',
-      'xttttttttxxx..x',
-      'xx_xxxxxxxxx..x',
-      'xxWxxxxxxxxx..x',
+      'x~~~xxxxxx_x..x',
+      'x~~~t_____Lx..x',
+      'xxxxxxxxtxxx..x',
+      'xxxxxxx____t..x',
+      'xxxxxxx____t..x',
+      'xxxxxxxtxxxx..x',
+      'xxfBG______t..x',
+      'xxxxxWxxxxxx..x',
       'xxxxxxxxxxxx..x',
     ],
   },

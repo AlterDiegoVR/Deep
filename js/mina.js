@@ -277,7 +277,10 @@ function genRow(r){
     if(sg >= DT.cobre && !isSand(v) && vn(c/2, r/2, S+5) > 0.75 + esc + vieja) v = COPPER;
     // el mineral propio de la mina (hierro en la 3, estaño en la 4…): datos en «vetas» del pozo
     if(P1.vetas) for(const k in P1.vetas){ const V = P1.vetas[k], tt = KEY2T[k]; if(tt === undefined || sg < (V.desde || 0) || isSand(v)) continue;
-      const e = V.escala || 2.2; if(vn(c/e, r/e, S + 30 + hashStr(k) % 50) > V.umbral) v = tt; }
+      // va a más según bajas: «umbral» en su primer tramo y «umbralFinal» en el último (más bajo = más mineral)
+      const nT = TRAMOS.length - 1, de = V.desde || 0, f = nT > de ? Math.min(1, (sg - de)/(nT - de)) : 1;
+      const u = V.umbral + ((V.umbralFinal ?? V.umbral) - V.umbral)*f;
+      const e = V.escala || 2.2; if(vn(c/e, r/e, S + 30 + hashStr(k) % 50) > u) v = tt; }
     if(sg >= DT.cuarzo && v === STONE && h2(c, r, S+12) < 0.008) v = QUARTZ;
     }
     if(d > 3 && vn(c/3, r/3, S+6) > 0.84) v = HARD;
@@ -451,6 +454,16 @@ function devolverKit(p_, l_, k_){
   Pa.kit.llaves = Math.max(0, (Pa.kit.llaves||0) - taken.k) + (k_||0);
   taken = {p:0, l:0, k:0};
 }
+// noria ya movida y su cofre abierto: en la bajada siguiente su hueco sale tapiado con piedra (para no quedarse encerrado ahí)
+function tapiarNorias(){
+  for(const it of W.items){
+    if(it.k !== 'noria' || !it.alive || !it.activa) continue;
+    const cofre = W.items.find(i => i.k === 'cofrePieza' && Math.abs(i.r - it.r) <= 3 && Math.abs(i.c - it.c) <= 9);
+    if(cofre && !cofre.abierto) continue;
+    it.alive = false; ensure(it.r + 1);
+    if(!isSolid(tAt(it.r, it.c))){ setT(it.r, it.c, STONE); W.rows[it.r].nat[it.c] = 0; }
+  }
+}
 // un ungüento hace efecto: se gasta del almacén
 function gastarUng(carta){ const id = ungLlevo[carta]; if(!id) return; delete ungLlevo[carta]; const U = Pa.kit.unguentos || (Pa.kit.unguentos = {}); U[id] = Math.max(0, (U[id]||0) - 1); Pa.guardar(); }
 function startRun(){
@@ -462,6 +475,7 @@ function startRun(){
   ensure(SURF + 40);
   const refilled = W.runs > 0 ? refillTunnels() : 0;
   if(W.runs > 0) restoreRooms();
+  if(W.runs > 0) tapiarNorias();
   if(W.runs > 0 && RC.regenerar) for(const it of W.items) if(it.k === 'herr' && !it.extra) it.alive = true;
   W.items = W.items.filter(it => !(it.extra && !it.alive));
   // que no quede ninguna pulsación de la bajada anterior
@@ -731,7 +745,7 @@ function updateRocks(dt){
 // ---------- jugador ----------
 function weight(){ let w = 0; for(const k in bag) if(INFO[k]) w += bag[k]*INFO[k].val; return w; }
 // la mochila no frena: se llena. Capacidad según ajustes (más con la carta Mochila de cuero)
-let prisa = 0, luzTotal = 0, fuego = 0, subida = null;   // arcade: hongo (más rápido), flor (sin oscuridad), racha de combo, subida en ascensor
+let prisa = 0, luzTotal = 0, fuego = 0, subida = null, comboTag = null;   // arcade: hongo (más rápido), flor (sin oscuridad), racha de combo, subida en ascensor
 function stepTime(){ return JU.tiempoPaso*(prisa > 0 ? 0.5 : 1); }
 // mejoras del taller del tejón (para siempre)
 function mejora(ef){ let v = ef === 'mochila' ? 1 : 0; if(ARC) return v; const MJ = (D.taller && D.taller.mejoras) || [], H = (Pa.pueblo && Pa.pueblo.mejoras) || {};
@@ -1594,6 +1608,23 @@ function drawDoor(r, c, X, Y){
   ctx.strokeStyle = '#fbf236'; ctx.lineWidth = 1; ctx.strokeRect(kx+0.5, Y+8.5, 4, 4);
 }
 // objetos: flor de mina (brilla) o reliquia de minería (caja con destello)
+// arcade: el combo encima de Deep (multiplicador, puntos en juego, barra del tiempo para cobrar y los minerales del enlace)
+const COMBO_COL = {arcilla: '#d9a066', carbon: '#3f3f74', cobre: '#df7126', cuarzo: '#cbdbfc'};
+function drawComboTag(g, x, y){
+  const C = comboTag, txt = C.max ? '¡MAX!' : '×' + C.mult;
+  g.save(); g.textAlign = 'center';
+  const pul = C.max ? 1 + 0.06*Math.sin(t*12) : 1;
+  g.font = `${Math.round(24*pul)}px "Lilita One", "Arial Black", sans-serif`;
+  g.lineWidth = 5; g.strokeStyle = '#000'; g.strokeText(txt, x, y - 18);
+  g.fillStyle = C.max ? '#ff7bd5' : C.puro ? '#fbf236' : '#99e550'; g.fillText(txt, x, y - 18);
+  g.font = '800 13px "Sofia Sans Condensed", "Arial Narrow", sans-serif';
+  const pot = '+' + C.pot + (C.puro ? ' · puro' : '');
+  g.lineWidth = 3; g.strokeText(pot, x, y - 4); g.fillStyle = '#fff'; g.fillText(pot, x, y - 4);
+  // barra para cobrar (ancho fijo) y los cuatro puntitos del enlace
+  g.fillStyle = '#000'; g.fillRect(x - 22, y, 44, 5); g.fillStyle = '#fbf236'; g.fillRect(x - 21, y + 1, Math.round(42*C.t), 3);
+  C.tipos.forEach((k, i) => { const cx = x - 15 + i*10; g.fillStyle = '#000'; g.fillRect(cx - 3, y + 7, 7, 7); g.fillStyle = k ? COMBO_COL[k] : '#45283c'; g.fillRect(cx - 2, y + 8, 5, 5); });
+  g.restore();
+}
 function drawObject(it, X, Y){
   const o = OBJ[it.id] || {}, bob = Math.round(Math.sin(t*3 + it.c)*1);
   if(o.dibujo === 'hongo'){
@@ -1809,7 +1840,7 @@ function render(){
   const half = VW/(2*zoom);
   const fx = zoom <= 1 ? VW/2 : Math.max(half, Math.min(VW - half, VW/2 + (camX - VW/2)*k));
   const fy = VH*0.35 + (pyw - VH*0.35)*k;
-  const sh = shake + shakeKick, sx = (sh ? Math.round((Math.random()*2-1)*sh) : 0) + Math.round(Math.sin(t*38)*fuego*1.2), sy = (sh ? Math.round((Math.random()*2-1)*sh) : 0) + Math.round(Math.cos(t*31)*fuego*0.8);
+  const sh = shake + shakeKick, sx = (sh ? Math.round((Math.random()*2-1)*sh) : 0) , sy = (sh ? Math.round((Math.random()*2-1)*sh) : 0);   // el «on fire» ya no mueve la pantalla (mareaba)
   ctx.save();
   ctx.translate(VW/2 + sx, VH*0.35 + sy); ctx.scale(zoom, zoom); ctx.translate(-fx, -fy);
   // filas que caben en pantalla con este zoom
@@ -1907,6 +1938,7 @@ function render(){
     const x = VW/2 + sx + (f.x*T - fx)*zoom, y = VH*0.35 + sy + ((f.y-cam)*T - fy)*zoom;
     g.fillStyle = '#000'; g.fillText(f.txt, x+1, y+1); g.fillStyle = f.col; g.fillText(f.txt, x, y); }
   g.globalAlpha = 1;
+  if(comboTag && ARC && p) drawComboTag(g, VW/2 + sx + (p.x*T + T/2 - fx)*zoom, VH*0.35 + sy + ((p.y - cam)*T - fy)*zoom - 14);
   drawAirOverlay();
   drawTransit();
   if(!escena){ drawBagMarker(fx, fy); if(has('zahori')) drawOilMarker(fx, fy); }
@@ -2731,7 +2763,7 @@ function frame(now){
     const Lz = layout(p.r), closeUp = !dead && ((Lz.surface && !bajadaBloqueada()) || (Lz.part !== undefined && Lz.part > 0 && Lz.part < ROOM_H-1));
     const zBase = cfg.zoom === 'siempre' ? Math.max(1, CA.zoomExplorar) : 1;
     if(!foco) camX += ((p.x + 0.5)*T - camX)*Math.min(1, dt*CA.seguirLateral);
-    const zT = (looking ? CA.zoomVer : closeUp ? ZCLOSE : zBase) * (1 + 0.07*fuego);
+    const zT = (looking ? CA.zoomVer : closeUp ? ZCLOSE : zBase) ;
     zoom += (zT - zoom)*Math.min(1, dt*(zT > zoom ? CA.velocidadAcercar : CA.velocidadAlejar));
     if(looking) zoom += (zT - zoom)*Math.min(1, dt*4);   // al mirar, rápido
     if(Math.abs(zoom - zT) < 0.004) zoom = zT;
@@ -2839,7 +2871,7 @@ return {
   arcade(o){
     ARC = o; prueba = null; setPozo(o.pozo); MINA = newMine(); W = MINA.tiros.principal; setTiro('principal'); recargar = true;
     startOpts = null; activa = true; $('over').hidden = true; resize(); startRun();
-    subida = null; fuego = 0; prisa = 0; luzTotal = 0;
+    subida = null; fuego = 0; prisa = 0; luzTotal = 0; comboTag = null;
     taken = {p:0, l:0, k:0}; props = o.puntales ?? 10; ladders = o.escaleras ?? 8; llaves = 0; cards = {}; ungLlevo = {}; kitLlevo = false;
     colaAvisos = []; aviso = null; $('toastHost').innerHTML = ''; renderInv(); hud(true);
   },
@@ -2868,6 +2900,8 @@ return {
   aspecto, retratoAspecto,
   filaSala(i){ return ROOM_ROW[i] !== undefined ? ROOM_ROW[i] - SURF + 1 : null; },
   fuego(k){ fuego = Math.max(0, Math.min(1, k || 0)); },
+  combo(o){ comboTag = o || null; },
+  arcadeDar(o){ props += o.puntales || 0; ladders += o.escaleras || 0; renderInv(); },
   arcadeSubir(cb){ subida = {t: 0, cb}; started = true; for(const k in input){ input[k] = false; tapped[k] = 0; } SND('chirrido'); },
   pausa(v){ if(v){ started = false; for(const k in input){ input[k] = false; tapped[k] = 0; } } else { started = true; lastT = performance.now(); } },
   flotar(txt, col, dy){ if(p) floats.push({x:p.x+0.5, y:p.y - 0.4 - (dy||0), txt, life:1.3, col: col || '#fbf236'}); },

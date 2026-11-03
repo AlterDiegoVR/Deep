@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.218',
+  version: '0.218b',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -453,13 +453,13 @@ window.DATOS = {
       aguaEscala: 4,               // ...(más pequeño = charcas más pequeñas; normal 5)
       cuevasUmbral: 0.64,          // más cuevas (normal 0.7): muchas quedan secas y sirven para llevar el agua
       montacargasCada: 2,
-      version: 1,
+      version: 2,
       sueltos: { flor_mina: { cada: 30, desdeFila: 16 }, hongo_azul: { cada: 60, desdeFila: 20 } },
       // nenúfares: flotan en la superficie de las pozas (uno cada tantas pozas, más o menos)
       enAgua: { nenufar: { cada: 5, desdeFila: 10 } },
       // vetas: el mineral nuevo de la mina sale más que los demás; los antiguos, menos (umbral: más alto = menos)
-      //   umbral · escala (tamaño de las vetas) · desde (tramo)
-      vetas: { hierro: { umbral: 0.75, escala: 2.2, desde: 0 } },
+      //   umbral (en su primer tramo) · umbralFinal (en el último) · escala (tamaño de las vetas) · desde (tramo)
+      vetas: { hierro: { umbral: 0.83, umbralFinal: 0.755, escala: 2.2, desde: 1 } },   // poco al principio y más abajo: en total, 1,2-1,5 veces el carbón
       escasezVieja: 0.035,         // se suma al umbral del carbón y del cobre (salen menos que en las minas 1 y 2)
       sueltosRamal: { hongo_azul: { cada: 10, desdeFila: 4 }, flor_mina: { cada: 18, desdeFila: 6 } },
       cofreEspecial: [
@@ -598,10 +598,12 @@ window.DATOS = {
     ],
     // puntos: lo que vale cada mineral (al picarlo, por el combo; y en el recuento, lo que sobra)
     puntos: { arcilla: 10, carbon: 10, cobre: 20, cuarzo: 30 },
-    // combo: cada mineral seguido sube el multiplicador 1 (2 si es del mismo tipo que el anterior), hasta el tope (¡MAX!).
+    // combo: cada mineral seguido sube el multiplicador 1, hasta el tope (¡MAX!). Se ve encima de Deep.
     // Los puntos del combo no son tuyos hasta cobrarlo: se cobra si pasan «cobrar» segundos sin picar otro mineral, o al
     // entrar en una sala segura. Se pierde si rompes algo que no sea mineral, te hace daño una caída o te toca una polilla.
-    combo: { tope: 9, cobrar: 3, fuegoDesde: 3 },
+    // Dos maneras de jugarlo: «puro» (todo el combo del mismo mineral, desde «puroDesde» minerales) vale «puroMult» veces más
+    // al cobrarlo; «enlace» (los «tipos» minerales distintos en el mismo combo) da un regalo de puntales y escaleras.
+    combo: { tope: 9, cobrar: 3, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, puntales: 2, escaleras: 2 } },
     efectos: { hongo: 10, flor: 10 },  // segundos: el hongo te hace el doble de rápido; la flor de mina quita la oscuridad
     plantas: { flor_mina: { cada: 26, desdeFila: 6 }, hongo_azul: { cada: 38, desdeFila: 12 } },   // flores y hongos sueltos
     // colores de cada fase: el fondo de la página (degradado vivo) y el tinte de la roca (multiplica)

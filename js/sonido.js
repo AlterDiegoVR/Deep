@@ -112,10 +112,11 @@ window.Sonido = (()=>{
     try{ tone(ac.currentTime, 0.045 + 0.04*pp, 0.12, 'square', f, f*0.72); }catch(e){}
   }
   // «pling» del combo: sube de tono con cada mineral (k = semitonos por encima de la nota base)
-  function pling(k = 0, v = 1){
+  function pling(k = 0, v = 1, doble = false){
     if(!ac || !on) return;
     const f = 880*Math.pow(2, k/12), t0 = ac.currentTime;
-    try{ tone(t0, 0.1, 0.16*v, 'square', f); tone(t0 + 0.03, 0.22, 0.1*v, 'sine', f*2); noise(t0, 0.05, 0.06*v, 'highpass', 7000); }catch(e){}
+    try{ tone(t0, 0.1, 0.16*v, 'square', f); tone(t0 + 0.03, 0.22, 0.1*v, 'sine', f*2); noise(t0, 0.05, 0.06*v, 'highpass', 7000);
+      if(doble){ const f2 = f*Math.pow(2, 5/12); tone(t0 + 0.09, 0.1, 0.16*v, 'square', f2); tone(t0 + 0.12, 0.22, 0.1*v, 'sine', f2*2); } }catch(e){}
   }
   function retumbo(k){
     if(!ac || !rumbleGain) return;
