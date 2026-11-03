@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.221',
+  version: '0.221b',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -103,8 +103,8 @@ window.DATOS = {
   // La arcilla es la moneda de la tienda: ningún objetivo, montacargas ni kit la pide.
   // precio: material -> cantidad. Materiales: arcilla, carbon, cobre, cuarzo
   tienda: [
-    { id: 'puntal',   nombre: 'Puntal',   texto: 'Sostiene el techo.',     da: { puntales: 1 },  precio: { arcilla: 2 } },
-    { id: 'escalera', nombre: 'Escalera', texto: 'Para subir escalones.',  da: { escaleras: 1 }, precio: { arcilla: 1 } },
+    { id: 'puntal',   nombre: 'Puntal',   texto: '',     da: { puntales: 1 },  precio: { arcilla: 2 } },
+    { id: 'escalera', nombre: 'Escalera', texto: '',  da: { escaleras: 1 }, precio: { arcilla: 1 } },
   ],
 
   // ---------- Lámpara ----------
@@ -604,15 +604,15 @@ window.DATOS = {
     // carta: el efecto que da en la mina (el mismo que la carta de la ruleta con ese id)
     unguentos: {
       pulmones: { nombre: 'Ungüento de pulmones de topo', icono: '🫧', carta: 'pulmones', precio: { hongo_azul: 2 },
-                  texto: 'El aire bajo el agua o el barro dura el doble durante una bajada. Se gasta al meterte bajo el agua.' },
+                  texto: 'Aire bajo el agua ×2.' },
       piel:     { nombre: 'Ungüento de piel dura',        icono: '🛡️', carta: 'casco',    precio: { flor_mina: 3 },
-                  texto: 'Aguantas una piedra encima, una vez.' },
+                  texto: 'Aguantas una piedra encima.' },
       segunda:  { nombre: 'Ungüento de segunda oportunidad', icono: '💖', carta: 'segunda', precio: { flor_mina: 4, hongo_azul: 2 },
-                  texto: 'Si mueres, vuelves a la última sala segura con tu mochila. Una vez.' },
+                  texto: 'Si mueres, vuelves a la última sala.' },
       cera:     { nombre: 'Cera de nenúfar', icono: '🪷', carta: 'cera_nenufar', precio: { nenufar: 2 },
-                  texto: 'La lámpara no se moja: en el agua no gasta más. Dura una bajada; se gasta la primera vez que te mojas.' },
+                  texto: 'El agua no gasta la lámpara.' },
       rodillas: { nombre: 'Ungüento de rodillas de topo', icono: '🦵', carta: 'rodillas', precio: { campanilla: 2 },
-                  texto: 'Las caídas te quitan la mitad de lámpara. Dura una bajada; se gasta en la primera caída que hace daño.' },
+                  texto: 'Caídas a la mitad.' },
     },
   },
 
@@ -623,11 +623,11 @@ window.DATOS = {
   taller: {
     mejoras: [
       { id: 'mochila_1', icono: '🎒', nombre: 'Mochila reforzada', desde: 'mina_3_abierta', precio: { hierro: 16, cobre: 8 }, efecto: { mochila: 1.4 },
-        texto: 'Le cose cuero doble y le pone remaches de hierro: cabe un 40 % más.' },
+        texto: '+40 % de mochila.' },
       { id: 'pico_padre', icono: '⛏️', nombre: 'Pico del padre, restaurado', desde: 'mina_4_abierta', precio: { hierro: 20, estano: 15 }, efecto: { golpe: 1 },
-        texto: 'Mango nuevo, punta de hierro y estaño: un golpe menos para romper cualquier cosa.', necesita: 'pico_padre' },
+        texto: 'Un golpe menos al picar.', necesita: 'pico_padre' },
       { id: 'taladro', icono: '🔩', nombre: 'Taladro de la época dorada', desde: 'temblor_mina5', precio: { cobre: 12, cuarzo: 6 }, efecto: { taladro: 1 },
-        texto: 'Lo limpia, le cambia la broca y lo engrasa: rompe la roca maciza (la azul).', necesita: 'taladro_viejo' },
+        texto: 'Rompe la roca maciza.', necesita: 'taladro_viejo' },
     ],
   },
 

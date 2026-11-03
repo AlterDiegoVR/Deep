@@ -222,7 +222,7 @@ window.Conversaciones = (()=>{
     al('serio', 'Eran, chaval. Hace muchos años que nadie baja. Los pozos se tapan, las galerías se caen… Nadie va a volver a picar ahí abajo.'),
     d('decidido', 'Yo he bajado.'),
     al('sorprendido', '¿Tú? …Bueno. Muy valiente. Muy valiente y muy peligroso.'),
-    al('triste', 'Mira, a mí también me da pena. Mi abuelo era minero, ¿sabes? Pero las minas son parte del pasado. Ya no valen para nada.'),
+    al('triste', 'Mira, a mí también me da pena. Mi abuelo también ayudaba en las minas, ¿sabes? Les llevaba el pan a los topos. Pero las minas son parte del pasado. Ya no valen para nada.'),
     al('orgulloso', 'Hay que mirar hacia delante. ¡Progreso! Lo pone en mi banda. Bueno, no lo pone, pero lo pondría.'),
     d('pensativo', '…'),
   ];
@@ -242,18 +242,17 @@ window.Conversaciones = (()=>{
     d('decidido', 'He vuelto por la llave del museo.'),
     al('serio', 'Ya te dije que…'),
     al('triste', '…'),
-    al('triste', 'Mi abuelo tenía un casco con una lámpara de carburo. Me dejaba ponérmelo los domingos. Me quedaba enorme.'),
+    al('triste', 'Mi abuelo les llevaba el pan a los mineros. Un topo le regaló una lámpara de carburo, y me la dejaba encender los domingos.'),
     al('nervioso', 'Toma. La llave. Pero no le digas a nadie que te la he dado. Y no rompas nada. Y límpiate los pies.'),
     d('alegre', '¡Gracias, señor alcalde!'),
     al('orgulloso', 'Nada, nada. Un alcalde tiene que saber cuándo… ceder con elegancia. Eso también lo pondría en mi banda.'),
   ];
   const ALCALDE_MUSEO = [
-    [al('triste', 'He pasado por el museo. Hay una foto de mi abuelo con el casco. No me acordaba de que sonreía tanto.'), d('contento', 'Se parece a usted.')],
+    [al('triste', 'He pasado por el museo. Hay una foto de mi abuelo con la cuadrilla, con su cesta de pan. No me acordaba de que sonreía tanto.'), d('contento', 'Se parece a usted.')],
     [al('orgulloso', 'El museo abierto le da prestigio al pueblo, ¿eh? Fue idea mía. Bueno, fue idea tuya, pero yo dejé la llave.'), d('alegre', 'Gracias otra vez.')],
   ];
   // ---------- El museo ----------
-  const MUSEO_CERRADO = [[d('pensativo', 'El viejo museo de minería. La puerta está clavada con tablas. Por la rendija solo se ve polvo.')]];
-  const MUSEO_CERRADO_PISTA = [[d('pensativo', 'Aquí dentro está el taladro… La puerta tiene un candado enorme. El alcalde tiene la llave.')]];
+  const MUSEO_CERRADO_PISTA = [d('pensativo', 'Aquí dentro está el taladro… La puerta tiene un candado enorme. El alcalde tiene la llave.')];
   const MUSEO_ENTRAR = [
     d('pensativo', 'La llave entra a la primera. Quito las tablas… La puerta cruje como si llevara años aguantando la respiración.'),
     d('sorprendido', 'Vitrinas, cascos, lámparas, mapas de las galerías… Todo cubierto de polvo. Y fotos. Muchas fotos de topos sonriendo.'),
@@ -373,7 +372,7 @@ window.Conversaciones = (()=>{
     if(casa === 'museo'){
       if(Pa.bandera('temblor_mina5') && Pa.bandera('llave_museo') && !Pa.bandera('museo_abierto')) return {lineas: MUSEO_ENTRAR, fin: () => {
         Pa.ponerBandera('museo_abierto'); Pa.guardarEnColeccion('taladro_viejo', 1); Pa.sumarProsperidad(2); Pa.guardar(); }};
-      if(!Pa.bandera('museo_abierto')) return {lineas: Pa.bandera('temblor_mina5') && Pa.bandera('pista_taladro') ? MUSEO_CERRADO_PISTA : MUSEO_CERRADO, fin: null};
+      if(!Pa.bandera('museo_abierto')) return Pa.bandera('temblor_mina5') && Pa.bandera('pista_taladro') ? {lineas: MUSEO_CERRADO_PISTA, fin: null} : null;
       return null;
     }
     if(casa === 'casa') return null;

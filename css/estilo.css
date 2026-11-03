@@ -327,17 +327,17 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 .shop .row b.num{min-width:26px;text-align:center;font-size:18px}
 .shop .row button[data-p]{min-width:36px}
 label.chip.llevar{margin:0;cursor:pointer}
-/* ---- 0.221: las casas se abren a pantalla completa (encima de la plaza) y el diario es un cuaderno a toda pantalla ---- */
-#plazaPanel{top:6px;bottom:6px;left:6px;right:6px;height:auto;max-height:none;min-height:0;padding:14px 16px 16px;gap:10px;border-radius:16px}
-#plazaPanel h2{font-size:30px;padding-right:44px}
-#plazaPanel .cerrar{top:10px;right:10px;width:42px;height:42px;font-size:20px}
-#plazaPanel p{font-size:17px}
+/* ---- 0.221b: las casas con contenido se abren a pantalla completa (.completa); las de una sola frase, abajo y pequeñas como antes y el diario es un cuaderno a toda pantalla ---- */
+#plazaPanel.completa{top:6px;bottom:6px;left:6px;right:6px;height:auto;max-height:none;min-height:0;padding:14px 16px 16px;gap:10px;border-radius:16px}
+#plazaPanel.completa h2{font-size:30px;padding-right:44px}
+#plazaPanel.completa .cerrar{top:10px;right:10px;width:42px;height:42px;font-size:20px}
+#plazaPanel.completa p{font-size:17px}
 #plazaPanel .shop .row{padding:10px 12px}
 #plazaPanel .shop .row span{font-size:18px}
 #plazaPanel .shop .row small{font-size:14px}
 #plazaPanel .chip{font-size:15px;padding:3px 10px}
 #plazaPanel .lbl{font-size:12px;margin-top:4px}
-#ppCuerpo{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
+#plazaPanel.completa #ppCuerpo{flex:1;display:flex;flex-direction:column;gap:8px;min-height:0}
 #plazaPanel .tabs .tab{font-size:15px;padding:10px 4px}
 .cuaderno{flex:1;min-height:260px;display:flex;flex-direction:column;background:#fffaf0 repeating-linear-gradient(transparent 0 33px, #cbdbfc 33px 34px);
   border:2px solid var(--perg);border-radius:8px;padding:12px 18px 10px 34px;box-shadow:inset 26px 0 0 -24px #d95763, 0 3px 0 var(--perg);
@@ -349,3 +349,6 @@ label.chip.llevar{margin:0;cursor:pointer}
 #plazaPanel .armario{grid-template-columns:repeat(auto-fill, minmax(96px, 1fr))}
 #plazaPanel .armario .asp img{width:68px;height:70px}
 #plazaPanel .datos p{font-size:17px;padding:4px 0;border-bottom:1px dashed var(--perg)}
+#plazaPanel:not(.completa) p{font-size:16px}
+.burbujaAsp{position:relative;margin-top:4px;background:#fff6e8;border:2px solid var(--madera-oo);border-radius:12px;padding:8px 12px;font-weight:800;font-size:16px}
+.burbujaAsp::before{content:'';position:absolute;top:-9px;left:24px;border:8px solid transparent;border-top:0;border-bottom-color:var(--madera-oo)}

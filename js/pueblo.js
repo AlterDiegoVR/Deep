@@ -454,7 +454,7 @@ window.Pueblo = (()=>{
   }
   const chipFalta = (k, tiene, n) => `<span class="chip${tiene >= n ? '' : ' muted'}"><i style="background:${MAT[k] && MAT[k].color || '#999'}"></i>${MAT[k] ? MAT[k].nombre : k} <b>${Math.min(tiene, n)}/${n}</b></span>`;
   // ---- casa de Deep: diario, armario, dormir y datos ----
-  let casaTab = 'diario', diarioPag = null;
+  let casaTab = 'diario', diarioPag = null, armVisto = null;
   function panelCasaDeep(cuerpo){
     const CD = D.casaDeep || {diario: [], dormir: {cada: 3}}, tabs = {diario: '📖 Diario', armario: '👕 Armario', dormir: '🛏️ Dormir', datos: '📊 Datos'};
     let h = '<div class="tabs">' + Object.entries(tabs).map(([k, n]) => `<button class="tab${casaTab === k ? ' on' : ''}" data-t="${k}">${n}</button>`).join('') + '</div>';
@@ -468,15 +468,19 @@ window.Pueblo = (()=>{
     } else if(casaTab === 'armario'){
       const AS = (D.arcade && D.arcade.aspectos) || [], gan = Pa.aspectosGanados(), act = Pa.pueblo.aspecto || 'clasico';
       const total = new Set(['clasico', ...Object.values(CD.armario.minas), ...Object.values(CD.armario.flores)]).size;
-      h += `<p class="note">Un aspecto por cada mina que terminas y otro por cada flor de mina de un color nuevo que le llevas a la coneja. Tienes ${gan.length} de ${total}.</p><div class="armario">` +
+      h += `<p class="lbl">${gan.length}/${total}</p><div class="armario">` +
         gan.map(id => { const a = AS.find(x => x.id === id) || {id: 'clasico', nombre: 'Clásico'};
           const img = window.Mina && window.Mina.retratoAspecto ? window.Mina.retratoAspecto(a.pal ? a : null, 2) : '';
           return `<button class="asp${id === act ? ' on' : ''}" data-a="${id}"><img src="${img}" alt=""><span>${a.nombre}</span></button>`; }).join('') + '</div>';
+      if(armVisto){ const mm = Object.entries(CD.armario.minas).find(([, x]) => x === armVisto), ff = Object.entries(CD.armario.flores).find(([, x]) => x === armVisto);
+        const m = mm && D.minas.find(x => String(x.id) === mm[0]);
+        h += `<p class="burbujaAsp">${armVisto === 'clasico' ? 'El de siempre.' : m ? 'Por terminar ' + m.nombre + '.' : ff ? 'Por llevarle a la coneja una flor de mina ' + ff[0] + '.' : ''}</p>`; }
     } else if(casaTab === 'dormir'){
       const E = Pa.estad(), ult = Pa.pueblo.siesta ?? -99, faltan = (CD.dormir.cada || 3) - (E.bajadas - ult);
-      if(Pa.pueblo.descansado) h += '<p>Has dormido como un tronco. En la próxima bajada te cabe más en la mochila.</p>';
-      else if(faltan > 0) h += `<p>Aún no tienes sueño. Podrás dormir dentro de ${faltan} ${faltan === 1 ? 'bajada' : 'bajadas'}.</p>`;
-      else h += `<p>Estás molido de tanto bajar. Una buena siesta y en la próxima bajada te cabe un ${Math.round(((CD.dormir.carga || 1.25) - 1)*100)} % más en la mochila.</p><div class="fila"><button class="btn" id="dormirBtn">Dormir</button></div>`;
+      const pc = Math.round(((CD.dormir.carga || 1.25) - 1)*100);
+      if(Pa.pueblo.descansado) h += `<p>😴 Descansado: +${pc} % de mochila en la próxima bajada.</p>`;
+      else if(faltan > 0) h += `<p>Te ${faltan === 1 ? 'falta 1 bajada' : 'faltan ' + faltan + ' bajadas'} para poder dormir.</p>`;
+      else h += `<div class="fila"><button class="btn" id="dormirBtn">Dormir (+${pc} % de mochila)</button></div>`;
     } else {
       const E = Pa.estad(), mins = Object.entries(E.minerales || {}).filter(([, n]) => n > 0);
       const abiertas = D.minas.filter(m => typeof m.id === 'number' && (m.abierta || Pa.bandera('mina_' + m.id + '_abierta'))).length;
@@ -490,7 +494,7 @@ window.Pueblo = (()=>{
     if($('pagAnt')){ $('pagAnt').onclick = e => { e.stopPropagation(); pasar(-1); }; $('pagSig').onclick = e => { e.stopPropagation(); if(!$('pagSig').disabled) pasar(1); };
       $('cuaderno').onclick = () => { if(!$('pagSig').disabled) pasar(1); }; }
     cuerpo.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => { casaTab = b.dataset.t; if(casaTab === 'diario') diarioPag = null; panelCasa(); });
-    cuerpo.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { Pa.pueblo.aspecto = b.dataset.a; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir', 0.6); panelCasa(); });
+    cuerpo.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { Pa.pueblo.aspecto = b.dataset.a; armVisto = b.dataset.a; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir', 0.6); panelCasa(); });
     const db = $('dormirBtn'); if(db) db.onclick = () => { Pa.pueblo.descansado = true; Pa.pueblo.siesta = Pa.estad().bajadas; Pa.guardar(); window.Sonido && window.Sonido.tocar('sala', 0.6); panelCasa(); };
   }
   function panelCasa(){
@@ -498,13 +502,13 @@ window.Pueblo = (()=>{
     $('plazaKit').textContent = kitTxt();
     const cuerpo = $('ppCuerpo');
     if(plazaSel === null){ $('plazaPanel').hidden = true; return; }
-    $('plazaPanel').hidden = false;
+    $('plazaPanel').hidden = false; $('plazaPanel').classList.add('completa');
     const c = casaVer(D.casas[plazaSel]);
+    const apunte = txt => { $('plazaPanel').classList.remove('completa'); cuerpo.innerHTML = `<p>${txt}</p>`; };
     $('ppEyebrow').textContent = c.dueno; $('ppTitulo').textContent = c.nombre;
     if(c.tipo === 'tienda'){
       cuerpo.innerHTML = '<div class="shop">' + D.tienda.map((it, j) =>
-        `<div class="row"><span>${it.nombre}<small>${it.texto} ${precioTxt(it.precio)}.</small></span><button data-j="${j}" ${Pa.puedePagar(it.precio) ? '' : 'disabled'}>Comprar</button></div>`).join('') + '</div>' +
-        `<p class="note">${kitTxt()}.</p>`;
+        `<div class="row"><span>${it.nombre}<small>${precioTxt(it.precio)}</small></span><button data-j="${j}" ${Pa.puedePagar(it.precio) ? '' : 'disabled'}>Comprar</button></div>`).join('') + '</div>';
       cuerpo.querySelectorAll('button[data-j]').forEach(b => b.onclick = () => { Pa.comprar(D.tienda[+b.dataset.j]); panelCasa(); });
     } else if(c.tipo === 'almacen'){
       // preparar la bajada: lo que te llevas (puntales, escaleras y ungüentos), los minerales con lo que falta y las mejoras
@@ -515,15 +519,14 @@ window.Pueblo = (()=>{
       let h = '<p class="lbl">Para la próxima bajada</p><div class="shop">' + paso('p', '🪵 Puntales', lp, Pa.kit.puntales || 0) + paso('l', '🪜 Escaleras', ll, Pa.kit.escaleras || 0) + '</div>';
       const misU = Object.keys(HB.unguentos).filter(id => U[id]);
       if(misU.length) h += `<div class="list">${misU.map(id => `<label class="chip llevar"><input type="checkbox" data-l="${id}" ${ELEG.includes(id) ? 'checked' : ''}> ${HB.unguentos[id].icono} ${HB.unguentos[id].nombre} <b>${U[id]}</b></label>`).join('')}</div>
-        <p class="note" id="ungNota">Caben ${HUECOS} ungüentos (llevas ${ELEG.length}).</p>`;
-      if(Pa.pueblo.kitMc) h += `<p class="note">🧰 Llevas el kit del tejón para ${Pa.pueblo.kitMc.pozoNombre}, sala ${Pa.pueblo.kitMc.sala}.</p>`;
-      if(Pa.pueblo.descansado) h += '<p class="note">😴 Has dormido: en la próxima bajada te cabe más en la mochila.</p>';
+        <p class="note" id="ungNota">Llevas ${ELEG.length}/${HUECOS}</p>`;
+      const extra = [Pa.pueblo.kitMc ? `🧰 Kit: ${Pa.pueblo.kitMc.pozoNombre}, sala ${Pa.pueblo.kitMc.sala}` : '', Pa.pueblo.descansado ? '😴 +25 % de mochila' : ''].filter(Boolean);
+      if(extra.length) h += '<div class="list">' + extra.map(x => `<span class="chip">${x}</span>`).join('') + '</div>';
       h += '<p class="lbl">Minerales</p><div class="list">' + (ks.length ? ks.map(k => chip(k, Pa.almacen[k])).join('') : '<span class="chip muted">Vacío</span>') + '</div>';
       if(obj) h += `<p class="lbl">Para ${obj.nombre}</p><div class="list">${Object.entries(obj.coste).map(([k, n]) => chipFalta(k, Pa.almacen[k] || 0, n)).join('')}</div>`;
       const MJ = ((D.taller && D.taller.mejoras) || []).filter(m => (Pa.pueblo.mejoras || {})[m.id]);
       if(MJ.length) h += '<p class="lbl">Mejoras</p><div class="list">' + MJ.map(m => `<span class="chip">${m.icono} ${m.nombre}</span>`).join('') + '</div>';
       if(!Pa.bandera('museo_abierto')) h += `<p class="lbl">Colección · ${colTxt()}</p><div class="list">${colChips()}</div>`;
-      else h += '<p class="note">Tu colección está ahora en el museo.</p>';
       h += '<div class="fila"><button class="btn ghost" id="borrarTodo">Empezar de cero (borra mina, almacén, colección y herramientas)</button></div>';
       cuerpo.innerHTML = h;
       cuerpo.querySelectorAll('button[data-p]').forEach(b => b.onclick = () => {
@@ -542,12 +545,12 @@ window.Pueblo = (()=>{
       const MJ = ((D.taller && D.taller.mejoras) || []).filter(m => Pa.bandera(m.desde) && (!m.necesita || Pa.coleccion[m.necesita] || Pa.bandera('viejo_pico')));
       const HM = Pa.pueblo.mejoras || {};
       let h = '';
-      if(MJ.length) h += '<p class="lbl">Mejoras</p><div class="shop">' + MJ.map(m => `<div class="row"><span>${m.icono} ${m.nombre}<small>${m.texto} ${HM[m.id] ? '' : precioTxt(m.precio) + '.'}</small></span>${HM[m.id] ? '<span class="chip">Hecha</span>' : `<button data-m="${m.id}" ${Pa.puedePagar(m.precio) ? '' : 'disabled'}>Fabricar</button>`}</div>`).join('') + '</div>';
-      h += '<p class="note">Kits de reparación de montacargas: arreglan uno concreto allí mismo, sin gastar lo que lleves. Cuestan más que arreglarlo abajo, y solo puedes llevar uno a la vez.</p>';
-      if(K) h += `<p><b>Tienes un kit</b> para ${K.pozoNombre}, sala ${K.sala}${Pa.pueblo.kitMcMochila ? ' (está en tu mochila perdida: recupérala)' : ''}.</p>`;
-      if(!V.length) h += '<p>Aún no has visto ningún montacargas roto.</p>';
-      else h += '<div class="shop">' + V.map((v, j) => { const pr = kitPrecio(v.coste);
-        return `<div class="row"><span>${v.pozoNombre}, sala ${v.sala}<small>Abajo pide ${precioTxt(v.coste)}. El kit: ${precioTxt(pr)}.</small></span><button data-j="${j}" ${!K && Pa.puedePagar(pr) ? '' : 'disabled'}>Fabricar</button></div>`; }).join('') + '</div>';
+      if(MJ.length) h += '<p class="lbl">Mejoras</p><div class="shop">' + MJ.map(m => `<div class="row"><span>${m.icono} ${m.nombre}<small>${m.texto}${HM[m.id] ? '' : ' ' + precioTxt(m.precio)}</small></span>${HM[m.id] ? '<span class="chip">Hecha</span>' : `<button data-m="${m.id}" ${Pa.puedePagar(m.precio) ? '' : 'disabled'}>Fabricar</button>`}</div>`).join('') + '</div>';
+      // sin mejoras ni kits que fabricar, el tejón solo habla: no se abre nada
+      if(!MJ.length && !V.length && !K){ plazaSel = null; $('plazaPanel').hidden = true; return; }
+      if(K) h += `<div class="list"><span class="chip">🧰 Kit: ${K.pozoNombre}, sala ${K.sala}</span></div>`;
+      if(V.length) h += '<p class="lbl">Kits de montacargas</p><div class="shop">' + V.map((v, j) => { const pr = kitPrecio(v.coste);
+        return `<div class="row"><span>${v.pozoNombre}, sala ${v.sala}<small>${precioTxt(pr)}</small></span><button data-j="${j}" ${!K && Pa.puedePagar(pr) ? '' : 'disabled'}>Fabricar</button></div>`; }).join('') + '</div>';
       cuerpo.innerHTML = h;
       cuerpo.querySelectorAll('button[data-m]').forEach(b => b.onclick = () => {
         const m = MJ.find(x => x.id === b.dataset.m); if(!m || (Pa.pueblo.mejoras || {})[m.id] || !Pa.puedePagar(m.precio)) return;
@@ -560,16 +563,16 @@ window.Pueblo = (()=>{
         Pa.pueblo.kitMc = {key: v.key, pozo: v.pozo, pozoNombre: v.pozoNombre, sala: v.sala}; Pa.pueblo.kitMcMochila = false; Pa.guardar();
         window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
     } else if(c.tipo === 'herbolaria'){
-      if(!Pa.bandera('ardilla_intro')){ cuerpo.innerHTML = '<p>La ardilla va de un lado a otro entre frascos y manojos de hierbas. No te hace ni caso.</p>'; return; }
+      if(!Pa.bandera('ardilla_intro')){ apunte('La ardilla va de un lado a otro entre frascos y manojos de hierbas. No te hace ni caso.'); return; }
       const EE = Pa.encargosDisponibles();
-      let h = EE.length ? EE.map(e => `<p class="lbl">Encargo · ${e.nombre}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => objChip(k, Pa.coleccion[k] || 0, n)).join('')}</div>`).join('') : '<p class="note">No hay encargos pendientes. ¡Gracias por todas las plantas!</p>';
+      let h = EE.length ? EE.map(e => `<p class="lbl">Encargo · ${e.nombre}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => objChip(k, Pa.coleccion[k] || 0, n)).join('')}</div>`).join('') : '';
       const U = Pa.kit.unguentos || {}, ELEG = Pa.ungElegidos(), HUECOS = HB.huecos || 2;
       const recetas = Object.entries(HB.unguentos).filter(([id]) => Pa.bandera('receta_' + id) || U[id]);
       if(recetas.length){
-        h += '<p class="lbl">Ungüentos</p><div class="shop">' + recetas.map(([id, u]) => `<div class="row"><span>${u.icono} ${u.nombre} · tienes ${U[id] || 0}<small>${u.texto}${Pa.bandera('receta_' + id) ? ' Cuesta ' + objTxt(u.precio) + '.' : ''}</small>
+        h += '<p class="lbl">Ungüentos</p><div class="shop">' + recetas.map(([id, u]) => `<div class="row"><span>${u.icono} ${u.nombre} · ${U[id] || 0}<small>${u.texto}${Pa.bandera('receta_' + id) ? ' ' + objTxt(u.precio) : ''}</small>
           ${U[id] ? `<label class="llevar"><input type="checkbox" data-l="${id}" ${ELEG.includes(id) ? 'checked' : ''}> Llevármelo a la mina</label>` : ''}</span>
           ${Pa.bandera('receta_' + id) ? `<button data-u="${id}" ${puedeObj(u.precio) ? '' : 'disabled'}>Preparar</button>` : ''}</div>`).join('') + '</div>';
-        h += `<p class="note" id="ungNota">Caben ${HUECOS} ungüentos en tu bolsa (llevas ${ELEG.length}). Se gastan cuando hacen efecto; si no hace falta, vuelve contigo.</p>`;
+        h += `<p class="note" id="ungNota">Llevas ${ELEG.length}/${HUECOS}</p>`;
       }
       cuerpo.innerHTML = h;
       cuerpo.querySelectorAll('button[data-u]').forEach(b => b.onclick = () => { const u = HB.unguentos[b.dataset.u]; if(!puedeObj(u.precio)) return;
@@ -577,7 +580,7 @@ window.Pueblo = (()=>{
         const UU = Pa.kit.unguentos || (Pa.kit.unguentos = {}); UU[b.dataset.u] = (UU[b.dataset.u] || 0) + 1; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
       bindUng(cuerpo, HUECOS);
     } else if(c.tipo === 'alcaldia'){
-      cuerpo.innerHTML = '<p>' + (Pa.bandera('museo_abierto') ? 'El alcalde mira por la ventana hacia el museo. Hace como que no.' : 'El alcalde firma papeles con mucha ceremonia. En la pared, un mapa de las minas con una cruz roja encima.') + '</p>';
+      apunte(Pa.bandera('museo_abierto') ? 'El alcalde mira por la ventana hacia el museo. Hace como que no.' : 'El alcalde firma papeles con mucha ceremonia. En la pared, un mapa de las minas con una cruz roja encima.');
     } else if(c.tipo === 'casa'){
       panelCasaDeep(cuerpo);
     } else if(c.tipo === 'museo'){
@@ -596,11 +599,12 @@ window.Pueblo = (()=>{
       const V = (D.vecinos || {})[c.vecino] || {encargos: []}, est = Pa.vecino(c.vecino), e = V.encargos[est.hechos || 0];
       const cosa = (k, n) => MAT[k] ? chipFalta(k, Pa.almacen[k] || 0, n) : objChip(k, Pa.coleccion[k] || 0, n);
       cuerpo.innerHTML = e ? `<p class="lbl">Encargo ${(est.hechos || 0) + 1} de ${V.encargos.length}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => cosa(k, n)).join('')}</div>
-        <p class="note">Te da ${e.da.escaleras || 0} escaleras y ${e.da.puntales || 0} puntales. Entra a hablar cuando lo tengas.</p>` : '<p class="note">Ya no le hace falta nada. ¡Gracias por todo!</p>';
+        <p class="lbl">Te da</p><div class="list"><span class="chip">🪜 ${e.da.escaleras || 0}</span><span class="chip">🪵 ${e.da.puntales || 0}</span></div>` : '';
+      if(!e){ plazaSel = null; $('plazaPanel').hidden = true; return; }
     } else if(c.tipo === 'cerrada'){
-      cuerpo.innerHTML = `<p>${c.texto || 'Está cerrada.'}</p>`;
+      apunte(c.texto || 'Está cerrada.');
     } else {
-      cuerpo.innerHTML = '<p>Aún no tiene nada que pedirte. Pronto vendrán aquí los encargos.</p>';
+      plazaSel = null; $('plazaPanel').hidden = true;
     }
   }
   // colección: lo encontrado en las minas (base del futuro museo)
