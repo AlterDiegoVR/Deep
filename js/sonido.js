@@ -86,6 +86,14 @@ window.Sonido = (()=>{
     clic(t,v){ tone(t, 0.05, 0.16*v, 'triangle', 880, 620); noise(t, 0.025, 0.12*v, 'bandpass', 2400, 0, 2); },
     // latido de la lámpara baja (pum-pum grave)
     latido(t,v){ tone(t, 0.14, 0.55*v, 'sine', 72, 44); noise(t, 0.06, 0.12*v, 'lowpass', 180); tone(t + 0.19, 0.12, 0.4*v, 'sine', 64, 40); },
+    // combo roto: cristales que se rompen
+    cristales(t,v){ for(let i=0;i<6;i++){ noise(t + i*0.03 + Math.random()*0.02, 0.09, 0.3*v, 'highpass', 4000 + Math.random()*3000); tone(t + i*0.035, 0.08, 0.06*v, 'triangle', 2600 - i*250 + Math.random()*200, 900); } },
+    // combo cobrado: monedas que caen en el marcador
+    cobrar(t,v){ [1047, 1319, 1568, 2093].forEach((f,i) => tone(t+i*0.05, 0.16, 0.13*v, 'square', f)); tone(t+0.22, 0.4, 0.12*v, 'triangle', 2093); },
+    // algo desbloqueado: fanfarria corta y brillante
+    desbloqueo(t,v){ [523, 659, 784, 1047, 1319].forEach((f,i) => tone(t+i*0.07, 0.22, 0.14*v, 'triangle', f)); tone(t+0.38, 0.6, 0.12*v, 'sine', 1568); noise(t+0.3, 0.4, 0.1*v, 'highpass', 6000); },
+    // ¡corre al cajón! (contrarreloj)
+    corre(t,v){ [784, 988, 1175, 1568].forEach((f,i) => tone(t+i*0.06, 0.12, 0.18*v, 'square', f)); [784, 988, 1175, 1568].forEach((f,i) => tone(t+0.3+i*0.06, 0.12, 0.18*v, 'square', f*1.26)); },
     // pasos en la plaza (sobre adoquines)
     pasoPlaza(t,v){ noise(t, 0.04, 0.1*v, 'bandpass', 1300 + Math.random()*400, 0, 1.5); },
   };
@@ -103,6 +111,12 @@ window.Sonido = (()=>{
     const f = 760 + 380*pp + Math.random()*40;
     try{ tone(ac.currentTime, 0.045 + 0.04*pp, 0.12, 'square', f, f*0.72); }catch(e){}
   }
+  // «pling» del combo: sube de tono con cada mineral (k = semitonos por encima de la nota base)
+  function pling(k = 0, v = 1){
+    if(!ac || !on) return;
+    const f = 880*Math.pow(2, k/12), t0 = ac.currentTime;
+    try{ tone(t0, 0.1, 0.16*v, 'square', f); tone(t0 + 0.03, 0.22, 0.1*v, 'sine', f*2); noise(t0, 0.05, 0.06*v, 'highpass', 7000); }catch(e){}
+  }
   function retumbo(k){
     if(!ac || !rumbleGain) return;
     rumbleGain.gain.setTargetAtTime(on ? Math.min(1, k)*0.7 : 0, ac.currentTime, 0.12);
@@ -111,5 +125,5 @@ window.Sonido = (()=>{
     on = !!v; try{ localStorage.setItem('pozoviejo-sonido', on ? '1' : '0'); }catch(e){}
     if(master) master.gain.value = on ? CFG.volumen : 0;
   }
-  return {tocar, tic, retumbo, activar, get activado(){ return on; }};
+  return {tocar, tic, pling, retumbo, activar, get activado(){ return on; }};
 })();

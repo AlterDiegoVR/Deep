@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.216',
+  version: '0.217',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -32,7 +32,8 @@ window.DATOS = {
   aceite: { desdeLargo: 20, minimo: 1, maximo: 2 },
 
   // ---------- Daño por caída ----------
-  caida: { arena: 0.25 },      // caer sobre arena hace esta parte del daño; caer en agua o barro (media casilla o más) no hace daño
+  // daño por caída (valores por defecto; en la mina se pueden cambiar en los ajustes)
+  caida: { activado: true, desde: 4, lampara: 20, modo: 'crece', crece: 5, arena: 0.25 },      // caer sobre arena hace esta parte del daño; caer en agua o barro (media casilla o más) no hace daño
 
   // ---------- Brasas (pozo del agua) ----------
   brasas: { quema: 9 },        // % de lámpara por segundo mientras pisas brasas encendidas (el agua las apaga)
@@ -550,10 +551,48 @@ window.DATOS = {
     ],
     // puntos: lo que vale cada mineral (al picarlo, por el combo; y en el recuento, lo que sobra)
     puntos: { arcilla: 10, carbon: 10, cobre: 20, cuarzo: 30 },
-    combo: { tope: 9 },              // cada mineral seguido sube el multiplicador 1; si es del mismo tipo que el anterior, 2
+    // combo: cada mineral seguido sube el multiplicador 1 (2 si es del mismo tipo que el anterior), hasta el tope (¡MAX!).
+    // Los puntos del combo no son tuyos hasta cobrarlo: se cobra si pasan «cobrar» segundos sin picar otro mineral, o al
+    // entrar en una sala segura. Se pierde si rompes algo que no sea mineral, te hace daño una caída o te toca una polilla.
+    combo: { tope: 9, cobrar: 3, fuegoDesde: 3 },
+    efectos: { hongo: 10, flor: 10 },  // segundos: el hongo te hace el doble de rápido; la flor de mina quita la oscuridad
+    plantas: { flor_mina: { cada: 26, desdeFila: 6 }, hongo_azul: { cada: 38, desdeFila: 12 } },   // flores y hongos sueltos
+    // colores de cada fase: el fondo de la página (degradado vivo) y el tinte de la roca (multiplica)
+    colores: [
+      { fondo: ['#ff9a3c', '#ff5f1f'], roca: null },
+      { fondo: ['#3fe0d0', '#1aa39a'], roca: '#9fb0d8' },
+      { fondo: ['#ff7ac8', '#e0389a'], roca: '#e8a088' },
+      { fondo: ['#b6f24a', '#6cc21c'], roca: '#c4a0e8' },
+      { fondo: ['#b45cff', '#6a1fd0'], roca: '#6a5a72' },
+    ],
+    bonusFinal: { lampara: 10, puntal: 50, escalera: 50 },   // al subir en el ascensor: puntos por cada % de lámpara y cada herramienta que te queda
+    sinFin: { crece: 4, largoMax: 40, pideCrece: 0.5 },     // sin fin: las fases se repiten, cada vuelta más largas y pidiendo más
+    mrDeep: { aceiteFilas: 9, porMetro: 5 },                 // Mr. Deep: aceite cada tantas filas; puntos por metro
     porSegundo: 5,                   // puntos por cada segundo por debajo del tiempo de referencia
     segundosPorFila: 2.2,            // tiempo de referencia: filas de la fase (o metros del recorrido) por esto
     vidas: 3,                        // modo de tres vidas: reapareces en la última sala segura
+    // aspectos de Deep: colores cambiados (letras de la paleta del topo) y, a veces, un adorno. «como» = cómo se consigue
+    aspectos: [
+      { id: 'clasico',   nombre: 'Clásico',     tipo: 'aspecto', pal: {} },
+      { id: 'azul',      nombre: 'Casco azul',  tipo: 'aspecto', como: 'Llegar al fondo en 100 m', pal: { a: '#306082', b: '#5b6ee1', c: '#222034', '2': '#fbf236', '1': '#df7126' } },
+      { id: 'explorador',nombre: 'Explorador',  tipo: 'aspecto', como: 'Llegar al fondo en 300 m', pal: { a: '#9badb7', b: '#ffffff', c: '#595652', '2': '#76428a', '1': '#45283c' } },
+      { id: 'oro',       nombre: 'Topo de oro', tipo: 'aspecto', como: 'Terminar el arcade', pal: { a: '#d9a066', b: '#fbf236', c: '#8f563b', d: '#ffffff', F: '#d9a066', G: '#fbf236', K: '#fbf236', e: '#8f563b', h: '#d9a066', k: '#fbf236', p: '#8f563b', i: '#8f563b', f: '#d9a066', g: '#fbf236', P: '#fbf236', L: '#ffffff', N: '#fbf236', m: '#fbf236', '0': '#45283c' } },
+      { id: 'neon',      nombre: 'Neón',        tipo: 'aspecto', como: 'Llegar a ¡MAX! en un combo', pal: { a: '#d77bba', b: '#ffb3e0', c: '#76428a', '2': '#5fcde4', '1': '#306082' } },
+      { id: 'buzo',      nombre: 'Buzo',        tipo: 'aspecto', como: 'Aguantar 30 s bajo el agua', pal: { a: '#37946e', b: '#99e550', c: '#4b692f', '2': '#5fcde4', '1': '#306082' } },
+      { id: 'rayo',      nombre: 'Rayo',        tipo: 'aspecto', como: 'Contrarreloj en menos de 6:00', pal: { a: '#ac3232', b: '#d95763', c: '#45283c', '2': '#fbf236', '1': '#df7126' } },
+      { id: 'fantasma',  nombre: 'Fantasma',    tipo: 'aspecto', como: 'Morir 20 veces', pal: { a: '#cbdbfc', b: '#ffffff', c: '#9badb7', F: '#9badb7', G: '#cbdbfc', K: '#ffffff', h: '#9badb7', e: '#847e87', '2': '#cbdbfc', '1': '#9badb7' } },
+      { id: 'alfarero',  nombre: 'Alfarero',    tipo: 'aspecto', como: 'Picar 300 de arcilla', pal: { a: '#8f563b', b: '#d9a066', c: '#663931', h: '#8f563b', e: '#663931', '2': '#eec39a', '1': '#d9a066' } },
+      { id: 'carbonero', nombre: 'Carbonero',   tipo: 'aspecto', como: 'Picar 500 de carbón', pal: { a: '#595652', b: '#847e87', c: '#222034', F: '#222034', G: '#323c39', K: '#45283c', k: '#595652', '2': '#696a6a', '1': '#45283c' } },
+      { id: 'cobrizo',   nombre: 'Cobrizo',     tipo: 'aspecto', como: 'Picar 300 de cobre', pal: { a: '#df7126', b: '#ffa040', c: '#8a3a10', h: '#8f563b', '2': '#37946e', '1': '#4b692f' } },
+      { id: 'cuarzo',    nombre: 'Cuarzo',      tipo: 'aspecto', como: 'Picar 100 cuarzos', pal: { a: '#639bff', b: '#cbdbfc', c: '#5b6ee1', d: '#ffffff', '2': '#ffffff', '1': '#9badb7' } },
+      { id: 'sincasco',  nombre: 'Deep sin casco', tipo: 'aspecto', como: 'Bajar 50 m sin poner un puntal', pal: { a: '#323c39', b: '#595652', c: '#323c39', d: '#595652' } },
+      { id: 'singafas',  nombre: 'Deep sin gafas', tipo: 'aspecto', como: 'Pasar una fase entera con la mecha baja', pal: { P: '#595652', L: '#595652' } },
+      { id: 'natural',   nombre: 'Sin casco ni gafas', tipo: 'aspecto', como: 'Tener Deep sin casco y Deep sin gafas', pal: { a: '#323c39', b: '#595652', c: '#323c39', d: '#595652', P: '#595652', L: '#595652' } },
+      { id: 'tejon',     nombre: 'El tejón',    tipo: 'vecino', como: 'Usar 100 herramientas (escaleras y puntales)', pal: { a: '#9badb7', b: '#ffffff', c: '#595652', d: '#ffffff', F: '#323c39', G: '#595652', K: '#9badb7', h: '#696a6a', e: '#323232', '2': '#8f563b', '1': '#663931' } },
+      { id: 'coneja',    nombre: 'La coneja',   tipo: 'vecino', como: 'Abrir 50 cofres', adorno: 'conejo', pal: { a: '#eec39a', b: '#ffffff', c: '#d9a066', d: '#ffffff', F: '#eec39a', G: '#ffffff', K: '#ffffff', P: '#ffffff', L: '#ffffff', n: '#222034', h: '#cbdbfc', e: '#9badb7', m: '#d77bba', N: '#d77bba', k: '#eec39a', '2': '#d95763', '1': '#ac3232' } },
+      { id: 'ardilla',   nombre: 'La ardilla',  tipo: 'vecino', como: 'Encontrar 25 plantas (flores y hongos)', adorno: 'ardilla', pal: { a: '#df7126', b: '#d9a066', c: '#8f563b', d: '#d9a066', F: '#df7126', G: '#d9a066', K: '#eec39a', P: '#8f563b', L: '#eec39a', h: '#8f563b', e: '#663931', N: '#d77bba', '2': '#6abe30', '1': '#37946e' } },
+      { id: 'viejo',     nombre: 'El viejo topo', tipo: 'vecino', como: 'Llegar al fondo en 500 m', pal: { a: '#696a6a', b: '#9badb7', c: '#595652', d: '#9badb7', F: '#696a6a', G: '#9badb7', K: '#cbdbfc', P: '#d9a066', L: '#cbdbfc', '2': '#ffffff', '1': '#cbdbfc', h: '#45283c', e: '#323232' } },
+    ],
     // recorridos de 100, 300 y 500 m: sin salas seguras, con franjas de roca maciza (hueco a un lado, cambiando cada vez)
     // y más aceite. Cuenta el tiempo y los minerales
     recorridos: {

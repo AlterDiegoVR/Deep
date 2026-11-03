@@ -85,7 +85,7 @@ const near = (r, c) => p ? Math.max(0, 1 - Math.hypot(r - p.r, (c - p.c)*0.6)/14
 // Ajustes de prueba: parten de datos.js y se pueden tocar desde el menú de ajustes (se guardan en el navegador)
 const HM = D.herramientas.minimoPorBajada || {puntales:0, escaleras:0};
 const BASE = {drain:LA.consumo, corn:ES.cornisa ?? 2, crack:ES.tiempoCrujido, thrH:ES.escombroSiCaeDesde, thrS:ES.escombroSiCaenJuntos,
-  frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, escala:'1', resp:1, respP:90, rubMax:ES.maxEscombroPorGolpe, caida:'0', caidaDesde:4, caidaDanio:10, caidaModo:'fijo', caidaCrece:5, minP:HM.puntales, minL:HM.escaleras, llevP:(D.herramientas.llevarPorBajada||{}).puntales ?? 12, llevL:(D.herramientas.llevarPorBajada||{}).escaleras ?? 8, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilMin:(D.aceite && D.aceite.desdeLargo) || 20, oilGain:LA.aceite,
+  frag:'1', anim:'todo', cap: (D.mochila && D.mochila.capacidad) || 20, escala:'1', resp:1, respP:90, rubMax:ES.maxEscombroPorGolpe, caida: (D.caida && D.caida.activado === false) ? '0' : '1', caidaDesde:(D.caida && D.caida.desde) ?? 4, caidaDanio:(D.caida && D.caida.lampara) ?? 20, caidaModo:(D.caida && D.caida.modo) || 'crece', caidaCrece:(D.caida && D.caida.crece) ?? 5, minP:HM.puntales, minL:HM.escaleras, llevP:(D.herramientas.llevarPorBajada||{}).puntales ?? 12, llevL:(D.herramientas.llevarPorBajada||{}).escaleras ?? 8, recoger: D.herramientas.recogerPuntales ? '1' : '0', oilEvery:9, oilMin:(D.aceite && D.aceite.desdeLargo) || 20, oilGain:LA.aceite,
   dark:'1', zoom: CA.zoomExplorar >= 2 ? 'siempre' : 'salas'};
 let cfg = {...BASE};
 const CFG_VER = 2;   // sube cuando cambian valores por defecto importantes: los ajustes guardados de antes se olvidan de esos valores
@@ -242,7 +242,7 @@ function genRow(r){
   if(L.part !== undefined){
     R.nat.fill(1);
     if(L.part === ROOM_H-2){ W.items.push({k:'cofreSala', room:L.room, r, c:SA.columnaCofre, alive:true}); if(hasLift(L.room)) W.items.push({k:'carga', room:L.room, r, c:COL_CARGA, alive:true});
-      if(esCajon(L.room)) W.items.push({k:'cajon', room:L.room, r, c:SA.columnaRuleta, alive:true}); }
+      if(esCajon(L.room)) W.items.push({k:'cajon', room:L.room, r, c:SA.columnaRuleta, alive:true, final: !!(ARC && ARC.finalEn === L.room)}); }
     if(L.part === 0 || L.part === ROOM_H-1) Tt.fill(BEAM);
     if(L.part === ROOM_H-1 && esCajon(L.room)) Tt.fill(ROCK);   // arcade: el suelo de la sala del cajón no se abre hasta pagarlo
     for(let c=0;c<COLS;c++) R.hp[c] = INFO[Tt[c]].hp||0;
@@ -711,7 +711,8 @@ function updateRocks(dt){
 // ---------- jugador ----------
 function weight(){ let w = 0; for(const k in bag) if(INFO[k]) w += bag[k]*INFO[k].val; return w; }
 // la mochila no frena: se llena. Capacidad según ajustes (más con la carta Mochila de cuero)
-function stepTime(){ return JU.tiempoPaso; }
+let prisa = 0, luzTotal = 0, fuego = 0, subida = null;   // arcade: hongo (más rápido), flor (sin oscuridad), racha de combo, subida en ascensor
+function stepTime(){ return JU.tiempoPaso*(prisa > 0 ? 0.5 : 1); }
 function capacity(){ if(ARC) return 1e9; return Math.round(cfg.cap * (has('mochila_cuero') ? cv_('mochila_cuero', 1.5) : 1)); }
 const inMud = (r, c) => tAt(r, c) === MUD;
 function canStand(r, c){ if(p.onPlat && r === SURF-2 && c === 7) return true; const below = tAt(r+1, c); return isSolid(below) || below === LADDER || below === PLANK || below === PROP || tAt(r, c) === LADDER; }
@@ -724,9 +725,9 @@ function hit(r, c, dir){
     if(lockMsgT <= 0){ floats.push({x:c+0.5, y:r, txt: INFO[v].madre ? 'Roca madre: no se puede romper' : 'Roca maciza: hace falta un taladro', life:1.4, col:'#cbdbfc'}); lockMsgT = 1.6; }
     return;
   }
-  if(v === RUBBLE){ clearRubble(r, c); digT = JU.tiempoGolpe; lamp -= LA.costeGolpe; SND('escombro'); if(ARC && ARC.golpe) ARC.golpe('escombro', false, r, c); return; }
+  if(v === RUBBLE){ clearRubble(r, c); digT = JU.tiempoGolpe*(prisa > 0 ? 0.5 : 1); lamp -= LA.costeGolpe; SND('escombro'); if(ARC && ARC.golpe) ARC.golpe('escombro', false, r, c); return; }
   if(has('pico_afilado') && R.hp[c] === INFO[v].hp && INFO[v].hp > 1) R.hp[c]--;   // carta: un golpe menos
-  R.hp[c]--; digT = JU.tiempoGolpe; lamp -= LA.costeGolpe;
+  R.hp[c]--; digT = JU.tiempoGolpe*(prisa > 0 ? 0.5 : 1); lamp -= LA.costeGolpe;
   burst(r+0.5, c+0.5, '#d9a066', 2);
   if(R.hp[c] > 0) SND('golpe');
   if(R.hp[c] <= 0){
@@ -739,6 +740,14 @@ function hit(r, c, dir){
       if(got < n){ SND('clin'); floats.push({x:c+0.5, y:r, txt:'Mochila llena: ' + INFO[v].n.toLowerCase() + ' perdido', life:1.4, col:'#d95763'}); }
     }
     if(ARC && ARC.golpe) ARC.golpe(INFO[v].key, !!INFO[v].val, r, c);
+    if(ARC && ARC.grupo && INFO[v].val){
+      const seen = new Set([r*16 + c]), q = [[r, c]], cel = [];
+      while(q.length && cel.length < 60){ const [rr, cc] = q.pop();
+        for(const [dr, dc] of [[1,0],[-1,0],[0,1],[0,-1]]){ const r2 = rr+dr, c2 = cc+dc, k = r2*16 + c2;
+          if(c2 < 0 || c2 >= COLS || r2 < SURF || seen.has(k) || tAt(r2, c2) !== v) continue; seen.add(k); q.push([r2, c2]); cel.push([r2, c2]); } }
+      cel.forEach(([r2, c2], i) => { setT(r2, c2, AIR); bag[v] = (bag[v]||0) + 1; burst(r2+0.5, c2+0.5, '#fbf236', 5); if(ARC.golpe) ARC.golpe(INFO[v].key, true, r2, c2); });
+      if(cel.length){ renderInv(v); SND('rompe'); shakeKick = Math.max(shakeKick, Math.min(3, cel.length*0.3)); }
+    }
   }
 }
 function clearRubble(r0, c0){
@@ -754,7 +763,7 @@ function clearRubble(r0, c0){
   if(cells.length > 3) floats.push({x:c0+0.5, y:r0, txt:'¡Fuera escombro! ('+cells.length+')', life:1, col:'#9badb7'});
 }
 function updatePlayer(dt){
-  digT -= dt; moveT -= dt; p.actT += dt; driftT -= dt;
+  digT -= dt; moveT -= dt; p.actT += dt; driftT -= dt; prisa = Math.max(0, prisa - dt); luzTotal = Math.max(0, luzTotal - dt);
   for(const k in tapped) tapped[k] = Math.max(0, tapped[k] - dt);
   if(p.stun > 0){ p.stun -= dt; if(p.stun > 0){ moveT = Math.max(moveT, 0.01); } }
   // movimiento suave hacia la casilla destino
@@ -793,7 +802,7 @@ function updatePlayer(dt){
           // caer sobre arena apenas hace daño
           const sobreArena = isSand(tAt(p.r+1, p.c)), k = sobreArena ? ((D.caida && D.caida.arena) ?? 0.25) : 1;
           const dmg = Math.round(k*(cfg.caidaDanio + (cfg.caidaModo === 'crece' ? (n - cfg.caidaDesde)*cfg.caidaCrece : 0)));
-          lamp -= dmg; SND('tropiezo'); floats.push({x:p.c+0.5, y:p.r-0.2, txt:'¡Caída! -' + dmg + '% luz', life:1.3, col:'#d95763'});
+          lamp -= dmg; SND('tropiezo'); if(ARC && ARC.dano) ARC.dano('caida'); floats.push({x:p.c+0.5, y:p.r-0.2, txt:'¡Caída! -' + dmg + '% luz', life:1.3, col:'#d95763'});
         }
       }
       p.fallN = 0;
@@ -802,6 +811,7 @@ function updatePlayer(dt){
       else if(moveT <= 0 && digT <= 0 && p.stun <= 0 && !looking){
         const ax = (want('R')?1:0) - (want('L')?1:0);
         if(ax){ tapped.L = tapped.R = 0; }
+        if(ax && p.onPlat && ARC && ARC.jaula && ARC.jaula(ax)){ input.L = input.R = false; moveT = 0.22; return; }
         if(ax && p.onPlat) p.onPlat = false;
         if(ax){
           p.face = ax;
@@ -1103,7 +1113,7 @@ function updateMoths(dt){
     if(!freeAt(nx, m.y)){ m.vx *= -0.6; m.ang = Math.PI - (m.ang||0); } else m.x = nx;
     if(!freeAt(m.x, ny)){ m.vy *= -0.6; m.ang = -(m.ang||0); } else m.y = ny;
     if(!dead && Math.abs(m.x - px) < 0.55 && Math.abs(m.y - (p.y+0.5)) < 0.6){
-      m.alive = false; lamp -= PE.polillaLuz; SND('polilla'); floats.push({x:px, y:p.y-0.1, txt:'-'+PE.polillaLuz+'% luz', life:1.2, col:'#d95763'}); burst(m.y, m.x, '#eec39a', 10);
+      m.alive = false; lamp -= PE.polillaLuz; if(ARC && ARC.dano) ARC.dano('polilla'); SND('polilla'); floats.push({x:px, y:p.y-0.1, txt:'-'+PE.polillaLuz+'% luz', life:1.2, col:'#d95763'}); burst(m.y, m.x, '#eec39a', 10);
     }
   }
 }
@@ -1231,6 +1241,43 @@ for(const [st, col] of Object.entries(TP.lampara)){
   HERO[st] = {}; for(const [a, frs] of Object.entries(TP.anims)) HERO[st][a] = frs.map(f => sprite(f, TP.pal, {d: col}));
 }
 const TROP = {}; for(const [st, col] of Object.entries(TP.lampara)) TROP[st] = TP.tropiezo.map(f => sprite(f, TP.pal, {d: col}));
+// aspectos (Deep Arcade): colores cambiados y, a veces, un adorno (orejas, cola) que se pinta sobre cada fotograma
+let HSET = HERO, TSET = TROP;
+function adorno(rows, tipo){
+  if(!tipo) return rows;
+  const g = rows.map(r => r.split('')), H = g.length, Wd = g[0].length;
+  let x0 = 99, x1 = -1, y0 = 99;
+  g.forEach((r, y) => r.forEach((ch, x) => { if(ch === 'a' || ch === 'b'){ x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); } }));
+  if(x1 < 0) return rows;
+  const put = (y, x, ch) => { if(y >= 0 && y < H && x >= 0 && x < Wd && (g[y][x] === '.' || ch !== '0')) g[y][x] = ch; };
+  if(tipo === 'conejo') for(const ex of [x0 + 2, x1 - 3]){
+    for(let k=1;k<=6;k++){ put(y0 - k, ex - 1, '0'); put(y0 - k, ex + 2, '0'); put(y0 - k, ex, 'a'); put(y0 - k, ex + 1, k > 1 && k < 6 ? 'm' : 'a'); }
+    put(y0 - 7, ex, '0'); put(y0 - 7, ex + 1, '0'); }
+  if(tipo === 'ardilla'){
+    for(const ex of [x0 + 1, x1 - 1]){ put(y0 - 1, ex, 'a'); put(y0 - 2, ex, 'c'); put(y0 - 1, ex - 1, '0'); put(y0 - 1, ex + 1, '0'); put(y0 - 2, ex - 1, '0'); put(y0 - 2, ex + 1, '0'); put(y0 - 3, ex, '0'); }
+    const tx0 = Math.max(0, x0 - 4);
+    for(let k=0;k<11;k++){ const y = y0 + 4 + k, w = k < 2 || k > 8 ? 2 : 3;
+      for(let i=0;i<w;i++) put(y, tx0 + i, i === 0 || k % 3 === 0 ? 'a' : 'b');
+      put(y, tx0 - 1, '0'); put(y, tx0 + w, '0'); }
+    put(y0 + 3, tx0, '0'); put(y0 + 3, tx0 + 1, '0'); put(y0 + 15, tx0, '0'); put(y0 + 15, tx0 + 1, '0'); }
+  return g.map(r => r.join(''));
+}
+function aspecto(def){
+  if(!def || !def.pal){ HSET = HERO; TSET = TROP; return; }
+  const H = {}, TR = {};
+  for(const [st, col] of Object.entries(TP.lampara)){
+    const sw = Object.assign({d: col}, def.pal);
+    H[st] = {}; for(const [a, frs] of Object.entries(TP.anims)) H[st][a] = frs.map(f => sprite(adorno(f, def.adorno), TP.pal, sw));
+    TR[st] = TP.tropiezo.map(f => sprite(adorno(f, def.adorno), TP.pal, sw));
+  }
+  HSET = H; TSET = TR;
+}
+// retrato de un aspecto (para el menú y los avisos): el topo quieto, ampliado
+function retratoAspecto(def, esc){
+  const f = adorno(TP.anims.reposo[0], def && def.adorno), sw = Object.assign({d: TP.lampara.alta}, (def && def.pal) || {});
+  const c0 = sprite(f, TP.pal, sw), e = esc || 3, c = document.createElement('canvas'); c.width = 27*e; c.height = 28*e;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false; x.drawImage(c0, 0, 0, 27, 28, 0, 0, 27*e, 28*e); return c.toDataURL();
+}
 const PACK = Object.fromEntries(Object.entries(TP.mochila).map(([k,v])=>[k, {x:v.x, y:v.y, c:sprite(v.px, TP.pal)}]));
 const ANIM_FPS = {reposo:2, andar:9, picar_lado:12, picar_abajo:10, caer:2, caida_larga:10};
 
@@ -1582,6 +1629,15 @@ function drawWheel(i){
 // arcade: el cajón donde se depositan los minerales para abrir la compuerta (suelo de la sala)
 function drawCajon(it, X, Y){
   const g = ctx, ab = !!it.pagado;
+  if(it.final){   // la última sala: el ascensor viejo que te sube (se paga como un cajón)
+    g.fillStyle = '#9badb7'; g.fillRect(X - 6, Y - 3*T, 1, 3*T + 4); g.fillRect(X + T + 5, Y - 3*T, 1, 3*T + 4);
+    if(subida) return;
+    g.fillStyle = '#000'; g.fillRect(X - 9, Y - 10, T + 18, T + 10);
+    g.fillStyle = '#595652'; g.fillRect(X - 8, Y - 9, T + 16, 3); g.fillRect(X - 8, Y + T - 4, T + 16, 3); g.fillRect(X - 8, Y - 9, 2, T + 8); g.fillRect(X + T + 6, Y - 9, 2, T + 8);
+    g.fillStyle = '#847e87'; for(let i=0;i<5;i++) g.fillRect(X - 3 + i*7, Y - 6, 1, T + 2);
+    const k = 0.5 + 0.5*Math.sin(t*4); g.fillStyle = ab ? '#6abe30' : `rgba(251,242,54,${0.5 + 0.5*k})`; g.fillRect(X + T/2 - 2, Y - 16 - Math.round(k*2), 4, 4);
+    return;
+  }
   g.fillStyle = '#000'; g.fillRect(X - 3, Y + 7, T + 6, T - 7);
   g.fillStyle = '#663931'; g.fillRect(X - 2, Y + 8, T + 4, T - 9);
   g.fillStyle = '#8f563b'; for(let i=0;i<3;i++) g.fillRect(X - 2, Y + 9 + i*5, T + 4, 3);
@@ -1643,14 +1699,14 @@ function drawMoth(m){
 function drawHero(){
   if(dead && (dead.cause === 'crush' || dead.cause === 'buried')) return;
   const st = lamp <= 0 ? 'apagada' : gasNear ? 'grisu' : wick ? 'alta' : 'baja';
-  const frs = HERO[st][p.anim], f = frs[Math.floor((p.act ? p.actT : t) * ANIM_FPS[p.anim]) % frs.length];
+  const frs = HSET[st][p.anim], f = frs[Math.floor((p.act ? p.actT : t) * ANIM_FPS[p.anim]) % frs.length];
   const feetX = Math.round((p.sx ?? p.x)*T) + 12, feetY = Math.round((p.y - cam)*T) + T;
   const flip = p.face < 0, x0 = flip ? feetX - 22 : feetX - 10, y0 = feetY - 26;
   const w = weight(), cp = Math.max(1, capacity()), pk = w === 0 ? null : w < cp*0.34 ? 'ligera' : w < cp*0.75 ? 'media' : 'llena';
   ctx.save();
   if(p.stun > 0){
     // de bruces hacia donde ibas: sprite propio, con estrellitas
-    const tf = TROP[st], fr = tf[(JU.aturdidoPorLosPelos - p.stun) < 0.35 ? 0 : Math.floor(t*3) % tf.length];
+    const tf = TSET[st], fr = tf[(JU.aturdidoPorLosPelos - p.stun) < 0.35 ? 0 : Math.floor(t*3) % tf.length];
     const ty = feetY - fr.height + 1;
     if(flip){ ctx.translate(feetX + 14, ty); ctx.scale(-1, 1); } else ctx.translate(feetX - 14, ty);
     ctx.drawImage(fr, 0, 0);
@@ -1660,6 +1716,9 @@ function drawHero(){
       ctx.fillRect(Math.round(hx + Math.cos(a)*7), Math.round(feetY - 19 + Math.sin(a)*2.5), 2, 2); }
     return;
   }
+  // subiendo en el ascensor del arcade: plataforma con sus cuerdas
+  if(subida){ ctx.fillStyle = '#9badb7'; ctx.fillRect(feetX - 11, feetY - 60, 1, 60); ctx.fillRect(feetX + 10, feetY - 60, 1, 60);
+    ctx.fillStyle = '#000'; ctx.fillRect(feetX - 14, feetY, 29, 6); ctx.fillStyle = '#d9a066'; ctx.fillRect(feetX - 13, feetY + 1, 27, 3); p.anim = 'reposo'; }
   // caída larga: se zarandea en el aire
   if(p.anim === 'caida_larga'){ ctx.translate(Math.round(Math.sin(t*14)), 0); }
   if(flip){ ctx.translate(x0 + 32, y0); ctx.scale(-1, 1); } else ctx.translate(x0, y0);
@@ -1703,7 +1762,7 @@ function render(){
   const half = VW/(2*zoom);
   const fx = zoom <= 1 ? VW/2 : Math.max(half, Math.min(VW - half, VW/2 + (camX - VW/2)*k));
   const fy = VH*0.35 + (pyw - VH*0.35)*k;
-  const sh = shake + shakeKick, sx = sh ? Math.round((Math.random()*2-1)*sh) : 0, sy = sh ? Math.round((Math.random()*2-1)*sh) : 0;
+  const sh = shake + shakeKick, sx = (sh ? Math.round((Math.random()*2-1)*sh) : 0) + Math.round(Math.sin(t*38)*fuego*1.2), sy = (sh ? Math.round((Math.random()*2-1)*sh) : 0) + Math.round(Math.cos(t*31)*fuego*0.8);
   ctx.save();
   ctx.translate(VW/2 + sx, VH*0.35 + sy); ctx.scale(zoom, zoom); ctx.translate(-fx, -fy);
   // filas que caben en pantalla con este zoom
@@ -1726,6 +1785,10 @@ function render(){
       if(v !== AIR){ const R = W.rows[r]; if(isSand(v) && (R.ox[c] || R.oy[c])) drawSandSplit(v, r, c, X, Y, R.ox[c], R.oy[c]); else drawTile(v, r, c, X + Math.round(R.ox[c]*T), Y + Math.round(R.oy[c]*T)); }
     }
   }
+  // arcade: la roca se tiñe con el color de cada fase
+  if(ARC && ARC.tinte){ ctx.save(); ctx.globalCompositeOperation = 'multiply';
+    for(let r=Math.max(SURF, r0); r<=r1; r++){ const col = ARC.tinte(r, layout(r).seg); if(col){ ctx.fillStyle = col; ctx.fillRect(-VW, Math.round((r-cam)*T), VW*3, T); } }
+    ctx.restore(); }
   // antorchas de las salas
   for(const i of rooms){
     if(hasWheel(i)) drawWheel(i);
@@ -1752,7 +1815,7 @@ function render(){
   ctx.globalAlpha = 1;
 
   // luz con sombras y memoria de lo explorado
-  if(cfg.dark === '1'){
+  if(cfg.dark === '1' && !(luzTotal > 0)){
     const nR = r1 - r0 + 1;
     if(lbuf.length !== nR*COLS){ lbuf = new Float32Array(nR*COLS); lc.width = COLS; lc.height = nR; limg = lctx.createImageData(COLS, nR); }
     lbuf.fill(0);
@@ -1801,6 +1864,9 @@ function render(){
   drawTransit();
   if(!escena){ drawBagMarker(fx, fy); if(has('zahori')) drawOilMarker(fx, fy); }
   if(looking){ g.textAlign = 'center'; g.font = '900 14px Nunito, sans-serif'; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(VW/2-70, 8, 140, 22); g.fillStyle = '#fbf236'; g.fillText('Mirando · pulsa Ver', VW/2, 24); }
+  if(fuego > 0){ const a = Math.min(0.55, 0.18 + 0.3*fuego) * (0.85 + 0.15*Math.sin(t*9));
+    const gr = g.createRadialGradient(VW/2, VH*0.45, Math.min(VW, VH)*0.32, VW/2, VH*0.45, Math.hypot(VW, VH)*0.55);
+    gr.addColorStop(0, 'rgba(255,160,40,0)'); gr.addColorStop(0.7, `rgba(255,120,30,${a*0.5})`); gr.addColorStop(1, `rgba(255,60,20,${a})`); g.fillStyle = gr; g.fillRect(0, 0, VW, VH); }
   if(latActivo){ const de = LA.latidoDesde ?? 25, k = Math.max(0, (de - lamp)/de), a = 0.2 + 0.25*k + 0.3*latPulso;
     const gr = g.createRadialGradient(VW/2, VH*0.45, Math.min(VW, VH)*0.28, VW/2, VH*0.45, Math.hypot(VW, VH)*0.55);
     gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, `rgba(12,0,4,${Math.min(0.85, a)})`); g.fillStyle = gr; g.fillRect(0, 0, VW, VH); }
@@ -1874,6 +1940,7 @@ function drawOilMarker(fx, fy){
 
 // ---------- cofres de las salas seguras ----------
 function openRoomChest(it){
+  if(ARC && ARC.cofre) ARC.cofre();
   W.rewarded.push(it.room); chestFx = {it, t:0}; SND('cofre'); shakeKick = Math.max(shakeKick, 1.5);
   const C = SA.cofre, got = [];
   const give = g => { if(g.escaleras) ladders += g.escaleras; if(g.puntales) props += g.puntales; if(g.llaves) llaves += g.llaves; };
@@ -1991,6 +2058,13 @@ function drawTransit(){
 }
 function pickObject(it){
   it.alive = false;
+  if(ARC){   // arcade: no van a la mochila; dan un efecto corto
+    const EF = (D.arcade && D.arcade.efectos) || {};
+    burst(it.r+0.5, it.c+0.5, it.id === 'hongo_azul' ? '#5fcde4' : '#ffb3e0', 18); SND('carta');
+    if(it.id === 'hongo_azul'){ prisa = EF.hongo ?? 10; floats.push({x:it.c+0.5, y:it.r, txt:'¡Hongo! Más rápido', life:1.4, col:'#5fcde4'}); }
+    else { luzTotal = EF.flor ?? 10; floats.push({x:it.c+0.5, y:it.r, txt:'¡Flor de mina! Luz', life:1.4, col:'#ffb3e0'}); }
+    if(ARC.objeto) ARC.objeto(it.id); return;
+  }
   if(it.id === 'pico_padre') Pa.ponerBandera('pico_encontrado');
   const key = 'o:' + it.id, o = OBJ[it.id] || {nombre: it.id, icono:'?', texto:''};
   bag[key] = (bag[key]||0) + 1; SND('carta'); renderInv();
@@ -2577,7 +2651,11 @@ function frame(now){
     updateUnroll(dt);
     slideAnim(top, bot, dt);
     updateRocks(dt);
-    if(!dead){
+    if(subida){   // arcade: Deep sube en el ascensor del fondo
+      subida.t += dt; p.y -= dt*(1.5 + subida.t*5); p.sx = p.x;
+      if(subida.t > 2.4 && !subida.hecho){ subida.hecho = true; if(subida.cb) subida.cb(); }
+    }
+    if(!dead && !subida){
       if(foco){ for(const k in input) input[k] = false; }
       updatePlayer(dt);
       updateMoths(dt);
@@ -2605,7 +2683,7 @@ function frame(now){
     const Lz = layout(p.r), closeUp = !dead && ((Lz.surface && !bajadaBloqueada()) || (Lz.part !== undefined && Lz.part > 0 && Lz.part < ROOM_H-1));
     const zBase = cfg.zoom === 'siempre' ? Math.max(1, CA.zoomExplorar) : 1;
     if(!foco) camX += ((p.x + 0.5)*T - camX)*Math.min(1, dt*CA.seguirLateral);
-    const zT = looking ? CA.zoomVer : closeUp ? ZCLOSE : zBase;
+    const zT = (looking ? CA.zoomVer : closeUp ? ZCLOSE : zBase) * (1 + 0.07*fuego);
     zoom += (zT - zoom)*Math.min(1, dt*(zT > zoom ? CA.velocidadAcercar : CA.velocidadAlejar));
     if(looking) zoom += (zT - zoom)*Math.min(1, dt*4);   // al mirar, rápido
     if(Math.abs(zoom - zT) < 0.004) zoom = zT;
@@ -2713,6 +2791,7 @@ return {
   arcade(o){
     ARC = o; prueba = null; setPozo(o.pozo); MINA = newMine(); W = MINA.tiros.principal; setTiro('principal'); recargar = true;
     startOpts = null; activa = true; $('over').hidden = true; resize(); startRun();
+    subida = null; fuego = 0; prisa = 0; luzTotal = 0;
     taken = {p:0, l:0, k:0}; props = o.puntales ?? 10; ladders = o.escaleras ?? 8; llaves = 0; cards = {}; ungLlevo = {}; kitLlevo = false;
     colaAvisos = []; aviso = null; $('toastHost').innerHTML = ''; renderInv(); hud(true);
   },
@@ -2721,7 +2800,8 @@ return {
     const L = layout(p.r), mins = {};
     for(const k in bag){ if(!String(k).startsWith('o:') && INFO[k] && INFO[k].val && bag[k] > 0) mins[INFO[k].key] = bag[k]; }
     return {inRoom: L.part !== undefined && L.part > 0 && L.part < ROOM_H-1, sala: L.room, superficie: !!L.surface, dead: !!dead, started,
-      profundidad: Math.max(0, p.r - SURF + 1), maxima: maxDepth, bag: mins, lamp, salas: ROOM_ROW.length};
+      profundidad: Math.max(0, p.r - SURF + 1), maxima: maxDepth, bag: mins, lamp, salas: ROOM_ROW.length,
+      seg: L.seg, wick: !!wick, bajoAgua: !!submerged, props, ladders, enJaula: !!p.onPlat, prisa, luzTotal};
   },
   arcadeQuitar(pedido){ for(const [k, n] of Object.entries(pedido)){ const tt = KEY2T[k]; if(tt === undefined) continue; bag[tt] = Math.max(0, (bag[tt]||0) - n); if(!bag[tt]) delete bag[tt]; } renderInv(); },
   arcadeVaciar(){ for(const k in bag) if(!String(k).startsWith('o:')) delete bag[k]; renderInv(); },
@@ -2737,6 +2817,10 @@ return {
     lamp = 100; buried = 0; air = airMax(); flashT = 0.5; wick = 1; started = true; lastT = performance.now();
     for(const k in input){ input[k] = false; tapped[k] = 0; }
   },
+  aspecto, retratoAspecto,
+  filaSala(i){ return ROOM_ROW[i] !== undefined ? ROOM_ROW[i] - SURF + 1 : null; },
+  fuego(k){ fuego = Math.max(0, Math.min(1, k || 0)); },
+  arcadeSubir(cb){ subida = {t: 0, cb}; started = true; for(const k in input){ input[k] = false; tapped[k] = 0; } SND('chirrido'); },
   pausa(v){ if(v){ started = false; for(const k in input){ input[k] = false; tapped[k] = 0; } } else { started = true; lastT = performance.now(); } },
   flotar(txt, col, dy){ if(p) floats.push({x:p.x+0.5, y:p.y - 0.4 - (dy||0), txt, life:1.3, col: col || '#fbf236'}); },
   avisar(titulo, texto){ toast(titulo, texto); },
