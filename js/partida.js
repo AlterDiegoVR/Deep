@@ -45,6 +45,13 @@ window.Partida = (()=>{
       const r = ids.filter(id => L[id] === true); for(const id of ids) if(r.length < H && L[id] === undefined) r.push(id);
       return r.slice(0, H);
     },
+    // encargos de la ardilla que se pueden hacer ahora: el primero de la cadena de siempre y los de las minas abiertas
+    encargosDisponibles(){
+      const E = (D.herboristeria && D.herboristeria.encargos) || [], hecho = e => P.pueblo.encargos[e.id] === 'hecho';
+      const out = [], cadena = E.find(e => !e.mina && !hecho(e)); if(cadena) out.push(cadena);
+      for(const e of E) if(e.mina && !hecho(e) && P.bandera('mina_' + e.mina + '_abierta')) out.push(e);
+      return out;
+    },
     puedePagar(precio){ return Object.entries(precio).every(([m, n]) => (P.almacen[m] || 0) >= n); },
     comprar(item){
       if(!P.puedePagar(item.precio)) return false;

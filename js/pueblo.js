@@ -251,6 +251,10 @@ window.Pueblo = (()=>{
       // Pozo viejo: el ascensor según la historia
       if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_roto') && !Pa.bandera('ascensor_pozo1_apanado')) $('mpTexto').innerHTML = '<p>El ascensor del fondo está estropeado.</p>';
       if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_fino')){ $('mpBoton2').hidden = false; $('mpBoton2').textContent = 'Ascensor (al fondo)'; btn.textContent = 'Bajar por la boca'; }
+    } else if(m.desbloqueo && !m.pozo){
+      // ya se sabe lo que pedirá, pero la mina aún no está hecha
+      $('mpTexto').innerHTML = costeChips(m.desbloqueo) + '<p>🚧 Próximamente.</p>';
+      btn.disabled = true; btn.textContent = 'Próximamente';
     } else if(m.desbloqueo){
       // mina cerrada que se abre con materiales del almacén
       const ok = Pa.puedePagar(m.desbloqueo);
@@ -272,7 +276,7 @@ window.Pueblo = (()=>{
     }
     const m = D.minas[mapaSel];
     if(abierta(m)){ window.Pantallas.mostrar('mina', m.pozo || 'viejo'); return; }
-    if(m.desbloqueo && Pa.puedePagar(m.desbloqueo)){
+    if(m.desbloqueo && m.pozo && Pa.puedePagar(m.desbloqueo)){
       for(const [k, n] of Object.entries(m.desbloqueo)) Pa.almacen[k] -= n;
       Pa.ponerBandera('mina_' + m.id + '_abierta'); Pa.sumarProsperidad(2);
       window.Sonido && window.Sonido.tocar('abrir');
@@ -293,13 +297,16 @@ window.Pueblo = (()=>{
   pixeles(PL.seca, PW, PH, d => { PLZ.seca = d; PLZ.firma = ''; });
   pixeles(PL.viva, PW, PH, d => { PLZ.viva = d; PLZ.firma = ''; });
   // cuánto ha revivido el pueblo (provisional: la parte de las 8 minas con el respiradero abierto)
-  const vidaPueblo = () => Math.min(1, D.minas.filter(m => typeof m.id === 'number' && respiradero(m)).length / 8);
+  // (datos: mapa.plazaVerde, la parte de la imagen que reverdece con cada respiradero; manda el más alto)
+  const PV = (D.mapa && D.mapa.plazaVerde) || {};
+  const vidaPueblo = () => D.minas.reduce((f, m) => typeof m.id === 'number' && respiradero(m) ? Math.max(f, PV[m.id] ?? 0) : f, 0);
+  const RUIDO_ORD = Float32Array.from(PLZ.ruido).sort();
   function componerPlaza(){
     const f = vidaPueblo(), firma = f.toFixed(3);
     if(firma === PLZ.firma || !PLZ.seca || !PLZ.viva) return;
     PLZ.firma = firma;
-    const out = px.createImageData(PW, PH), o = out.data;
-    for(let k=0;k<PW*PH;k++){ const src = PLZ.ruido[k] < f*1.05 ? PLZ.viva : PLZ.seca, j = k*4; o[j] = src[j]; o[j+1] = src[j+1]; o[j+2] = src[j+2]; o[j+3] = 255; }
+    const out = px.createImageData(PW, PH), o = out.data, umbral = f <= 0 ? -1 : f >= 1 ? 2 : RUIDO_ORD[Math.floor(f*(RUIDO_ORD.length - 1))];
+    for(let k=0;k<PW*PH;k++){ const src = PLZ.ruido[k] <= umbral ? PLZ.viva : PLZ.seca, j = k*4; o[j] = src[j]; o[j+1] = src[j+1]; o[j+2] = src[j+2]; o[j+3] = 255; }
     PLZ.cv.getContext('2d').putImageData(out, 0, 0);
   }
   const CASA = c => PL.edificios[c.id];
@@ -436,12 +443,22 @@ window.Pueblo = (()=>{
     } else if(c.tipo === 'taller'){
       // kits de reparación: uno para cada montacargas roto que ya hayas visto; solo se puede tener uno a la vez
       const V = Object.values(Pa.pueblo.mcVistos || {}), K = Pa.pueblo.kitMc;
-      let h = '<p class="note">Kits de reparación de montacargas: arreglan uno concreto allí mismo, sin gastar lo que lleves. Cuestan más que arreglarlo abajo, y solo puedes llevar uno a la vez.</p>';
+      // mejoras para siempre (cada una pide dos materiales distintos)
+      const MJ = ((D.taller && D.taller.mejoras) || []).filter(m => Pa.bandera(m.desde) && (!m.necesita || Pa.coleccion[m.necesita] || Pa.bandera('viejo_pico')));
+      const HM = Pa.pueblo.mejoras || {};
+      let h = '';
+      if(MJ.length) h += '<p class="lbl">Mejoras</p><div class="shop">' + MJ.map(m => `<div class="row"><span>${m.icono} ${m.nombre}<small>${m.texto} ${HM[m.id] ? '' : precioTxt(m.precio) + '.'}</small></span>${HM[m.id] ? '<span class="chip">Hecha</span>' : `<button data-m="${m.id}" ${Pa.puedePagar(m.precio) ? '' : 'disabled'}>Fabricar</button>`}</div>`).join('') + '</div>';
+      h += '<p class="note">Kits de reparación de montacargas: arreglan uno concreto allí mismo, sin gastar lo que lleves. Cuestan más que arreglarlo abajo, y solo puedes llevar uno a la vez.</p>';
       if(K) h += `<p><b>Tienes un kit</b> para ${K.pozoNombre}, sala ${K.sala}${Pa.pueblo.kitMcMochila ? ' (está en tu mochila perdida: recupérala)' : ''}.</p>`;
       if(!V.length) h += '<p>Aún no has visto ningún montacargas roto.</p>';
       else h += '<div class="shop">' + V.map((v, j) => { const pr = kitPrecio(v.coste);
         return `<div class="row"><span>${v.pozoNombre}, sala ${v.sala}<small>Abajo pide ${precioTxt(v.coste)}. El kit: ${precioTxt(pr)}.</small></span><button data-j="${j}" ${!K && Pa.puedePagar(pr) ? '' : 'disabled'}>Fabricar</button></div>`; }).join('') + '</div>';
       cuerpo.innerHTML = h;
+      cuerpo.querySelectorAll('button[data-m]').forEach(b => b.onclick = () => {
+        const m = MJ.find(x => x.id === b.dataset.m); if(!m || (Pa.pueblo.mejoras || {})[m.id] || !Pa.puedePagar(m.precio)) return;
+        for(const [k, n] of Object.entries(m.precio)) Pa.almacen[k] -= n;
+        (Pa.pueblo.mejoras || (Pa.pueblo.mejoras = {}))[m.id] = true; Pa.sumarProsperidad(1); Pa.guardar();
+        window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
       cuerpo.querySelectorAll('button[data-j]').forEach(b => b.onclick = () => {
         const v = V[+b.dataset.j], pr = kitPrecio(v.coste); if(Pa.pueblo.kitMc || !Pa.puedePagar(pr)) return;
         for(const [k, n] of Object.entries(pr)) Pa.almacen[k] -= n;
@@ -449,8 +466,8 @@ window.Pueblo = (()=>{
         window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
     } else if(c.tipo === 'herbolaria'){
       if(!Pa.bandera('ardilla_intro')){ cuerpo.innerHTML = '<p>La ardilla va de un lado a otro entre frascos y manojos de hierbas. No te hace ni caso.</p>'; return; }
-      const e = HB.encargos.find(x => Pa.pueblo.encargos[x.id] !== 'hecho');
-      let h = e ? `<p class="lbl">Encargo · ${e.nombre}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => objChip(k, Pa.coleccion[k] || 0, n)).join('')}</div>` : '<p class="note">No hay encargos pendientes. ¡Gracias por todas las plantas!</p>';
+      const EE = Pa.encargosDisponibles();
+      let h = EE.length ? EE.map(e => `<p class="lbl">Encargo · ${e.nombre}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => objChip(k, Pa.coleccion[k] || 0, n)).join('')}</div>`).join('') : '<p class="note">No hay encargos pendientes. ¡Gracias por todas las plantas!</p>';
       const U = Pa.kit.unguentos || {}, ELEG = Pa.ungElegidos(), HUECOS = HB.huecos || 2;
       const recetas = Object.entries(HB.unguentos).filter(([id]) => Pa.bandera('receta_' + id) || U[id]);
       if(recetas.length){

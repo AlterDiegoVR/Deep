@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.217b',
+  version: '0.218',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -94,6 +94,8 @@ window.DATOS = {
     { id: 'mochila_cuero', icono: '🎒', nombre: 'Mochila de cuero',    texto: 'En la mochila cabe un 50 % más.', valor: 1.5, peso: 1, unica: true },
     { id: 'bolsillo',      icono: '👖', nombre: 'Bolsillo secreto',    texto: 'Si mueres, el material que más vale de tu mochila llega igualmente al almacén.', peso: 0.7, unica: true },
     { id: 'carpintero',    icono: '🪜', nombre: 'Carpintero',          texto: 'Cada 10 m que bajas te dan una escalera.', valor: 10, peso: 1, unica: true },
+    { id: 'cera_nenufar',  icono: '🪷', nombre: 'Cera de nenúfar',     texto: 'La lámpara no se moja.', peso: 0, unica: true },
+    { id: 'rodillas',      icono: '🦵', nombre: 'Rodillas de topo',    texto: 'Las caídas quitan la mitad de lámpara.', valor: 0.5, peso: 0, unica: true },
     { id: 'codicia',       icono: '💰', nombre: 'Codicia',             texto: 'Cada mineral que picas cuenta doble, pero la lámpara gasta un 25 % más.', valor: 1.25, peso: 0.6, unica: true },
   ],
 
@@ -159,6 +161,14 @@ window.DATOS = {
     carbon:   { nombre: 'Carbón',      golpes: 2, valor: 1, color: '#3f3f74', fragilidad: 2 },
     cobre:    { nombre: 'Cobre',       golpes: 3, valor: 2, color: '#df7126', fragilidad: 0 },
     cuarzo:   { nombre: 'Cuarzo',      golpes: 2, valor: 1, color: '#cbdbfc', fragilidad: -2 },
+    // un mineral nuevo por mina desde la 3 (salvo la 5 y la 10). El de cada mina sale más que los antiguos (ver «vetas» en cada pozo)
+    hierro:   { nombre: 'Hierro',      golpes: 3, valor: 1, color: '#847e87', fragilidad: 0, mina: 3 },
+    estano:   { nombre: 'Estaño',      golpes: 2, valor: 1, color: '#9badb7', mina: 4 },
+    // preparados para las minas que aún no existen (todavía no salen en ningún pozo)
+    plata:    { nombre: 'Plata',       golpes: 3, valor: 2, color: '#cbdbfc', mina: 6, futuro: true },
+    azufre:   { nombre: 'Azufre',      golpes: 1, valor: 1, color: '#fbf236', fragilidad: -1, mina: 7, futuro: true },
+    oro:      { nombre: 'Oro',         golpes: 4, valor: 3, color: '#fbf236', mina: 8, futuro: true },
+    diamante: { nombre: 'Diamante',    golpes: 6, valor: 4, color: '#5fcde4', mina: 9, futuro: true },
   },
 
   // ---------- Peligros ----------
@@ -277,6 +287,8 @@ window.DATOS = {
     // cuánto reverdece cada mina al abrir su respiradero (radio en píxeles alrededor de la boca, dentro de su zona);
     // la zona entera se completa cuando revive el pueblo
     verde: {1:34, 2:60, 3:70, 4:80, 5:90, 6:100, 7:110, 8:125, S:0, P:0},
+    // la plaza del pueblo: parte de la imagen que reverdece con cada respiradero abierto (de 0 a 1; manda el más alto)
+    plazaVerde: {1:0.03, 2:0.06, 3:0.15, 4:0.24, 5:0.34, 6:0.46, 7:0.6, 8:0.75, 9:0.9, 10:1},
   },
   minas: [
     { id: 1, boca: [147, 212], nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin gas. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
@@ -284,7 +296,8 @@ window.DATOS = {
       texto: 'Prototipo del segundo pozo: más largo que el primero, con dos ramales, algo de agua y de barro al final, puertas con llave, cuarzo y hongos luminosos. Está cerrada: se abre con carbón y cobre del Pozo viejo.' },
     { id: 3, boca: [248, 245], nombre: 'Galería del río',     abierta: false, pozo: 'tres', desbloqueo: { carbon: 40, cobre: 30, cuarzo: 3 },
       texto: 'El pozo del agua: galerías inundadas, pozas hondas y aire que hay que vigilar. Tiene una noria vieja y una galería de la cuadrilla. Está cerrada: se abre con materiales de la Cantera del molino.' },
-    { id: 4, boca: [150, 475], nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
+    { id: 4, boca: [150, 475], nombre: 'Mina de los cuervos', abierta: false, desbloqueo: { hierro: 30, cobre: 10 }, proximamente: true,
+      texto: 'La mina del hielo: galerías heladas, una cascada congelada y el nido de los cuervos. Se abre con hierro de la Galería del río.' },
     { id: 5, boca: [267, 150], nombre: 'El socavón del viejo', abierta: false, texto: 'Junto a la casa del viejo topo. Próximamente.' },
     { id: 6, boca: [22, 407], nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
     { id: 7, boca: [30, 250], nombre: 'Pozo del gas',        abierta: false, texto: 'Próximamente.' },
@@ -397,7 +410,9 @@ window.DATOS = {
       escasez: 0.02,
       arenaArcillosa: 0.12,        // poca: solo algún charco de barro como aviso (el barro de verdad tendrá su propio pozo)
       montacargasCada: 2,
-      sueltos: { flor_mina: { cada: 30, desdeFila: 20 }, hongo_azul: { cada: 45, desdeFila: 30 }, lampara_vieja: { cada: 60, desdeFila: 30 }, foto_cuadrilla: { cada: 90, desdeFila: 60 } },
+      version: 1,                  // sube cuando cambia algo de este pozo que obliga a empezarlo de nuevo (solo este)
+      // los coleccionables de la cuadrilla ya no salen sueltos: están en sitios fijos (piezas) y no se repiten
+      sueltos: { flor_mina: { cada: 30, desdeFila: 20 }, hongo_azul: { cada: 45, desdeFila: 30 } },
       sueltosRamal: { hongo_azul: { cada: 7, desdeFila: 4 }, flor_mina: { cada: 15, desdeFila: 8 } },   // en los ramales, más coleccionables propios del pozo
       cofreEspecial: [
         { texto: '4 de cuarzo', material: { cuarzo: 4 } },
@@ -438,7 +453,14 @@ window.DATOS = {
       aguaEscala: 4,               // ...(más pequeño = charcas más pequeñas; normal 5)
       cuevasUmbral: 0.64,          // más cuevas (normal 0.7): muchas quedan secas y sirven para llevar el agua
       montacargasCada: 2,
-      sueltos: { flor_mina: { cada: 30, desdeFila: 16 }, hongo_azul: { cada: 40, desdeFila: 20 }, lampara_vieja: { cada: 70, desdeFila: 40 } },
+      version: 1,
+      sueltos: { flor_mina: { cada: 30, desdeFila: 16 }, hongo_azul: { cada: 60, desdeFila: 20 } },
+      // nenúfares: flotan en la superficie de las pozas (uno cada tantas pozas, más o menos)
+      enAgua: { nenufar: { cada: 5, desdeFila: 10 } },
+      // vetas: el mineral nuevo de la mina sale más que los demás; los antiguos, menos (umbral: más alto = menos)
+      //   umbral · escala (tamaño de las vetas) · desde (tramo)
+      vetas: { hierro: { umbral: 0.75, escala: 2.2, desde: 0 } },
+      escasezVieja: 0.035,         // se suma al umbral del carbón y del cobre (salen menos que en las minas 1 y 2)
       sueltosRamal: { hongo_azul: { cada: 10, desdeFila: 4 }, flor_mina: { cada: 18, desdeFila: 6 } },
       cofreEspecial: [
         { texto: '5 de cuarzo', material: { cuarzo: 5 } },
@@ -469,9 +491,9 @@ window.DATOS = {
   objetos: {
     flor_mina:      { nombre: 'Flor de mina', plural: 'flores de mina',       categoria: 'herbario', icono: '🌸', dibujo: 'flor',     brilla: true, suelto: { cada: 28, desdeFila: 8 },
                       texto: 'Una flor que brilla en la oscuridad. Solo crece en lo hondo de las minas.' },
-    lampara_vieja:  { nombre: 'Lámpara de carburo', categoria: 'mineria',  icono: '🏮', dibujo: 'reliquia', suelto: { cada: 45, desdeFila: 16 },
+    lampara_vieja:  { nombre: 'Lámpara de carburo', categoria: 'mineria',  icono: '🏮', dibujo: 'reliquia', unico: true,   // al fondo de la Galería de los carros (mina 2)
                       texto: 'Una lámpara de la época dorada de las minas. Ya no alumbra.' },
-    foto_cuadrilla: { nombre: 'Foto de una cuadrilla', categoria: 'mineria', icono: '🖼️', dibujo: 'reliquia', suelto: { cada: 70, desdeFila: 30 },
+    foto_cuadrilla: { nombre: 'Foto de una cuadrilla', categoria: 'mineria', icono: '🖼️', dibujo: 'reliquia', unico: true,   // al fondo del Tiro de los cuervos (mina 2)
                       texto: 'Varios topos mineros posan a la entrada del pozo. Uno se parece mucho a ti.' },
     pico_padre:     { nombre: 'Pico con un símbolo', categoria: 'mineria', icono: '⛏️', dibujo: 'pico', brilla: true,
                       texto: 'Un pico de topo minero, gastado de tanto uso. En el mango hay un símbolo grabado.' },
@@ -485,6 +507,10 @@ window.DATOS = {
                       texto: '«Si alguien encuentra esto: no estamos perdidos. Estamos donde tenemos que estar. Cuidad del pueblo.»' },
     casco_cuadrilla: { nombre: 'Casco abollado', categoria: 'mineria', icono: '⛑️', dibujo: 'reliquia', brilla: true,
                       texto: 'Un casco de minero con el símbolo de la cuadrilla. Tiene una abolladura enorme, pero aguantó.' },
+    nenufar:        { nombre: 'Nenúfar', plural: 'nenúfares', categoria: 'herbario', icono: '🪷', dibujo: 'nenufar', brilla: true, mina: 3,
+                      texto: 'Una hoja redonda con una flor pálida que brilla un poco. Flota en las pozas de la Galería del río.' },
+    campanilla:     { nombre: 'Campanilla de nieve', plural: 'campanillas de nieve', categoria: 'herbario', icono: '❄️', dibujo: 'campanilla', brilla: true, mina: 4,
+                      texto: 'Una florecilla blanca que asoma entre el hielo. Crece en la Mina de los cuervos.' },
     pieza_ascensor: { nombre: 'Pieza del ascensor', categoria: 'mineria', icono: '⚙️', dibujo: 'pieza',
                       texto: 'Un engranaje grande, viejo pero entero. Parece del mecanismo de un ascensor.' },
   },
@@ -502,6 +528,11 @@ window.DATOS = {
         texto: 'Quince flores de mina.' },
       { id: 'flores_2', nombre: 'El gran ramo', pide: { flor_mina: 25 }, receta: 'segunda', regalo: { segunda: 1 },
         texto: 'Veinticinco flores de mina.' },
+      { id: 'nenufares_1', nombre: 'Nenúfares del río', pide: { nenufar: 4 }, receta: 'cera', regalo: { cera: 1 }, mina: 3,
+        texto: 'Cuatro nenúfares de la Galería del río.' },
+      // mina 4 (preparado): rodillas de topo con campanillas de nieve
+      { id: 'campanillas_1', nombre: 'Campanillas de nieve', pide: { campanilla: 5 }, receta: 'rodillas', regalo: { rodillas: 1 }, mina: 4,
+        texto: 'Cinco campanillas de nieve de la Mina de los cuervos.' },
     ],
     // carta: el efecto que da en la mina (el mismo que la carta de la ruleta con ese id)
     unguentos: {
@@ -511,7 +542,23 @@ window.DATOS = {
                   texto: 'Aguantas una piedra encima, una vez.' },
       segunda:  { nombre: 'Ungüento de segunda oportunidad', icono: '💖', carta: 'segunda', precio: { flor_mina: 4, hongo_azul: 2 },
                   texto: 'Si mueres, vuelves a la última sala segura con tu mochila. Una vez.' },
+      cera:     { nombre: 'Cera de nenúfar', icono: '🪷', carta: 'cera_nenufar', precio: { nenufar: 2 },
+                  texto: 'La lámpara no se moja: en el agua no gasta más. Dura una bajada; se gasta la primera vez que te mojas.' },
+      rodillas: { nombre: 'Ungüento de rodillas de topo', icono: '🦵', carta: 'rodillas', precio: { campanilla: 2 },
+                  texto: 'Las caídas te quitan la mitad de lámpara. Dura una bajada; se gasta en la primera caída que hace daño.' },
     },
+  },
+
+  // ---------- Taller del tejón: mejoras para siempre ----------
+  // REGLA: cada mejora pide dos materiales distintos. «desde»: bandera con la que aparece (por ejemplo, abrir una mina).
+  //   efecto: mochila (x capacidad) · golpe (golpes menos al picar, mínimo uno)
+  taller: {
+    mejoras: [
+      { id: 'mochila_1', icono: '🎒', nombre: 'Mochila reforzada', desde: 'mina_3_abierta', precio: { hierro: 16, cobre: 8 }, efecto: { mochila: 1.4 },
+        texto: 'Le cose cuero doble y le pone remaches de hierro: cabe un 40 % más.' },
+      { id: 'pico_padre', icono: '⛏️', nombre: 'Pico del padre, restaurado', desde: 'mina_4_abierta', precio: { hierro: 20, estano: 15 }, efecto: { golpe: 1 },
+        texto: 'Mango nuevo, punta de hierro y estaño: un golpe menos para romper cualquier cosa.', necesita: 'pico_padre' },
+    ],
   },
 
   // ---------- Pueblo: casas de la plaza ----------

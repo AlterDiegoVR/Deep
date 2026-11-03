@@ -33,7 +33,7 @@
 //    b  brasas (queman la lámpara al pisarlas; el agua las apaga)   X  puerta de la cuadrilla (atrancada)
 //    Q  casco de la cuadrilla (coleccionable)
 //    j  hongo luminoso   R  lámpara de carburo   F  foto de una cuadrilla   w  polilla
-//    *  gas              &  barro
+//    *  gas              &  barro         i  hierro         s  estaño        y  nenúfar (flotando en agua)
 //    T  cartel de tutorial (título, texto y, si quieres, un gif)   D  frase de Deep (con su cara)
 //       (los textos van en «textos»: { 'fila,columna': { titulo, texto, gif } } o { texto, cara })
 //
@@ -60,7 +60,7 @@ window.PIEZAS = [
     // Fondo del ramal: una cámara con un cofre, una flor y el montacargas para volver. Debajo, una capa de roca
     // maciza (azul): la promesa de que con el taladro habrá algo más abajo.
     id: 'fondo_ramal',
-    pozo: ['pruebas', 'dos'],
+    pozo: 'pruebas',
     tiro: 'ramales',
     colocar: { fondo: true },
     reflejar: true,
@@ -68,6 +68,36 @@ window.PIEZAS = [
       'xxxxxxtttxxxxxx',
       'xx___________xx',
       'xxM_f__B_No__xx',
+      'xxxxxmmmmmxxxxx',
+      'xxxxxxxxxxxxxxx',
+    ],
+  },
+  {
+    // Fondo de la Galería de los carros (mina 2): como el de los ramales, y con la lámpara de carburo de la cuadrilla (sale una sola vez)
+    id: 'fondo_carros_pozo2',
+    pozo: 'dos',
+    tiro: 'molino_a',
+    colocar: { fondo: true },
+    reflejar: true,
+    filas: [
+      'xxxxxxtttxxxxxx',
+      'xx___________xx',
+      'xxM_f_RB_No__xx',
+      'xxxxxmmmmmxxxxx',
+      'xxxxxxxxxxxxxxx',
+    ],
+  },
+  {
+    // Fondo del Tiro de los cuervos (mina 2): con la foto de una cuadrilla (sale una sola vez)
+    id: 'fondo_cuervos_pozo2',
+    pozo: 'dos',
+    tiro: 'molino_b',
+    colocar: { fondo: true },
+    reflejar: true,
+    filas: [
+      'xxxxxxtttxxxxxx',
+      'xx___________xx',
+      'xxM_f__B_NoF_xx',
       'xxxxxmmmmmxxxxx',
       'xxxxxxxxxxxxxxx',
     ],
@@ -168,26 +198,27 @@ window.PIEZAS = [
   {
     // Galería del abismo: un precipicio de roca madre de 5 casillas. El puente más largo que se puede tender
     // desde un lado (3 tablones en voladizo, y el 4.º si llega a la otra orilla) se queda a una casilla.
-    // Al otro lado, una puerta de la cuadrilla: hará falta el salto u otra habilidad. Si caes al fondo,
-    // el agua amortigua y un montacargas viejo te sube al tiro principal.
+    // Al otro lado, una puerta de la cuadrilla: hará falta el salto u otra habilidad. Al llegar al borde, Deep lo dice (D).
+    // Si aun así caes al fondo, el agua amortigua, hay 3 nenúfares (y) y un montacargas viejo te sube al tiro principal.
     id: 'abismo_pozo3',
     pozo: 'tres',
     tiro: 'rio_abismo',
     colocar: { fondo: true },
+    textos: { '5,11': { cara: 'asustado', texto: 'Demasiado ancho para un puente… y si me caigo ahí abajo, no lo cuento. Algún día encontraré la forma de cruzar.' } },
     filas: [
       'xxxxxxxxxx.....',
       'xxxxxxxxxx.....',
       'xxxxxxxxxx.....',
       '_______________',
       '_______________',
-      '__X____________',
+      '__X________D___',
       'xxxx_____xxxxxx',
       'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
       'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
       'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
       'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
       'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx', 'xxxx_____xxxxxx',
-      'xxxx~~~_Mxxxxxx',
+      'xxxxyyy_Mxxxxxx',
       'xxxxxxxxxxxxxxx',
       'xxxxxxxxxxxxxxx',
     ],

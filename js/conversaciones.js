@@ -115,6 +115,20 @@ window.Conversaciones = (()=>{
       a('contenta', 'Toma el primero. Y prométeme que no lo vas a necesitar.'),
       d('contento', 'Se lo prometo.'),
     ],
+    nenufares_1: () => [
+      d('alegre', '¡Le traigo nenúfares! Flotaban en las pozas de la Galería del río.'),
+      a('emocionada', '¡Nenúfares de mina! Huelen a río y a piedra mojada… Mira cómo brilla la flor.'),
+      a('pensativa', 'Mi abuela hacía con ellos una cera para las lámparas de los mineros. La untaban en el cristal y la mecha, y el agua resbalaba sin tocar la llama.'),
+      a('contenta', 'Toma, la primera: con la cera de nenúfar, el agua no te ahoga la lámpara. Las siguientes, dos nenúfares por tarro.'),
+      d('contento', '¡Así podré bucear sin quedarme a oscuras!'),
+      a('despistada', 'Bucear… Ay, no me lo digas, que me pongo nerviosa.'),
+    ],
+    campanillas_1: () => [
+      d('alegre', '¡Campanillas de nieve! Asomaban entre el hielo de la Mina de los cuervos.'),
+      a('emocionada', '¡Qué blancas! Parecen de porcelana. Con estas se hace el ungüento de rodillas de topo.'),
+      a('contenta', 'Te lo untas en las rodillas y las caídas duelen la mitad. Toma el primero. Los siguientes, dos campanillas por tarro.'),
+      d('contento', '¡Gracias! Mis rodillas también se lo agradecen.'),
+    ],
   };
   const ARDILLA_ESPERA = e => [[a('pensativa', 'Recuerda: me hacen falta ' + listaObj(e.pide) + '. Cuando los tengas, aquí estaré. Creo.'), d('decidido', 'No se me olvida.')],
     [a('despistada', '¿Ya me traes ' + listaObj(e.pide) + '? Ah, no, aún no… Ay, perdona, es que hoy no sé dónde tengo la cabeza.'), d('contento', 'Pronto.')]];
@@ -122,7 +136,9 @@ window.Conversaciones = (()=>{
     [a('contenta', 'Desde que me traes plantas, vienen vecinos a por infusiones. ¡Hasta el alcalde me ha pedido una para los nervios!'), d('alegre', '¡Qué bien!')],
     [a('pensativa', 'Dicen que en las minas más hondas crecen plantas que ni yo conozco. Si ves alguna rara, tráemela, ¿eh?'), d('decidido', 'Prometido.')],
   ];
-  const encargoActual = () => H.encargos.find(e => Pa.pueblo.encargos[e.id] !== 'hecho') || null;
+  // encargos: los de siempre van uno detrás de otro; los de una mina («mina») se abren aparte al abrir esa mina
+  const encargoActual = () => (Pa.encargosDisponibles ? Pa.encargosDisponibles()[0] : null) || null;
+  const encargoListo = () => (Pa.encargosDisponibles ? Pa.encargosDisponibles() : []).find(e => tieneObj(e.pide)) || null;
   const tieneObj = pide => Object.entries(pide).every(([k, n]) => (Pa.coleccion[k] || 0) >= n);
 
   // ---------- Taller del tejón: el ascensor del Pozo viejo ----------
@@ -153,6 +169,12 @@ window.Conversaciones = (()=>{
   const TEJON_FALTA = () => [[t('pensativo', 'Para dejar fino el ascensor me hacen falta ' + listaMat(FINO) + '. Tú tráemelos y yo hago magia.'), d('decidido', 'Bajaré a por ellos.')]];
   const TEJON_NADA = [
     [t('contento', '¿Un topo en mi taller? Hacía años que no veía uno… Si algún día necesitas arreglar algún trasto, ya sabes dónde estoy.'), d('contento', 'Lo tendré en cuenta.')],
+  ];
+  const TEJON_MOCHILA = [
+    t('sorprendido', '¡Vaya, vaya! ¿Has abierto la Galería del río? Allí abajo hay hierro, chaval. Buen hierro.'),
+    d('pensativo', '¿Y para qué sirve?'),
+    t('alegre', 'Para todo. Mira esa mochila tuya: se te va a romper de tanto llenarla. Tráeme hierro y un poco de cobre y te la refuerzo: cuero doble y remaches. Te cabrá mucho más.'),
+    d('alegre', '¡Trato hecho!'),
   ];
   const TEJON_DESPUES = [
     [t('contento', '¿Qué tal funciona mi ascensor? Si oyes un chirrido raro, ni caso. Es su forma de saludar.'), d('alegre', 'Va de maravilla.')],
@@ -193,6 +215,7 @@ window.Conversaciones = (()=>{
         if(Pa.puedePagar(FINO)) return {lineas: TEJON_FINO(), fin: () => { for(const [k, n] of Object.entries(FINO)) Pa.almacen[k] -= n; Pa.ponerBandera('ascensor_pozo1_fino'); Pa.sumarProsperidad(1); }};
         return {lineas: azar(TEJON_FALTA()), fin: null};
       }
+      if(Pa.bandera('mina_3_abierta') && !Pa.bandera('tejon_mochila')) return {lineas: TEJON_MOCHILA, fin: () => Pa.ponerBandera('tejon_mochila')};
       return {lineas: azar(Pa.bandera('ascensor_pozo1_fino') ? TEJON_DESPUES : TEJON_NADA), fin: null};
     }
     if(casa === 'viejo'){
@@ -204,13 +227,13 @@ window.Conversaciones = (()=>{
         if(Pa.bandera('coneja_hongo')) return {lineas: ARDILLA_INTRO(), fin: () => { Pa.ponerBandera('ardilla_intro'); const e = encargoActual(); if(e) Pa.pueblo.encargos[e.id] = 'activo'; Pa.sumarProsperidad(1); }};
         return {lineas: azar(ARDILLA_OCUPADA), fin: null};
       }
-      const e = encargoActual();
+      const e = encargoListo() || encargoActual();
       if(e && tieneObj(e.pide) && ARDILLA_ENTREGA[e.id]) return {lineas: ARDILLA_ENTREGA[e.id](), fin: () => {
         for(const [k, n] of Object.entries(e.pide)){ Pa.coleccion[k] -= n; if(Pa.coleccion[k] <= 0) delete Pa.coleccion[k]; }
         Pa.pueblo.encargos[e.id] = 'hecho';
         if(e.receta) Pa.ponerBandera('receta_' + e.receta);
         const U = Pa.kit.unguentos || (Pa.kit.unguentos = {}); for(const [k, n] of Object.entries(e.regalo || {})) U[k] = (U[k] || 0) + n;
-        const sig = encargoActual(); if(sig) Pa.pueblo.encargos[sig.id] = 'activo';
+        for(const sig of Pa.encargosDisponibles()) if(!Pa.pueblo.encargos[sig.id]) Pa.pueblo.encargos[sig.id] = 'activo';
         Pa.sumarProsperidad(1); Pa.guardar();
       }};
       return {lineas: azar(e ? ARDILLA_ESPERA(e) : ARDILLA_DESPUES), fin: null};

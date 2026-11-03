@@ -9,7 +9,7 @@ const ON = k => !P1.contenido || P1.contenido[k] !== false;
 const T = 24, COLS = 15, SURF = 3, ROOM_H = 4;
 // ---------- tipos ----------
 // BEDROCK = roca madre (límite del mundo: no la rompe nada) · PLANK = tablón (puntal puesto como puente) · CSAND = arena arcillosa (con agua, barro)
-const AIR=0, DIRT=1, STONE=2, HARD=3, CLAY=4, COAL=5, COPPER=6, QUARTZ=7, SAND=8, WATER=9, GAS=10, ROCK=11, BEAM=12, PROP=13, LADDER=14, RUBBLE=15, DOOR=16, MUD=17, PASS=18, BEDROCK=19, PLANK=20, CSAND=21;
+const AIR=0, DIRT=1, STONE=2, HARD=3, CLAY=4, COAL=5, COPPER=6, QUARTZ=7, SAND=8, WATER=9, GAS=10, ROCK=11, BEAM=12, PROP=13, LADDER=14, RUBBLE=15, DOOR=16, MUD=17, PASS=18, BEDROCK=19, PLANK=20, CSAND=21, IRON=22, TIN=23;
 const M = D.materiales;
 const mat = (key, extra) => Object.assign({hp:M[key].golpes, val:M[key].valor, n:M[key].nombre, dot:M[key].color, key}, extra);
 const INFO = {
@@ -18,10 +18,11 @@ const INFO = {
   [QUARTZ]:mat('cuarzo', {tile:'piedra', veta:'cuarzo'}), [SAND]:mat('arena', {tile:'arena'}), [WATER]:{}, [GAS]:{}, [ROCK]:{hp:999, tile:'maciza'},
   [BEAM]:{hp:1}, [PROP]:{}, [LADDER]:{}, [RUBBLE]:mat('escombro', {tile:'escombro'}), [DOOR]:{hp:999, tile:'maciza'}, [MUD]:{}, [PASS]:{hp:999, tile:'maciza'},
   [BEDROCK]:{hp:9999, tile:'maciza', madre:true}, [PLANK]:{}, [CSAND]:mat('arenaArcillosa', {tile:'arena'}),
+  [IRON]:mat('hierro', {tile:'piedra', veta:'hierro'}), [TIN]:mat('estano', {tile:'piedra', veta:'estano'}),
 };
 const KEY2T = {}; for(const [tt, I] of Object.entries(INFO)) if(I.val) KEY2T[I.key] = +tt;
 const isSolid = t => !(t===AIR || t===WATER || t===GAS || t===PROP || t===LADDER || t===MUD || t===PLANK);
-const isStruct = t => t===DIRT||t===STONE||t===HARD||t===CLAY||t===COAL||t===COPPER||t===QUARTZ||t===BEAM||t===ROCK||t===DOOR||t===PASS||t===BEDROCK;
+const isStruct = t => t===DIRT||t===STONE||t===HARD||t===CLAY||t===COAL||t===COPPER||t===QUARTZ||t===IRON||t===TIN||t===BEAM||t===ROCK||t===DOOR||t===PASS||t===BEDROCK;
 const isAnchor = t => t===HARD||t===BEAM||t===ROCK||t===DOOR||t===PASS||t===BEDROCK;
 const isLoose = t => t===SAND||t===RUBBLE||t===CSAND;
 const isSand = t => t===SAND||t===CSAND;
@@ -71,6 +72,7 @@ function setPozo(key){
   PK = POZOS[key] ? key : 'viejo'; P1 = POZOS[PK];
   RAMALES = ON('ramales') ? (P1.ramales || []) : [];
   DT = P1.desdeTramo || {};
+  WV = P1.version ? WORLD_VER + '.' + P1.version : WORLD_VER;
   const S = P1.salaSellada; SECRET = ON('salaSellada') && S ? {r: SURF + S.fila, c0: S.columna, w: S.ancho, h: S.alto} : null;
 }
 const LA = D.lampara, JU = D.jugador, ES = D.estructura, PE = D.peligros, CA = D.camara, TB = D.temblor, VU = D.vuelta;
@@ -106,16 +108,17 @@ const Pa = window.Partida;
 // ---------- mundo ----------
 let W = null;   // el tiro actual: {id, seed, rows, items, bag, ...}
 let MINA = null;   // la mina entera: {ver, seed, actual, tiros:{id: W}}
-const WORLD_VER = 11;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva)
-function newTiroWorld(id, seed){ return {id, ver:WORLD_VER, seed, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0, record:0, doors:[], lastRun:0, cargaOk:[], ascUsado:false, escalas:[]}; }
-function newMine(){ const seed = (Math.random()*1e9)|0; return {ver:WORLD_VER, seed, actual:'principal', tiros:{principal: newTiroWorld('principal', seed)}, stats:{ext:{}, per:{}}}; }
+const WORLD_VER = 11;   // sube cuando cambia cómo se genera el pozo (fuerza una mina nueva en todos)
+let WV = WORLD_VER;     // la de este pozo: con «version» en sus datos, solo se empieza de nuevo ese pozo
+function newTiroWorld(id, seed){ return {id, ver:WV, seed, rows:[], items:[], bag:null, chestOpen:false, rewarded:[], runs:0, record:0, doors:[], lastRun:0, cargaOk:[], ascUsado:false, escalas:[]}; }
+function newMine(){ const seed = (Math.random()*1e9)|0; return {ver:WV, seed, actual:'principal', tiros:{principal: newTiroWorld('principal', seed)}, stats:{ext:{}, per:{}}}; }
 // contador de materiales del pozo: extraído (llegó al almacén) y perdido (escombro, mochila llena, soltado, explosiones, derrumbes)
 function stat(kind, key, n){ if(!MINA || !key || !n) return; const S = MINA.stats || (MINA.stats = {ext:{}, per:{}}); S[kind][key] = (S[kind][key]||0) + n; }
 function statsText(){
   if(!MINA) return '';
   const disp = {};
   for(const id in MINA.tiros) for(const R of MINA.tiros[id].rows) for(let c=0;c<COLS;c++){ const I = INFO[R.t[c]]; if(I && I.val) disp[I.key] = (disp[I.key]||0) + 1; }
-  const S = MINA.stats || {ext:{}, per:{}}, keys = ['arcilla','carbon','cobre','cuarzo'];
+  const S = MINA.stats || {ext:{}, per:{}}, keys = ['arcilla','carbon','cobre','cuarzo','hierro','estano'].filter(k => k !== 'hierro' && k !== 'estano' || (P1.vetas && P1.vetas[k]));
   return P1.nombre + ' (lo generado hasta ahora):\n' + keys.map(k => M[k].nombre + ': ' + (disp[k]||0) + ' en el pozo · ' + (S.ext[k]||0) + ' extraído · ' + (S.per[k]||0) + ' perdido').join('\n');
 }
 function newWorld(){ return newTiroWorld('principal', (Math.random()*1e9)|0); }
@@ -124,8 +127,8 @@ function packWorld(W){
     items:W.items.filter(i=>i.alive || i.k === 'herr'), bag:W.bag, rewarded:W.rewarded, runs:W.runs, herr:true, ver:W.ver, record:W.record, doors:W.doors, cargaOk:W.cargaOk||[], ascUsado:!!W.ascUsado, escalas:W.escalas||[], fijos:W.fijos||[], compuertas:W.compuertas||[]};
 }
 function unpackWorld(o){
-  if(o.ver !== WORLD_VER) return null;   // pozo de una versión anterior: se empieza uno nuevo
-  const w = {id:o.id||'principal', lastRun:o.lastRun||0, ver:WORLD_VER, seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||0, record:o.record||0, doors:o.doors||[], cargaOk:o.cargaOk||[], ascUsado:!!o.ascUsado, escalas:o.escalas||[], fijos:o.fijos||[], compuertas:o.compuertas||[]};
+  if(o.ver !== WV) return null;   // pozo de una versión anterior: se empieza uno nuevo
+  const w = {id:o.id||'principal', lastRun:o.lastRun||0, ver:WV, seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||0, record:o.record||0, doors:o.doors||[], cargaOk:o.cargaOk||[], ascUsado:!!o.ascUsado, escalas:o.escalas||[], fijos:o.fijos||[], compuertas:o.compuertas||[]};
   o.rows.forEach((s, i) => { const R = newRow(), n = o.nat && o.nat[i];
     const lvS = o.lv && o.lv[i], lvX = o.lvx && o.lvx[i];
     for(let c=0;c<COLS;c++){ R.t[c] = s.charCodeAt(c)-65; R.hp[c] = INFO[R.t[c]].hp||0; R.nat[c] = n ? n.charCodeAt(c)-48 : (isSolid(R.t[c]) ? 0 : 1);
@@ -146,7 +149,7 @@ function natFromSeed(w){
   finally{ W = keep; lastOil = keepOil; }
 }
 // ---------- piezas hechas a mano (js/piezas.js) ----------
-const PZ_TILE = {'_':AIR, t:DIRT, p:STONE, d:HARD, m:ROCK, x:BEDROCK, g:CSAND, a:SAND, '~':WATER, e:RUBBLE, r:CLAY, c:COAL, u:COPPER, q:QUARTZ, P:DOOR, '*':GAS, '&':MUD};
+const PZ_TILE = {'_':AIR, t:DIRT, p:STONE, d:HARD, m:ROCK, x:BEDROCK, g:CSAND, a:SAND, '~':WATER, e:RUBBLE, r:CLAY, c:COAL, u:COPPER, q:QUARTZ, i:IRON, s:TIN, P:DOOR, '*':GAS, '&':MUD};
 function tramoRows(i){ let r = SURF; for(let k=0;k<i;k++){ r += TRAMOS[k].len + (k < ROOM_ROW.length ? ROOM_H : 0); } return [r, r + (TRAMOS[i] ? Math.min(TRAMOS[i].len, 60) : 0)]; }
 function placePieces(){
   const out = [], seed = W ? W.seed : 0;
@@ -175,6 +178,12 @@ function placePieces(){
 function pieceAt(r, c){ for(const P of PLACED){ const k = r - P.r0; if(k >= 0 && k < P.rows.length && P.rows[k][c] !== '.') return P.rows[k][c]; } return null; }
 const pieceRow = r => PLACED.some(P => r >= P.r0 - 1 && r < P.r0 + P.rows.length + 1);
 // notas de la cuadrilla: la siguiente que aún no tengas (ni en la colección, ni en la mochila, ni puesta en algún pozo)
+// coleccionables únicos (de la cuadrilla): solo salen si no los tienes ya ni están puestos en otro sitio del pozo
+function unicoLibre(id){
+  if(Pa.coleccion[id] || (bag && bag['o:' + id])) return false;
+  if(MINA && Object.values(MINA.tiros).some(w => (w.bag && w.bag.items && w.bag.items['o:' + id]) || w.items.some(i => i.k === 'obj' && i.id === id && i.alive))) return false;
+  return !(W && W.items.some(i => i.k === 'obj' && i.id === id && i.alive));
+}
 function notaSiguiente(){
   for(const id of ['nota_1', 'nota_2', 'nota_3']){
     if(Pa.coleccion[id] || (bag && bag['o:' + id])) continue;
@@ -208,13 +217,14 @@ function applyPieces(r, Tt){
       else if(ch === 'K'){ if(!Pa.bandera('pico_encontrado') && !Pa.coleccion.pico_padre && !(bag && bag['o:pico_padre'])) W.items.push({k:'obj', id:'pico_padre', r, c, alive:true}); }
       else if(ch === 'V') W.items.push({k:'vent', r, c, alive:true});
       else if(ch === 'N'){ const id = notaSiguiente(); if(id) W.items.push({k:'obj', id, r, c, alive:true}); }
-      else if(ch === 'Q'){ if(!Pa.coleccion.casco_cuadrilla && !(bag && bag['o:casco_cuadrilla'])) W.items.push({k:'obj', id:'casco_cuadrilla', r, c, alive:true}); }
+      else if(ch === 'Q'){ if(unicoLibre('casco_cuadrilla')) W.items.push({k:'obj', id:'casco_cuadrilla', r, c, alive:true}); }
       else if(ch === 'W') W.items.push({k:'noria', r, c, alive:true, activa:false});
       else if(ch === 'b') W.items.push({k:'brasa', r, c, alive:true, apagada:false});
       else if(ch === 'X') W.items.push({k:'portal', r, c, alive:true});
       else if(ch === 'j') W.items.push({k:'obj', id:'hongo_azul', r, c, alive:true});
-      else if(ch === 'R') W.items.push({k:'obj', id:'lampara_vieja', r, c, alive:true});
-      else if(ch === 'F') W.items.push({k:'obj', id:'foto_cuadrilla', r, c, alive:true});
+      else if(ch === 'R'){ if(unicoLibre('lampara_vieja')) W.items.push({k:'obj', id:'lampara_vieja', r, c, alive:true}); }   // sitio fijo y una sola vez
+      else if(ch === 'F'){ if(unicoLibre('foto_cuadrilla')) W.items.push({k:'obj', id:'foto_cuadrilla', r, c, alive:true}); }
+      else if(ch === 'y'){ Tt[c] = WATER; W.items.push({k:'obj', id:'nenufar', r, c, alive:true, agua:true}); }   // nenúfar flotando en el agua
       else if(ch === 'w') W.items.push({k:'moth', x:c+0.5, y:r+0.5, alive:true});
       // cartel (banner con texto y, si quieres, un gif) o frase de Deep: salen al pasar por esa casilla
       else if(ch === 'T' || ch === 'D'){ const tx = P.textos && P.textos[k + ',' + c] || {}; W.items.push(Object.assign({k:'texto', tipo: ch === 'T' ? 'cartel' : 'deep', r, c, alive:true}, tx)); }
@@ -262,8 +272,12 @@ function genRow(r){
       if(MN.cuarzo !== undefined && v === STONE && h2(c, r, S+12) < MN.cuarzo) v = QUARTZ;
     } else {
     if(vn(c/2.6, r/2.6, S+3) > 0.73 + esc + Math.min(sg, 6)*0.03) v = CLAY;
-    if(sg >= DT.carbon && !isSand(v) && vn(c/2.2, r/2.2, S+4) > 0.74 + esc) v = COAL;
-    if(sg >= DT.cobre && !isSand(v) && vn(c/2, r/2, S+5) > 0.75 + esc) v = COPPER;
+    const vieja = P1.escasezVieja || 0;   // en las minas nuevas, los minerales antiguos salen menos
+    if(sg >= DT.carbon && !isSand(v) && vn(c/2.2, r/2.2, S+4) > 0.74 + esc + vieja) v = COAL;
+    if(sg >= DT.cobre && !isSand(v) && vn(c/2, r/2, S+5) > 0.75 + esc + vieja) v = COPPER;
+    // el mineral propio de la mina (hierro en la 3, estaño en la 4…): datos en «vetas» del pozo
+    if(P1.vetas) for(const k in P1.vetas){ const V = P1.vetas[k], tt = KEY2T[k]; if(tt === undefined || sg < (V.desde || 0) || isSand(v)) continue;
+      const e = V.escala || 2.2; if(vn(c/e, r/e, S + 30 + hashStr(k) % 50) > V.umbral) v = tt; }
     if(sg >= DT.cuarzo && v === STONE && h2(c, r, S+12) < 0.008) v = QUARTZ;
     }
     if(d > 3 && vn(c/3, r/3, S+6) > 0.84) v = HARD;
@@ -344,6 +358,12 @@ function addKit(r, fresh){
   if(fresh && ON('objetos')) for(const id in OBJ){ const SU = !TC.principal && P1.sueltosRamal ? P1.sueltosRamal : P1.sueltos; const o = SU ? SU[id] : OBJ[id].suelto; if(!o || r - SURF < o.desdeFila || h2(r, hashStr(id) % 997, W.seed + 91) >= 1/o.cada) continue;
     const R = W.rows[r], c = 1 + Math.floor(h2(r, hashStr(id) % 991, W.seed + 92)*(COLS-2));
     if(R.t[c] !== WATER && R.t[c] !== GAS && R.t[c] !== ROCK && R.t[c] !== DOOR && R.t[c] !== PASS && !pieceAt(r, c) && !W.items.some(i => i.r === r && i.c === c)){ R.t[c] = AIR; R.hp[c] = 0; R.nat[c] = 1; W.items.push({k:'obj', id, r, c, alive:true}); } }
+  // plantas de agua (nenúfares): en la superficie de una poza (agua con aire encima)
+  if(fresh && ON('objetos') && P1.enAgua && TC.principal) for(const id in P1.enAgua){ const o = P1.enAgua[id]; if(r - SURF < o.desdeFila) continue;
+    const R = W.rows[r], U = W.rows[r-1]; if(!U) continue;
+    const cs = []; for(let c=0;c<COLS;c++) if(R.t[c] === WATER && (U.t[c] === AIR) && !pieceAt(r, c) && !W.items.some(i => i.r === r && i.c === c)) cs.push(c);
+    if(!cs.length || h2(r, hashStr(id) % 997, W.seed + 93) >= 2.5/o.cada) continue;
+    W.items.push({k:'obj', id, r, c: cs[Math.floor(h2(r, 5, W.seed + 94)*cs.length)], alive:true, agua:true}); }
   if(r - SURF < RC.desdeFila) return;
   if(h2(r, 3, W.seed + 51) > 1/RC.cada) return;
   if(W.items.some(i => i.k === 'herr' && i.r === r)) return;
@@ -713,7 +733,10 @@ function weight(){ let w = 0; for(const k in bag) if(INFO[k]) w += bag[k]*INFO[k
 // la mochila no frena: se llena. Capacidad según ajustes (más con la carta Mochila de cuero)
 let prisa = 0, luzTotal = 0, fuego = 0, subida = null;   // arcade: hongo (más rápido), flor (sin oscuridad), racha de combo, subida en ascensor
 function stepTime(){ return JU.tiempoPaso*(prisa > 0 ? 0.5 : 1); }
-function capacity(){ if(ARC) return 1e9; return Math.round(cfg.cap * (has('mochila_cuero') ? cv_('mochila_cuero', 1.5) : 1)); }
+// mejoras del taller del tejón (para siempre)
+function mejora(ef){ let v = ef === 'mochila' ? 1 : 0; if(ARC) return v; const MJ = (D.taller && D.taller.mejoras) || [], H = (Pa.pueblo && Pa.pueblo.mejoras) || {};
+  for(const m of MJ) if(H[m.id] && m.efecto && m.efecto[ef] !== undefined) v = ef === 'mochila' ? v * m.efecto[ef] : v + m.efecto[ef]; return v; }
+function capacity(){ if(ARC) return 1e9; return Math.round(cfg.cap * mejora('mochila') * (has('mochila_cuero') ? cv_('mochila_cuero', 1.5) : 1)); }
 const inMud = (r, c) => tAt(r, c) === MUD;
 function canStand(r, c){ if(p.onPlat && r === SURF-2 && c === 7) return true; const below = tAt(r+1, c); return isSolid(below) || below === LADDER || below === PLANK || below === PROP || tAt(r, c) === LADDER; }
 function passable(r, c){ const v = tAt(r, c); return !isSolid(v) && !rocks.some(k => k.c === c && Math.abs(k.y - r) < 1); }
@@ -726,7 +749,8 @@ function hit(r, c, dir){
     return;
   }
   if(v === RUBBLE){ clearRubble(r, c); digT = JU.tiempoGolpe*(prisa > 0 ? 0.5 : 1); lamp -= LA.costeGolpe; SND('escombro'); if(ARC && ARC.golpe) ARC.golpe('escombro', false, r, c); return; }
-  if(has('pico_afilado') && R.hp[c] === INFO[v].hp && INFO[v].hp > 1) R.hp[c]--;   // carta: un golpe menos
+  // un golpe menos (mínimo uno): carta del pico afilado y pico restaurado del tejón
+  const menos = (has('pico_afilado') ? 1 : 0) + mejora('golpe'); if(menos && R.hp[c] === INFO[v].hp) R.hp[c] = Math.max(1, R.hp[c] - menos);
   R.hp[c]--; digT = JU.tiempoGolpe*(prisa > 0 ? 0.5 : 1); lamp -= LA.costeGolpe;
   burst(r+0.5, c+0.5, '#d9a066', 2);
   if(R.hp[c] > 0) SND('golpe');
@@ -801,7 +825,8 @@ function updatePlayer(dt){
         if(cfg.caida === '1' && n >= cfg.caidaDesde){
           // caer sobre arena apenas hace daño
           const sobreArena = isSand(tAt(p.r+1, p.c)), k = sobreArena ? ((D.caida && D.caida.arena) ?? 0.25) : 1;
-          const dmg = Math.round(k*(cfg.caidaDanio + (cfg.caidaModo === 'crece' ? (n - cfg.caidaDesde)*cfg.caidaCrece : 0)));
+          const rod = has('rodillas') ? cv_('rodillas', 0.5) : 1; if(rod < 1 && ungLlevo.rodillas) gastarUng('rodillas');   // ungüento de rodillas de topo
+          const dmg = Math.round(k*rod*(cfg.caidaDanio + (cfg.caidaModo === 'crece' ? (n - cfg.caidaDesde)*cfg.caidaCrece : 0)));
           lamp -= dmg; SND('tropiezo'); if(ARC && ARC.dano) ARC.dano('caida'); floats.push({x:p.c+0.5, y:p.r-0.2, txt:'¡Caída! -' + dmg + '% luz', life:1.3, col:'#d95763'});
         }
       }
@@ -848,7 +873,9 @@ function updatePlayer(dt){
   // la lámpara solo se moja cuando el agua llega a media altura del topo (una lámina fina no la toca)
   const mojaDesde = AG.mojaLamparaDesde ?? 0.5;
   wet = wetLv >= mojaDesde || mudHere;
-  const wetMult = Math.max(wetLv >= mojaDesde ? LA.multMojada : 1, mudHere ? BA.multLuz : 1);
+  const cera = has('cera_nenufar');   // ungüento de cera de nenúfar: la lámpara no se moja (el barro sí la ahoga)
+  if(cera && wetLv >= mojaDesde && ungLlevo.cera_nenufar) gastarUng('cera_nenufar');
+  const wetMult = Math.max(wetLv >= mojaDesde && !cera ? LA.multMojada : 1, mudHere ? BA.multLuz : 1);
   // aire: bajo la superficie (tu casilla llena y la de encima también) se gasta
   // bajo el agua en cuanto te cubre la cabeza; en el barro, cuando te cubre del todo
   const under = lvAt(p.r, p.c) >= (AG.ahogaDesde ?? 0.7) || (mudHere && (tAt(p.r-1, p.c) === MUD || lvAt(p.r-1, p.c) > 0.5));
@@ -901,7 +928,7 @@ function updatePlayer(dt){
       else if(it.k === 'carga'){ verMontacargas(it); if(!it.avisado){ it.avisado = true; toast('Montacargas', W.cargaOk.includes(it.room) ? 'Manda la carga al almacén y sigue bajando' : kitPara(it) ? 'Está roto, pero llevas el kit del tejón para arreglarlo' : 'Está roto: pide ' + costTxt(it.room) + ' (o un kit del tejón)'); } }
       else if(it.k === 'lift'){ if(!it.avisado){ it.avisado = true; toast('Montacargas viejo', 'Pulsa arriba para subir al tiro principal'); } }
       else if(it.k === 'texto'){ if(!it.avisado){ it.avisado = true;
-        if(it.tipo === 'deep') decir(it.cara || 'pensativo', it.texto || '…'); else cartel(it.titulo || '', it.texto || '', it.gif || ''); } }
+        if(it.tipo === 'deep'){ decir(it.cara || 'pensativo', it.texto || '…'); for(const k in input){ input[k] = false; tapped[k] = 0; } }   /* Deep se para a decirlo */ else cartel(it.titulo || '', it.texto || '', it.gif || ''); } }
       else if(it.k === 'portal'){ if(!it.avisado){ it.avisado = true; decir('pensativo', 'Una puerta de la cuadrilla… Está atrancada por dentro.'); } }
       else if(it.k === 'oil'){ const g = cfg.oilGain*(has('bidon_grande') ? cv_('bidon_grande', 2) : 1); it.alive = false; SND('aceite'); lamp = Math.min(100, lamp + g); burst(it.r+0.5, it.c+0.5, '#fbf236', 14); floats.push({x:it.c+0.5, y:it.r, txt:'+'+g+'% luz', life:1.2, col:'#fbf236'}); }
       else if(it.k === 'cofreSala' && !W.rewarded.includes(it.room)) openRoomChest(it);
@@ -1214,7 +1241,7 @@ function cashOut(info){
 function persist(){
   if(prueba || ARC) return;   // probando una pieza del editor: nada se guarda
   const tiros = {}; for(const id in MINA.tiros) tiros[id] = packWorld(MINA.tiros[id]);
-  save(P1.guardado, {ver:WORLD_VER, seed:MINA.seed, tiros, stats:MINA.stats});
+  save(P1.guardado, {ver:WV, seed:MINA.seed, tiros, stats:MINA.stats});
 }
 
 function burst(y,x,col,n){ for(let i=0;i<n;i++) particles.push({x:x-0.2+Math.random()*0.4, y:y-0.2+Math.random()*0.4, vx:(Math.random()-0.5)*5, vy:-Math.random()*4.5, life:0.5+Math.random()*0.4, col}); }
@@ -1595,6 +1622,26 @@ function drawObject(it, X, Y){
     ctx.fillStyle = '#847e87'; for(let i=0;i<8;i++){ const a = i*Math.PI/4 + t*0.5; ctx.fillRect(Math.round(cx + Math.cos(a)*7) - 1, Math.round(cy + Math.sin(a)*7) - 1, 3, 3); }
     ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#000'; ctx.fillRect(cx-1, cy-1, 3, 3);
     if(Math.floor(t*2 + it.c) % 3 === 0){ ctx.fillStyle = '#fff'; ctx.fillRect(X+18, Y+7+bob, 2, 2); }
+    return;
+  }
+  if(o.dibujo === 'nenufar'){
+    // flota en la superficie del agua de su casilla (si se ha vaciado, se queda en el suelo)
+    const R = W.rows[it.r], lv = R ? Math.min(1, R.lv[it.c]) : 0, sy = Y + Math.round((1 - (lv > 0.05 ? lv : 0))*T) - 5 + Math.round(Math.sin(t*1.6 + it.c)*0.6);
+    const g = 0.3 + 0.2*Math.sin(t*2.2 + it.r); ctx.fillStyle = `rgba(203,219,252,${g*0.5})`; ctx.fillRect(X+3, sy-6, T-6, 9);
+    ctx.fillStyle = '#000'; ctx.fillRect(X+2, sy, 20, 5); ctx.fillRect(X+4, sy-1, 16, 7);
+    ctx.fillStyle = '#4b692f'; ctx.fillRect(X+3, sy+1, 18, 3); ctx.fillStyle = '#6abe30'; ctx.fillRect(X+5, sy, 14, 2);
+    ctx.fillStyle = '#000'; ctx.fillRect(X+12, sy, 2, 2);   // la muesca de la hoja
+    ctx.fillStyle = '#000'; ctx.fillRect(X+8, sy-6, 8, 7);
+    ctx.fillStyle = '#eec39a'; ctx.fillRect(X+9, sy-4, 6, 4); ctx.fillStyle = '#fff'; ctx.fillRect(X+10, sy-5, 2, 3); ctx.fillRect(X+13, sy-5, 1, 2);
+    ctx.fillStyle = '#d77bba'; ctx.fillRect(X+11, sy-2, 2, 1);
+    return;
+  }
+  if(o.dibujo === 'campanilla'){
+    const g = 0.3 + 0.2*Math.sin(t*2.6 + it.r); ctx.fillStyle = `rgba(203,219,252,${g*0.5})`; ctx.fillRect(X+5, Y+5, T-10, T-8);
+    ctx.fillStyle = '#4b692f'; ctx.fillRect(X+11, Y+10, 2, 13); ctx.fillRect(X+12, Y+9, 4, 2); ctx.fillRect(X+8, Y+19, 3, 2);
+    const cx = X + 15, cy = Y + 11 + bob;
+    ctx.fillStyle = '#000'; ctx.fillRect(cx-3, cy-1, 7, 8);
+    ctx.fillStyle = '#fff'; ctx.fillRect(cx-2, cy, 5, 5); ctx.fillStyle = '#cbdbfc'; ctx.fillRect(cx-2, cy+4, 5, 1); ctx.fillStyle = '#99e550'; ctx.fillRect(cx, cy+5, 1, 1);
     return;
   }
   if(o.dibujo === 'flor'){
@@ -2375,8 +2422,8 @@ function salirPrueba(){
 }
 // genera un trozo de un pozo con las reglas del juego (sin piezas) y lo devuelve en el formato de las piezas
 const T2CH = {[AIR]:'_', [DIRT]:'t', [STONE]:'p', [HARD]:'d', [ROCK]:'m', [BEDROCK]:'x', [CSAND]:'g', [SAND]:'a', [WATER]:'~', [RUBBLE]:'e', [CLAY]:'r', [COAL]:'c',
-  [COPPER]:'u', [QUARTZ]:'q', [DOOR]:'P', [GAS]:'*', [MUD]:'&', [PASS]:'.', [BEAM]:'.', [LADDER]:'L', [PROP]:'I', [PLANK]:'='};
-const OBJ2CH = {flor_mina:'f', hongo_azul:'j', lampara_vieja:'R', foto_cuadrilla:'F', nota_1:'N', nota_2:'N', nota_3:'N', casco_cuadrilla:'Q', pico_padre:'K', pieza_ascensor:'Z'};
+  [COPPER]:'u', [QUARTZ]:'q', [IRON]:'i', [TIN]:'s', [DOOR]:'P', [GAS]:'*', [MUD]:'&', [PASS]:'.', [BEAM]:'.', [LADDER]:'L', [PROP]:'I', [PLANK]:'='};
+const OBJ2CH = {flor_mina:'f', hongo_azul:'j', nenufar:'y', lampara_vieja:'R', foto_cuadrilla:'F', nota_1:'N', nota_2:'N', nota_3:'N', casco_cuadrilla:'Q', pico_padre:'K', pieza_ascensor:'Z'};
 function item2ch(it){
   return it.k === 'oil' ? 'o' : it.k === 'llave' ? 'k' : it.k === 'herr' ? (it.tipo === 'puntal' ? 'H' : 'h') : it.k === 'obj' ? (OBJ2CH[it.id] || 'f') :
     it.k === 'chest' || it.k === 'cofrePieza' ? 'B' : it.k === 'vent' ? 'V' : it.k === 'lift' ? 'M' : it.k === 'ascensor' ? 'A' : it.k === 'noria' ? 'W' : it.k === 'brasa' ? 'b' : it.k === 'portal' ? 'X' : null;
@@ -2453,7 +2500,7 @@ function sellarPozo(){
 // Si lo que queda en los pozos reales abiertos más lo del almacén no llega para el siguiente objetivo de la historia,
 // al empezar la bajada se meten vetas del mineral que falta en este pozo (en roca ya abierta por el generador, no en tus galerías).
 // Con más minas abiertas hay más mineral en juego, así que salta cada vez menos.
-const T2KEY = {[CLAY]:'arcilla', [COAL]:'carbon', [COPPER]:'cobre', [QUARTZ]:'cuarzo'};
+const T2KEY = {[CLAY]:'arcilla', [COAL]:'carbon', [COPPER]:'cobre', [QUARTZ]:'cuarzo', [IRON]:'hierro', [TIN]:'estano'};
 function siguienteObjetivo(){ const o = Pa.objetivo(); return o ? o.coste : null; }
 // ---------- recordatorio de misión ----------
 // Al empezar la bajada se recuerda lo que hace falta para el siguiente objetivo (lo del almacén más lo que llevas encima)
@@ -2494,6 +2541,7 @@ function redSeguridad(){
   for(const [k, n] of Object.entries(obj)){
     const falta = n - (Pa.almacen[k]||0) - (disp[k]||0);
     if(falta <= 0) continue;
+    if(M[k] && M[k].mina && !(P1.vetas && P1.vetas[k])) continue;   // el mineral propio de una mina solo se repone en las minas donde sale
     const quiero = Math.ceil(falta*1.5), tt = KEY2T[k];
     const desde = ROOM_ROW.length ? ROOM_ROW[0] + ROOM_H : SURF + 3, hasta = Math.min(W.rows.length - 2, isFinite(TC.fondo) ? TC.fondo - 4 : W.rows.length - 2);
     for(let i=0, intentos=0; i<quiero && intentos < 4000; intentos++){
@@ -2770,8 +2818,8 @@ function cargarMundo(key){
   setPozo(key);
   const saved = load(P1.guardado, null);
   MINA = null;
-  if(saved && saved.ver === WORLD_VER && saved.tiros){
-    try{ MINA = {ver:WORLD_VER, seed:saved.seed, actual:'principal', tiros:{}, stats:saved.stats || {ext:{}, per:{}}}; for(const id in saved.tiros){ const w = unpackWorld(saved.tiros[id]); if(w) MINA.tiros[id] = w; } if(!MINA.tiros.principal) MINA = null; }catch(e){ MINA = null; }
+  if(saved && saved.ver === WV && saved.tiros){
+    try{ MINA = {ver:WV, seed:saved.seed, actual:'principal', tiros:{}, stats:saved.stats || {ext:{}, per:{}}}; for(const id in saved.tiros){ const w = unpackWorld(saved.tiros[id]); if(w) MINA.tiros[id] = w; } if(!MINA.tiros.principal) MINA = null; }catch(e){ MINA = null; }
   }
   if(!MINA){ MINA = newMine(); if(saved) mundoNuevo = true; }
   W = MINA.tiros.principal; setTiro('principal');
@@ -2830,6 +2878,6 @@ return {
   salir(){ activa = false; started = false; },
   borrar(){ for(const k in POZOS) save(POZOS[k].guardado, null); cargarMundo(PK); },
   get pozo(){ return PK; },
-  _dbg(){ return {p, W, get MINA(){ return MINA; }, get TC(){ return TC; }, get PLACED(){ return PLACED; }, get transit(){ return transit; }, get bag(){ return bag; }, rocks, setT, tAt, consts:{AIR, RUBBLE, STONE, HARD, DIRT, SURF, get ROOM_ROW(){ return ROOM_ROW; }, ROOM_H, PROP, PLANK, BEDROCK, CSAND, SAND, WATER, MUD, ROCK, DOOR, PASS}, get cfg(){ return cfg; }, placeTool, persist, get llaves(){ return llaves; }, set llaves(v){ llaves = v; }, get wick(){ return wick; }, set wick(v){ wick = v; }, get looking(){ return looking; }, get zoom(){ return zoom; }, get shake(){ return shake + shakeKick; }, get props(){ return props; }, get ladders(){ return ladders; }, get cards(){ return cards; }, set cards(v){ cards = v; }, get air(){ return air; }, get lamp(){ return lamp; }, set lamp(v){ lamp = v; }, get dead(){ return dead; }, die, get escena(){ return escena; }, get aviso(){ return aviso; }, get mision(){ return mision; }, get kitLlevo(){ return kitLlevo; }, liftCost, get taken(){ return taken; }, refillTunnels, cashOut, get ungLlevo(){ return ungLlevo; }, layout}; },
+  _dbg(){ return {p, W, get MINA(){ return MINA; }, get TC(){ return TC; }, get PLACED(){ return PLACED; }, get transit(){ return transit; }, get bag(){ return bag; }, rocks, setT, tAt, consts:{AIR, RUBBLE, STONE, HARD, DIRT, SURF, get ROOM_ROW(){ return ROOM_ROW; }, ROOM_H, PROP, PLANK, BEDROCK, CSAND, SAND, WATER, MUD, ROCK, DOOR, PASS}, get cfg(){ return cfg; }, placeTool, persist, get llaves(){ return llaves; }, set llaves(v){ llaves = v; }, get wick(){ return wick; }, set wick(v){ wick = v; }, get looking(){ return looking; }, get zoom(){ return zoom; }, get shake(){ return shake + shakeKick; }, get props(){ return props; }, get ladders(){ return ladders; }, get cards(){ return cards; }, set cards(v){ cards = v; }, get air(){ return air; }, get lamp(){ return lamp; }, set lamp(v){ lamp = v; }, get dead(){ return dead; }, die, get escena(){ return escena; }, get aviso(){ return aviso; }, get mision(){ return mision; }, get kitLlevo(){ return kitLlevo; }, liftCost, get taken(){ return taken; }, refillTunnels, cashOut, get ungLlevo(){ return ungLlevo; }, layout, doSwap, capacity}; },
 };
 })();
