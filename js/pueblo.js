@@ -61,7 +61,7 @@ window.Pueblo = (()=>{
   const ESC = window.ESCENARIOS;
   const MW = ESC.mapa.ancho, MH = ESC.mapa.alto;
   const mapaCv = $('mapaCv'), mx = mapaCv.getContext('2d');
-  let mapaSel = null, mapaGeo = null;
+  let mapaSel = null, mapaGeo = null, esperando = false;
   const CENTRO = {x: D.mapa.pueblo[0], y: D.mapa.pueblo[1]};
   const POS = D.minas.map(m => ({x: m.boca[0], y: m.boca[1]}));
   const VIEJO = {x: D.mapa.viejo[0], y: D.mapa.viejo[1]};
@@ -92,23 +92,78 @@ window.Pueblo = (()=>{
     if(!crece){ const i = D.minas.findIndex(m => respiradero(m) && !Pa.bandera('respiradero_visto_' + m.id)); if(i >= 0) crece = {i, t0: t + 0.6}; }
     return D.minas.map((m, i) => { if(crece && crece.i === i) return Math.max(0, Math.min(1, (t - crece.t0)/2.2)); return respiradero(m) ? 1 : 0; });
   }
+  // cada mina reverdece hasta su radio (datos: mapa.verde); con el pueblo revivido del todo, su zona entera
+  const RADIO = D.minas.map(m => (D.mapa.verde && D.mapa.verde[m.id]) ?? 160);
   function componerMapa(prog){
-    const firma = prog.map(v => v.toFixed(3)).join(',');
+    const entero = vidaPueblo() >= 1, firma = prog.map(v => v.toFixed(3)).join(',') + (entero ? '+' : '');
     if(firma === MAPA.firma || !MAPA.seca || !MAPA.viva) return;
     MAPA.firma = firma;
     const out = mx.createImageData(MW, MH), o = out.data, S = MAPA.seca, V = MAPA.viva;
     for(let k=0;k<MW*MH;k++){
-      const p = prog[MAPA.dueno[k]];
-      const viva = p >= 1 || (p > 0 && MAPA.dist[k] < p*160 + (MAPA.fino[k] - 0.5)*18);
+      const i = MAPA.dueno[k], p = prog[i], rad = entero ? 400 : RADIO[i];
+      const viva = p > 0 && MAPA.dist[k] < p*rad + (MAPA.fino[k] - 0.5)*10;
       const src = viva ? V : S, j = k*4; o[j] = src[j]; o[j+1] = src[j+1]; o[j+2] = src[j+2]; o[j+3] = 255;
     }
     MAPA.cv.getContext('2d').putImageData(out, 0, 0);
   }
-  // lo elegido en el mapa: un anillo blanco de un píxel que late suave
-  function anillo(x, cx, cy, rx, ry, t){
-    x.globalAlpha = 0.35 + 0.65*(0.5 + 0.5*Math.sin(t*4)); x.fillStyle = C.blanco;
-    for(let a=0;a<Math.PI*2;a+=0.03) x.fillRect(Math.round(cx + Math.cos(a)*rx), Math.round(cy + Math.sin(a)*ry), 1, 1);
-    x.globalAlpha = 1;
+  // lo elegido (en el mapa y en la plaza): una flechita de píxel que bota, con la punta en (cx, cy)
+  const FLECHA = ['.00000.', '.0bbb0.', '00bbb00', '0bbbbb0', '.0bbb0.', '..0b0..', '...0...'];
+  function flecha(x, cx, cy, t, e = 2){
+    const bote = Math.round((0.5 - 0.5*Math.cos(t*6))*3*e), X = Math.round(cx) - 3*e - Math.floor(e/2), Y = Math.round(cy) - 7*e - bote;
+    FLECHA.forEach((f, j) => { for(let i=0;i<7;i++){ const ch = f[i]; if(ch === '.') continue; x.fillStyle = ch === '0' ? C.neg : C.amarillo; x.fillRect(X + i*e, Y + j*e, e, e); } });
+  }
+  // el Deep pequeñito del mapa (8x10): casco amarillo, gafas, pañuelo y dos pasos
+  const MINI = [
+    ['..0000..', '.0bbbb0.', '0abbbbb0', '0aaaaaa0', '0kiikik0', '0kkkkkk0', '.022220.', '0hhhhhh0', '.0hh0hh0', '.00..00.'],
+    ['..0000..', '.0bbbb0.', '0abbbbb0', '0aaaaaa0', '0kiikik0', '0kkkkkk0', '.022220.', '0hhhhhh0', '.0hhhh0.', '..0..0..'],
+  ];
+  const MINI_PAL = {'0': C.neg, b: C.amarillo, a: '#959025', k: C.tostado, i: '#131313', '2': '#d95763', h: C.marron};
+  const miniCv = MINI.map(f => { const c = document.createElement('canvas'); c.width = 8; c.height = 10; const x = c.getContext('2d');
+    f.forEach((row, j) => { for(let i=0;i<8;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = MINI_PAL[ch]; x.fillRect(i, j, 1, 1); } }); return c; });
+  // caminos del mapa: grafo de puntos (datos: mapa.nodos y mapa.tramos)
+  const NOD = D.mapa.nodos, ADJ = {}, OCULTO = D.mapa.oculto || [];
+  const unir = (a, b) => { (ADJ[a] || (ADJ[a] = [])).push(b); (ADJ[b] || (ADJ[b] = [])).push(a); };
+  D.mapa.tramos.split(/\s+/).forEach(t => { const [a, b] = t.split('-'); if(NOD[a] && NOD[b]) unir(a, b); });
+  if(OCULTO.length === 2) unir(OCULTO[0], OCULTO[1]);
+  const largo = (a, b) => Math.hypot(NOD[a][0] - NOD[b][0], NOD[a][1] - NOD[b][1]);
+  const esOculto = (a, b) => OCULTO.includes(a) && OCULTO.includes(b) && a !== b;
+  function ruta(a, b){
+    const d = {[a]: 0}, de = {}, hecho = new Set();
+    for(;;){
+      let u = null; for(const k in d) if(!hecho.has(k) && (u === null || d[k] < d[u])) u = k;
+      if(u === null || u === b) break; hecho.add(u);
+      for(const v of ADJ[u] || []){ const nd = d[u] + largo(u, v); if(d[v] === undefined || nd < d[v]){ d[v] = nd; de[v] = u; } }
+    }
+    if(d[b] === undefined) return [];
+    const r = []; for(let k = b; k !== a; k = de[k]) r.unshift(k); return r;
+  }
+  const mini = {nodo: 'pueblo', x: 0, y: 0, camino: [], alLlegar: null, cara: 1, tUlt: 0, tPaso: 0};
+  const parada = sel => sel === 'pueblo' || sel === 'viejo' ? D.mapa.paradas[sel] : D.mapa.paradas[D.minas[sel].id];
+  function colocarMini(){ const n = NOD[mini.nodo] || NOD.pueblo; mini.x = n[0]; mini.y = n[1]; mini.camino = []; mini.alLlegar = null; }
+  // ir a un punto: si ya iba andando, primero termina el tramo en el que está
+  function irMapa(destino, alLlegar){
+    const desde = mini.camino.length ? mini.camino[0] : mini.nodo;
+    const r = ruta(desde, destino);
+    mini.camino = mini.camino.length ? [mini.camino[0], ...r] : r;
+    mini.alLlegar = alLlegar;
+    if(!mini.camino.length){ mini.alLlegar = null; alLlegar && alLlegar(); }
+  }
+  function moverMini(t){
+    const dt = Math.min(0.05, Math.max(0, t - mini.tUlt)); mini.tUlt = t;
+    if(!mini.camino.length) return;
+    const b = mini.camino[0], q = NOD[b], dx = q[0] - mini.x, dy = q[1] - mini.y, d = Math.hypot(dx, dy), v = (D.mapa.velocidad || 70)*dt;
+    if(Math.abs(dx) > 0.3) mini.cara = Math.sign(dx);
+    if(d <= v){ mini.x = q[0]; mini.y = q[1]; mini.nodo = b; mini.camino.shift();
+      if(!mini.camino.length && mini.alLlegar){ const f = mini.alLlegar; mini.alLlegar = null; f(); } }
+    else { mini.x += dx/d*v; mini.y += dy/d*v; }
+    if(!esOculto(mini.nodo, b)){ mini.tPaso += dt; if(mini.tPaso > 0.3){ mini.tPaso = 0; window.Sonido && window.Sonido.tocar('pasoPlaza', 0.4); } }
+  }
+  function dibujarMini(x, t){
+    // por el sendero oculto no se le ve (va por detrás del peñasco)
+    if(mini.camino.length && esOculto(mini.nodo, mini.camino[0])) return;
+    const fr = miniCv[mini.camino.length ? Math.floor(t*8) % 2 : 0], X = Math.round(mini.x) - 4, Y = Math.round(mini.y) - 10;
+    x.fillStyle = 'rgba(0,0,0,0.3)'; x.fillRect(X + 1, Y + 10, 6, 1);
+    x.save(); if(mini.cara < 0){ x.translate(X + 8, Y); x.scale(-1, 1); x.drawImage(fr, 0, 0); } else x.drawImage(fr, X, Y); x.restore();
   }
   function dibujarMapa(t){
     const x = mx, prog = progreso(t);
@@ -121,9 +176,11 @@ window.Pueblo = (()=>{
       const p = POS[i];
       if(!abierta(m)){ R(x, C.neg, p.x-4, p.y-4, 9, 8); R(x, C.grisM, p.x-3, p.y-3, 7, 6); R(x, C.neg, p.x, p.y-1, 1, 2);
         R(x, C.neg, p.x-3, p.y-8, 7, 5); R(x, C.grisM, p.x-2, p.y-7, 5, 4); R(x, C.neg, p.x-1, p.y-6, 3, 3); }
-      if(mapaSel === i) anillo(x, p.x, p.y - 1, 12, 10, t);
     });
-    if(mapaSel === 'viejo') anillo(x, VIEJO.x, VIEJO.y - 2, 20, 17, t);
+    moverMini(t); dibujarMini(x, t);
+    if(typeof mapaSel === 'number') flecha(x, POS[mapaSel].x, POS[mapaSel].y - 11, t);
+    if(mapaSel === 'viejo') flecha(x, VIEJO.x, VIEJO.y - 14, t);
+    if(mapaSel === 'pueblo') flecha(x, CENTRO.x, CENTRO.y - 24, t);
     // zona reverdeciendo: chispas verdes sobre la boca
     if(crece && t > crece.t0){ const p = POS[crece.i]; for(let i=0;i<6;i++){ const ph = (t*0.8 + i/6) % 1; R(x, i%2 ? C.verdeC : C.amarillo, p.x - 10 + i*4, p.y - 4 - ph*24, 1, 1); } }
   }
@@ -134,7 +191,7 @@ window.Pueblo = (()=>{
     const a = at(CENTRO.x, CENTRO.y); pueblo.style.left = a.left+'px'; pueblo.style.top = a.top+'px';
     pueblo.innerHTML = `<span class="zona" style="width:${110*g.css}px;height:${80*g.css}px"></span><span class="etq">El pueblo</span>`;
     pueblo.style.transform = `translate(-50%, -${40*g.css}px)`;
-    pueblo.onclick = () => { mapaSel = null; marcar(); window.Pantallas.mostrar('plaza'); };
+    pueblo.onclick = () => { mapaSel = 'pueblo'; esperando = true; marcar(); irMapa(parada('pueblo'), () => { if(mapaSel === 'pueblo'){ esperando = false; window.Pantallas.mostrar('plaza'); } }); };
     pueblo.setAttribute('aria-label', 'Entrar al pueblo');
     cont.appendChild(pueblo);
     D.minas.forEach((m, i) => {
@@ -143,7 +200,7 @@ window.Pueblo = (()=>{
       b.style.transform = `translate(-50%, -${12*g.css}px)`;
       b.innerHTML = `<span class="zona" style="width:${26*g.css}px;height:${24*g.css}px"></span><span class="etq">${m.id}</span>`;
       b.setAttribute('aria-label', 'Mina ' + m.id + ': ' + m.nombre);
-      b.onclick = () => { mapaSel = i; marcar(); };
+      b.onclick = () => { if(mapaSel === i && !esperando) return; mapaSel = i; esperando = true; marcar(); irMapa(parada(i), () => { if(mapaSel === i){ esperando = false; marcar(); } }); };
       cont.appendChild(b);
     });
     const v = document.createElement('button'); v.className = 'punto';
@@ -152,7 +209,7 @@ window.Pueblo = (()=>{
     v.innerHTML = `<span class="zona" style="width:${40*g.css}px;height:${34*g.css}px"></span><span class="etq">Viejo topo</span>`;
     v.style.transform = `translate(-50%, -${17*g.css}px)`;
     v.setAttribute('aria-label', 'Casa del viejo topo');
-    v.onclick = () => { mapaSel = 'viejo'; marcar(); };
+    v.onclick = () => { if(mapaSel === 'viejo' && !esperando) return; mapaSel = 'viejo'; esperando = true; marcar(); irMapa(parada('viejo'), () => { if(mapaSel === 'viejo'){ esperando = false; marcar(); } }); };
     cont.appendChild(v);
     marcar(); encajarEtiquetas(cont);
   }
@@ -169,12 +226,13 @@ window.Pueblo = (()=>{
   }
   function marcar(){
     const pts = document.querySelectorAll('#mapaPuntos .punto');
-    pts.forEach((b, j) => b.classList.toggle('sel', mapaSel === 'viejo' ? j === pts.length - 1 : j-1 === mapaSel));
+    pts.forEach((b, j) => b.classList.toggle('sel', mapaSel === 'viejo' ? j === pts.length - 1 : mapaSel === 'pueblo' ? j === 0 : j-1 === mapaSel));
     // objetivo: una etiqueta pequeña en una esquina
     const o = Pa.objetivo(), oc = $('mapaObjetivo');
     oc.hidden = !o; if(o) oc.textContent = '🎯 ' + o.corto[0].toUpperCase() + o.corto.slice(1);
     const btn = $('mpBoton'); $('mpBoton2').hidden = true;
-    if(mapaSel === null){ $('mapaPanel').hidden = true; return; }
+    // mientras Deep va andando hacia lo elegido, el bocadillo espera a que llegue
+    if(mapaSel === null || mapaSel === 'pueblo' || (esperando && mapaSel !== 'objetivo')){ $('mapaPanel').hidden = true; return; }
     if(mapaSel === 'objetivo'){
       $('mpEyebrow').textContent = 'Siguiente objetivo'; $('mpTitulo').textContent = o ? o.nombre[0].toUpperCase() + o.nombre.slice(1) : '';
       $('mpTexto').innerHTML = o ? costeChips(o.coste) : ''; btn.hidden = true;
@@ -201,12 +259,12 @@ window.Pueblo = (()=>{
     } else { btn.hidden = true; $('mpTexto').innerHTML = '<p>🔒 Aún no se puede llegar.</p>'; }
     colocarBurbuja(POS[mapaSel].x, POS[mapaSel].y);
   }
-  $('mapaObjetivo').onclick = e => { e.stopPropagation(); mapaSel = mapaSel === 'objetivo' ? null : 'objetivo'; marcar(); };
+  $('mapaObjetivo').onclick = e => { e.stopPropagation(); esperando = false; mapaSel = mapaSel === 'objetivo' ? null : 'objetivo'; marcar(); };
   // tocar la imagen fuera de un punto cierra el bocadillo
-  $('mapaCv').addEventListener('click', () => { if(mapaSel !== null){ mapaSel = null; marcar(); } });
+  $('mapaCv').addEventListener('click', () => { if(mapaSel !== null){ mapaSel = null; esperando = false; mini.alLlegar = null; marcar(); } });
   $('mpBoton2').onclick = () => { if(mapaSel !== null && mapaSel !== 'viejo') window.Pantallas.mostrar('mina', D.minas[mapaSel].pozo || 'viejo', {fondo: true}); };
   $('mpBoton').onclick = () => {
-    if(mapaSel === null) return;
+    if(mapaSel === null || esperando) return;
     if(mapaSel === 'viejo'){
       const conv = window.Conversaciones && window.Conversaciones.alEntrar('viejo');
       if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); marcar(); });
@@ -249,11 +307,6 @@ window.Pueblo = (()=>{
     const x = px;
     componerPlaza();
     x.drawImage(PLZ.cv, 0, 0);
-    // casa elegida: su contorno en blanco, latiendo suave
-    if(plazaSel !== null){ const ct = PL.contornos && PL.contornos[D.casas[plazaSel].id]; if(ct){
-      x.globalAlpha = 0.35 + 0.65*(0.5 + 0.5*Math.sin(t*4)); x.fillStyle = C.blanco;
-      for(const [y, x0, x1] of ct) x.fillRect(x0, y, x1 - x0 + 1, 1);
-      x.globalAlpha = 1; } }
     moverTopo(t);
     const andando = topo.camino.length > 0, frs = andando ? TOPO_ANDAR : TOPO_REPOSO;
     const fr = frs[Math.floor(t*(andando ? 9 : 2)) % frs.length];
@@ -263,6 +316,8 @@ window.Pueblo = (()=>{
     if(topo.cara < 0){ x.translate(X + 32, Y); x.scale(-1, 1); x.drawImage(fr, 0, 0); }
     else x.drawImage(fr, X, Y);
     x.restore();
+    // casa elegida: la flechita encima del tejado
+    if(plazaSel !== null){ const e = CASA(D.casas[plazaSel]); if(e) flecha(x, (e.caja[0] + e.caja[2])/2, e.caja[1] - 1, t); }
   }
   // ---- caminos: búsqueda en la rejilla de paso (8 direcciones) y alisado en línea recta donde se pueda
   const pasa = (cx, cy) => cx >= 0 && cy >= 0 && cx < PL.cols && cy < PL.filas && PL.paso[cy][cx] === '1';
@@ -297,21 +352,21 @@ window.Pueblo = (()=>{
     return liso.slice(1).map(centro);
   }
   const INICIO = centro(PL.inicio), SALIDA = centro(PL.salida);
-  const topo = {x: INICIO.x, y: INICIO.y, cara: 1, camino: [], alLlegar: null, tPaso: 0, tUlt: 0};
+  const topo = {x: INICIO.x, y: INICIO.y, cara: 1, camino: [], alLlegar: null, tPaso: 0, tUlt: 0, rapido: false};
   const puerta = i => { const e = CASA(D.casas[i]); return e ? e.puerta : PL.inicio; };
   function irA(celda, alLlegar){
     const a = cercana(...celdaDe(topo.x, topo.y)), b = cercana(celda[0], celda[1]);
-    topo.camino = buscar(a, b); topo.alLlegar = alLlegar;
+    topo.camino = buscar(a, b); topo.alLlegar = alLlegar; topo.rapido = false;
     if(!topo.camino.length && alLlegar){ topo.alLlegar = null; alLlegar(); }
   }
   function moverTopo(t){
     const dt = Math.min(0.05, Math.max(0, t - topo.tUlt)); topo.tUlt = t;
     if(!topo.camino.length) return;
-    const p = topo.camino[0], dx = p.x - topo.x, dy = p.y - topo.y, d = Math.hypot(dx, dy), v = 90*dt;
+    const p = topo.camino[0], dx = p.x - topo.x, dy = p.y - topo.y, d = Math.hypot(dx, dy), v = 90*(topo.rapido ? 2 : 1)*dt;
     if(Math.abs(dx) > 0.5) topo.cara = Math.sign(dx);
     if(d <= v){ topo.x = p.x; topo.y = p.y; topo.camino.shift(); if(!topo.camino.length && topo.alLlegar){ const f = topo.alLlegar; topo.alLlegar = null; f(); } }
     else { topo.x += dx/d*v; topo.y += dy/d*v; }
-    topo.tPaso += dt; if(topo.tPaso > 0.22){ topo.tPaso = 0; window.Sonido && window.Sonido.tocar('pasoPlaza', 0.7); }
+    topo.tPaso += dt; if(topo.tPaso > (topo.rapido ? 0.13 : 0.22)){ topo.tPaso = 0; window.Sonido && window.Sonido.tocar('pasoPlaza', 0.7); }
   }
   function montarPuntosPlaza(){
     const cont = $('plazaPuntos'); cont.innerHTML = '';
@@ -337,7 +392,7 @@ window.Pueblo = (()=>{
     const q = at(SALIDA.x, SALIDA.y - 34); salida.style.left = q.left+'px'; salida.style.top = q.top+'px';
     salida.innerHTML = `<span class="zona" style="width:${50*g.css}px;height:${30*g.css}px"></span><span class="etq">Al mapa</span>`;
     salida.setAttribute('aria-label', 'Salir al mapa');
-    salida.onclick = () => { plazaSel = null; panelCasa(); irA(PL.salida, () => window.Pantallas.mostrar('mapa')); };
+    salida.onclick = () => { plazaSel = null; panelCasa(); irA(PL.salida, () => window.Pantallas.mostrar('mapa')); topo.rapido = true; };
     cont.appendChild(salida);
     encajarEtiquetas(cont);
   }
@@ -396,19 +451,23 @@ window.Pueblo = (()=>{
       if(!Pa.bandera('ardilla_intro')){ cuerpo.innerHTML = '<p>La ardilla va de un lado a otro entre frascos y manojos de hierbas. No te hace ni caso.</p>'; return; }
       const e = HB.encargos.find(x => Pa.pueblo.encargos[x.id] !== 'hecho');
       let h = e ? `<p class="lbl">Encargo · ${e.nombre}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => objChip(k, Pa.coleccion[k] || 0, n)).join('')}</div>` : '<p class="note">No hay encargos pendientes. ¡Gracias por todas las plantas!</p>';
-      const U = Pa.kit.unguentos || {}, LL = Pa.kit.llevarUng || {};
+      const U = Pa.kit.unguentos || {}, ELEG = Pa.ungElegidos(), HUECOS = HB.huecos || 2;
       const recetas = Object.entries(HB.unguentos).filter(([id]) => Pa.bandera('receta_' + id) || U[id]);
       if(recetas.length){
         h += '<p class="lbl">Ungüentos</p><div class="shop">' + recetas.map(([id, u]) => `<div class="row"><span>${u.icono} ${u.nombre} · tienes ${U[id] || 0}<small>${u.texto}${Pa.bandera('receta_' + id) ? ' Cuesta ' + objTxt(u.precio) + '.' : ''}</small>
-          <label class="llevar"><input type="checkbox" data-l="${id}" ${LL[id] !== false ? 'checked' : ''}> Llevármelo a la mina</label></span>
+          ${U[id] ? `<label class="llevar"><input type="checkbox" data-l="${id}" ${ELEG.includes(id) ? 'checked' : ''}> Llevármelo a la mina</label>` : ''}</span>
           ${Pa.bandera('receta_' + id) ? `<button data-u="${id}" ${puedeObj(u.precio) ? '' : 'disabled'}>Preparar</button>` : ''}</div>`).join('') + '</div>';
-        h += '<p class="note">Los ungüentos se gastan cuando hacen efecto. Si no hace falta, vuelve contigo.</p>';
+        h += `<p class="note" id="ungNota">Caben ${HUECOS} ungüentos en tu bolsa (llevas ${ELEG.length}). Se gastan cuando hacen efecto; si no hace falta, vuelve contigo.</p>`;
       }
       cuerpo.innerHTML = h;
       cuerpo.querySelectorAll('button[data-u]').forEach(b => b.onclick = () => { const u = HB.unguentos[b.dataset.u]; if(!puedeObj(u.precio)) return;
         for(const [k, n] of Object.entries(u.precio)){ Pa.coleccion[k] -= n; if(Pa.coleccion[k] <= 0) delete Pa.coleccion[k]; }
         const UU = Pa.kit.unguentos || (Pa.kit.unguentos = {}); UU[b.dataset.u] = (UU[b.dataset.u] || 0) + 1; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
-      cuerpo.querySelectorAll('input[data-l]').forEach(i => i.onchange = () => { const L2 = Pa.kit.llevarUng || (Pa.kit.llevarUng = {}); L2[i.dataset.l] = i.checked; Pa.guardar(); });
+      cuerpo.querySelectorAll('input[data-l]').forEach(i => i.onchange = () => {
+        const L2 = Pa.kit.llevarUng || (Pa.kit.llevarUng = {}), antes = Pa.ungElegidos();
+        if(i.checked && antes.length >= HUECOS){ i.checked = false; $('ungNota').textContent = `Solo caben ${HUECOS} ungüentos. Quita uno antes de elegir otro.`; window.Sonido && window.Sonido.tocar('tropiezo', 0.5); return; }
+        for(const id of Object.keys(HB.unguentos)) L2[id] = antes.includes(id);   // a partir de ahora, la elección es la que ves
+        L2[i.dataset.l] = i.checked; Pa.guardar(); panelCasa(); });
     } else if(c.tipo === 'cerrada'){
       cuerpo.innerHTML = `<p>${c.texto || 'Está cerrada.'}</p>`;
     } else {
@@ -451,8 +510,8 @@ window.Pueblo = (()=>{
   const ro = new ResizeObserver(() => recolocar());
   ro.observe($('mapaLienzo')); ro.observe($('plazaLienzo'));
   return {
-    mapa(){ activa = 'mapa'; mapaSel = null; $('mapaPanel').hidden = true; requestAnimationFrame(recolocar); },
-    plaza(){ activa = 'plaza'; plazaSel = null; topo.x = SALIDA.x; topo.y = SALIDA.y; topo.camino = []; topo.alLlegar = null; irA(PL.inicio, null); requestAnimationFrame(recolocar); },
+    mapa(){ activa = 'mapa'; mapaSel = null; esperando = false; colocarMini(); $('mapaPanel').hidden = true; requestAnimationFrame(recolocar); },
+    plaza(){ activa = 'plaza'; mini.nodo = D.mapa.paradas.pueblo; plazaSel = null; topo.x = SALIDA.x; topo.y = SALIDA.y; topo.camino = []; topo.alLlegar = null; irA(PL.inicio, null); requestAnimationFrame(recolocar); },
     parar(){ activa = null; },
   };
 })();

@@ -38,6 +38,13 @@ window.Partida = (()=>{
         return {nombre: 'abrir la mina ' + m.id + ' (' + m.nombre + ')', corto: 'abrir la mina ' + m.id, coste: m.desbloqueo};
       return null;
     },
+    // ungüentos que te llevas a la próxima bajada: los marcados primero y, si quedan huecos, los que nunca has tocado
+    ungElegidos(){
+      const HB = D.herboristeria || {unguentos: {}}, U = P.kit.unguentos || {}, L = P.kit.llevarUng || {}, H = HB.huecos || 2;
+      const ids = Object.keys(HB.unguentos).filter(id => (U[id] || 0) > 0);
+      const r = ids.filter(id => L[id] === true); for(const id of ids) if(r.length < H && L[id] === undefined) r.push(id);
+      return r.slice(0, H);
+    },
     puedePagar(precio){ return Object.entries(precio).every(([m, n]) => (P.almacen[m] || 0) >= n); },
     comprar(item){
       if(!P.puedePagar(item.precio)) return false;

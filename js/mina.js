@@ -241,8 +241,10 @@ function genRow(r){
   if((!TC.principal && r < SURF) || r >= TC.fondo){ Tt.fill(BEDROCK); for(let c=0;c<COLS;c++) R.hp[c] = INFO[BEDROCK].hp; return R; }
   if(L.part !== undefined){
     R.nat.fill(1);
-    if(L.part === ROOM_H-2){ W.items.push({k:'cofreSala', room:L.room, r, c:SA.columnaCofre, alive:true}); if(hasLift(L.room)) W.items.push({k:'carga', room:L.room, r, c:COL_CARGA, alive:true}); }
+    if(L.part === ROOM_H-2){ W.items.push({k:'cofreSala', room:L.room, r, c:SA.columnaCofre, alive:true}); if(hasLift(L.room)) W.items.push({k:'carga', room:L.room, r, c:COL_CARGA, alive:true});
+      if(esCajon(L.room)) W.items.push({k:'cajon', room:L.room, r, c:SA.columnaRuleta, alive:true}); }
     if(L.part === 0 || L.part === ROOM_H-1) Tt.fill(BEAM);
+    if(L.part === ROOM_H-1 && esCajon(L.room)) Tt.fill(ROCK);   // arcade: el suelo de la sala del cajón no se abre hasta pagarlo
     for(let c=0;c<COLS;c++) R.hp[c] = INFO[Tt[c]].hp||0;
     return R;
   }
@@ -252,10 +254,18 @@ function genRow(r){
     if(vn(c/5, r/5, S+1) < 0.15 + Math.min(0.55, d*0.008)) v = STONE;
     const esc = P1.escasez || 0;
     if(d > 3 && vn(c/5, r/2.2, S+2) > (TM.arena ?? P1.arenaUmbral ?? 0.78)) v = ON('barro') && sg >= (DT.barro ?? 0) && vn(c/6, r/6, S+15) < (TM.arcillosa ?? P1.arenaArcillosa ?? 0) ? CSAND : SAND;
+    const MN = TM.min;   // arcade: cada fase dice qué minerales salen y cuántos (umbral: más bajo = más)
+    if(MN){
+      if(MN.arcilla !== undefined && vn(c/2.6, r/2.6, S+3) > MN.arcilla) v = CLAY;
+      if(MN.carbon !== undefined && !isSand(v) && vn(c/2.2, r/2.2, S+4) > MN.carbon) v = COAL;
+      if(MN.cobre !== undefined && !isSand(v) && vn(c/2, r/2, S+5) > MN.cobre) v = COPPER;
+      if(MN.cuarzo !== undefined && v === STONE && h2(c, r, S+12) < MN.cuarzo) v = QUARTZ;
+    } else {
     if(vn(c/2.6, r/2.6, S+3) > 0.73 + esc + Math.min(sg, 6)*0.03) v = CLAY;
     if(sg >= DT.carbon && !isSand(v) && vn(c/2.2, r/2.2, S+4) > 0.74 + esc) v = COAL;
     if(sg >= DT.cobre && !isSand(v) && vn(c/2, r/2, S+5) > 0.75 + esc) v = COPPER;
     if(sg >= DT.cuarzo && v === STONE && h2(c, r, S+12) < 0.008) v = QUARTZ;
+    }
     if(d > 3 && vn(c/3, r/3, S+6) > 0.84) v = HARD;
     if(sg >= DT.cuevas && d > 6 && L.d > 1 && vn(c/4, r/3, S+7) > (TM.cuevas ?? P1.cuevasUmbral ?? 0.7)){
       v = AIR;
@@ -273,7 +283,7 @@ function genRow(r){
   const lenT = TRAMOS[sg] ? TRAMOS[sg].len : Infinity;
   if(isFinite(lenT)){
     if(oilRowsOf(sg, lenT).includes(L.d)){ const c = Math.floor(h2(r, 7, S+14)*COLS); Tt[c] = AIR; W.items.push({k:'oil', r, c, alive:true}); }
-  } else if(L.d > 2 && r - lastOil >= cfg.oilEvery + Math.min(sg, 4)*2){
+  } else if(L.d > 2 && r - lastOil >= (P1.aceiteFilas || cfg.oilEvery + Math.min(sg, 4)*2)){
     const c = Math.floor(h2(r, 7, S+14)*COLS); Tt[c] = AIR; W.items.push({k:'oil', r, c, alive:true}); lastOil = r;
   }
   // pasadizos: en el principal, la boca hacia cada ramal; en un ramal, la salida de vuelta junto a la llegada
@@ -292,6 +302,10 @@ function genRow(r){
     }
     if(r === SECRET.r+SECRET.h-2) W.items.push({k:'chest', r, c:SECRET.c0+2, alive:true});
   }
+  // franjas de roca maciza con un hueco a un lado (recorridos del arcade): cortan los derrumbes y el agua de arriba
+  if(P1.franjas && d > 0 && d % P1.franjas.cada === 0){ const k = d / P1.franjas.cada, hu = P1.franjas.hueco || 2, izq = k % 2 === 1;
+    for(let c=0;c<COLS;c++) Tt[c] = (izq ? c < hu : c >= COLS - hu) ? AIR : ROCK;
+    W.items = W.items.filter(it => !(it.r === r && it.k === 'oil')); }
   applyPieces(r, Tt);   // lo hecho a mano manda sobre lo procedural
   for(let c=0;c<COLS;c++){ R.hp[c] = INFO[Tt[c]].hp||0; R.nat[c] = isSolid(Tt[c]) ? 0 : 1; R.lv[c] = Tt[c] === WATER ? 1 : 0; }
   return R;
@@ -343,6 +357,7 @@ function addKit(r, fresh){
 const COL_CARGA = 14;
 const LLAMAS = SA.columnasLlama || [SA.columnaLlama ?? 2];   // antorchas de las salas (una a cada lado)   // al borde de la sala, como si bajara por un hueco paralelo a la mina
 const hasLift = i => !!(TC && TC.principal && P1.montacargasCada) && (i + 1) % P1.montacargasCada === 0;
+const esCajon = i => !!(ARC && ARC.cajonCada && TC && TC.principal) && (i + 1) % ARC.cajonCada === 0;
 function ensureRoomItems(){
   for(let i=0;i<ROOM_ROW.length;i++){
     if(ROOM_ROW[i] + ROOM_H > W.rows.length) break;
@@ -442,7 +457,7 @@ function startRun(){
   taken = {p: Math.min(Pa.kit.puntales||0, cfg.llevP), l: Math.min(Pa.kit.escaleras||0, cfg.llevL), k: Pa.kit.llaves||0};
   lamp = 100; bag = {}; props = Math.max(taken.p, cfg.minP); ladders = Math.max(taken.l, cfg.minL); llaves = taken.k; wick = 1;
   kitLlevo = !!(Pa.pueblo.kitMc && !Pa.pueblo.kitMcMochila);
-  ungLlevo = {}; for(const [id, U] of Object.entries(UNG)) if((Pa.kit.unguentos||{})[id] > 0 && (Pa.kit.llevarUng||{})[id] !== false) ungLlevo[U.carta] = id;
+  ungLlevo = {}; for(const id of (Pa.ungElegidos ? Pa.ungElegidos() : [])) if(UNG[id]) ungLlevo[UNG[id].carta] = id;   // como mucho 2 (los huecos de la herboristería)
   prevRecord = W.record||0; newGround = false;
   cards = {}; for(const ca in ungLlevo) cards[ca] = 1;   // los ungüentos de la ardilla funcionan como cartas de un solo uso
   spun = new Set(); carpDone = 0; chestFx = null; air = airMax(); submerged = false; airWarn = false;
@@ -697,7 +712,7 @@ function updateRocks(dt){
 function weight(){ let w = 0; for(const k in bag) if(INFO[k]) w += bag[k]*INFO[k].val; return w; }
 // la mochila no frena: se llena. Capacidad según ajustes (más con la carta Mochila de cuero)
 function stepTime(){ return JU.tiempoPaso; }
-function capacity(){ return Math.round(cfg.cap * (has('mochila_cuero') ? cv_('mochila_cuero', 1.5) : 1)); }
+function capacity(){ if(ARC) return 1e9; return Math.round(cfg.cap * (has('mochila_cuero') ? cv_('mochila_cuero', 1.5) : 1)); }
 const inMud = (r, c) => tAt(r, c) === MUD;
 function canStand(r, c){ if(p.onPlat && r === SURF-2 && c === 7) return true; const below = tAt(r+1, c); return isSolid(below) || below === LADDER || below === PLANK || below === PROP || tAt(r, c) === LADDER; }
 function passable(r, c){ const v = tAt(r, c); return !isSolid(v) && !rocks.some(k => k.c === c && Math.abs(k.y - r) < 1); }
@@ -709,7 +724,7 @@ function hit(r, c, dir){
     if(lockMsgT <= 0){ floats.push({x:c+0.5, y:r, txt: INFO[v].madre ? 'Roca madre: no se puede romper' : 'Roca maciza: hace falta un taladro', life:1.4, col:'#cbdbfc'}); lockMsgT = 1.6; }
     return;
   }
-  if(v === RUBBLE){ clearRubble(r, c); digT = JU.tiempoGolpe; lamp -= LA.costeGolpe; SND('escombro'); return; }
+  if(v === RUBBLE){ clearRubble(r, c); digT = JU.tiempoGolpe; lamp -= LA.costeGolpe; SND('escombro'); if(ARC && ARC.golpe) ARC.golpe('escombro', false, r, c); return; }
   if(has('pico_afilado') && R.hp[c] === INFO[v].hp && INFO[v].hp > 1) R.hp[c]--;   // carta: un golpe menos
   R.hp[c]--; digT = JU.tiempoGolpe; lamp -= LA.costeGolpe;
   burst(r+0.5, c+0.5, '#d9a066', 2);
@@ -723,6 +738,7 @@ function hit(r, c, dir){
       if(got) renderInv(v);
       if(got < n){ SND('clin'); floats.push({x:c+0.5, y:r, txt:'Mochila llena: ' + INFO[v].n.toLowerCase() + ' perdido', life:1.4, col:'#d95763'}); }
     }
+    if(ARC && ARC.golpe) ARC.golpe(INFO[v].key, !!INFO[v].val, r, c);
   }
 }
 function clearRubble(r0, c0){
@@ -817,7 +833,7 @@ function updatePlayer(dt){
   if(p.stun > 0) p.anim = 'reposo';
   else if(p.act && p.actT < 0.32) p.anim = p.act;
   else { p.act = null; p.anim = p.falling ? ((p.fallN||0) >= JU.caidaLargaDesde ? 'caida_larga' : 'caer') : moving ? 'andar' : 'reposo'; }
-  // lámpara, agua y grisú
+  // lámpara, agua y gas
   const wetLv = lvAt(p.r, p.c);
   // la lámpara solo se moja cuando el agua llega a media altura del topo (una lámina fina no la toca)
   const mojaDesde = AG.mojaLamparaDesde ?? 0.5;
@@ -834,13 +850,18 @@ function updatePlayer(dt){
   gasNear = false;
   const GA = PE.grisuAviso;
   for(let r=p.r-GA; r<=p.r+GA && !gasNear; r++) for(let c=p.c-GA; c<=p.c+GA; c++) if(tAt(r,c) === GAS){ gasNear = true; break; }
-  if(gasNear && !roomsSeen.has('gas')){ roomsSeen.add('gas'); toast('La llama se vuelve azul', 'Hay grisú cerca. Baja la mecha para pasar'); }
+  if(gasNear && !roomsSeen.has('gas')){ roomsSeen.add('gas'); toast('La llama se vuelve azul', 'Hay una bolsa de gas cerca. Baja la mecha para pasar'); }
   if(wick && lamp > 0 && (tAt(p.r, p.c) === GAS || tAt(p.r-1, p.c) === GAS)) explode(tAt(p.r, p.c) === GAS ? p.r : p.r-1, p.c);
   const L = layout(p.r);
   const inRoom = L.part !== undefined && L.part > 0 && L.part < ROOM_H-1;
   const atFlame = inRoom && LLAMAS.some(cl => Math.abs(p.x - cl) <= SA.radioLlama);
   if(atFlame){ if(lamp < 100 && Math.random() < dt*20) burst(p.y+0.2, p.x+0.5, '#fbf236', 1); lamp = Math.min(100, lamp + LA.recargaSala*dt); }
   else if(!L.surface && !inRoom) lamp -= cfg.drain*dt*(wick ? 1 : LA.multMechaBaja)*wetMult*(has('mecha_cera') ? cv_('mecha_cera', 0.75) : 1)*(has('codicia') ? cv_('codicia', 1.25) : 1);
+  // lámpara baja: un latido que se acelera según se apaga, y los bordes de la pantalla se oscurecen a su ritmo
+  latActivo = !dead && !inRoom && !L.surface && lamp > 0 && lamp < (LA.latidoDesde ?? 25);
+  if(latActivo){ latT -= dt; if(latT <= 0){ const de = LA.latidoDesde ?? 25; latT = lamp < 10 ? 0.5 : 0.6 + (lamp - 10)/(de - 10)*0.5; latPulso = 1; SND('latido', 0.9); } }
+  else latT = 0;
+  latPulso = Math.max(0, latPulso - dt*2.4);
   // brasas encendidas bajo los pies: queman la lámpara
   { const br = W.items.find(i => i.alive && i.k === 'brasa' && !i.apagada && i.r === p.r && i.c === p.c);
     if(br){ lamp -= dt*(D.brasas ? D.brasas.quema : 9); if(Math.random() < dt*12) burst(p.y + 0.8, p.x + 0.5, Math.random() < 0.5 ? '#df7126' : '#fbf236', 1);
@@ -889,6 +910,7 @@ function updatePlayer(dt){
   // avisos
   const depth = Math.max(0, TC.base + p.r - SURF + 1); if(depth > maxDepth) maxDepth = depth;
   if(TC.principal && p.r > (W.record||0)) W.record = p.r;
+  if(inRoom && !roomsSeen.has(L.room) && ARC){ roomsSeen.add(L.room); SND('sala'); if(ARC.sala) ARC.sala(L.room); }
   if(inRoom && !roomsSeen.has(L.room)){
     roomsSeen.add(L.room); SND('sala');
     const bits = ['Recarga la lámpara en la llama'];
@@ -909,9 +931,9 @@ function explode(r0, c0){
     const [r,c] = q.pop(); cells.push([r,c]);
     for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){ const rr=r+dr, cc=c+dc, k=rr*16+cc; if(cc<0||cc>=COLS||seen.has(k)||tAt(rr,cc)!==GAS) continue; seen.add(k); q.push([rr,cc]); }
   }
-  if(useCard('llama_fria')){   // carta: la bolsa de grisú se disipa sin explotar
+  if(useCard('llama_fria')){   // carta: la bolsa de gas se disipa sin explotar
     for(const [r,c] of cells){ setT(r, c, AIR); if(Math.random() < 0.4) burst(r+0.5, c+0.5, '#99e550', 2); }
-    floats.push({x:c0+0.5, y:r0-0.4, txt:'Llama fría: el grisú se disipa', life:1.6, col:'#99e550'}); return;
+    floats.push({x:c0+0.5, y:r0-0.4, txt:'Llama fría: el gas se disipa', life:1.6, col:'#99e550'}); return;
   }
   for(const [r,c] of cells){
     setT(r,c,AIR);
@@ -923,7 +945,7 @@ function explode(r0, c0){
   }
   for(const it of W.items) if(it.k === 'moth' && cells.some(([r,c])=>Math.abs(it.y-r-0.5)<2 && Math.abs(it.x-c-0.5)<2)) it.alive = false;
   lamp -= PE.grisuLuz; flashT = 0.45; SND('explosion'); shakeKick = Math.max(shakeKick, 4);
-  floats.push({x:c0+0.5, y:r0-0.4, txt:'¡Grisú!', life:1.4, col:'#fbf236'}, {x:p.c+0.5, y:p.r+0.3, txt:'-'+PE.grisuLuz+'% luz', life:1.2, col:'#d95763'});
+  floats.push({x:c0+0.5, y:r0-0.4, txt:'¡Gas!', life:1.4, col:'#fbf236'}, {x:p.c+0.5, y:p.r+0.3, txt:'-'+PE.grisuLuz+'% luz', life:1.2, col:'#d95763'});
 }
 // Puntal (toque corto): en tu casilla sostiene el techo, aunque luego le quiten el suelo.
 // Puntal (mantener pulsado): se pone tumbado como un tablón en el hueco que tienes delante a la altura de los pies (puente).
@@ -1115,6 +1137,11 @@ function mecanismos(top, bot){
 // ---------- muerte y cobro ----------
 function die(cause){
   if(dead || cashed) return;
+  if(ARC){   // arcade: sin mochila ni derrumbe del tramo; la página del arcade decide (fin de partida o reaparecer)
+    dead = {cause, n:0, lost:{props:0, ladders:0}}; deadT = 0; SND('muerte'); shakeKick = Math.max(shakeKick, 3);
+    burst(p.y+0.5, p.x+0.5, cause === 'crush' ? '#eec39a' : '#fbf236', 24);
+    if(ARC.muerte) ARC.muerte(cause); return;
+  }
   if(useCard('segunda')){   // carta: vuelves a la última sala segura con la mochila
     const r = lastRoomFloor >= ROOM_ROW[0] + ROOM_H - 1 ? lastRoomFloor - 1 : SURF - 2, c = r === SURF - 2 ? 7 : LLAMAS[0];
     p.r = r; p.y = r; p.c = c; p.x = c; p.sx = c; p.falling = false; p.fallN = 0; p.stun = 0; p.onPlat = r === SURF - 2; if(p.onPlat) platOpen = 0;
@@ -1175,7 +1202,7 @@ function cashOut(info){
   showEnd();
 }
 function persist(){
-  if(prueba) return;   // probando una pieza del editor: nada se guarda
+  if(prueba || ARC) return;   // probando una pieza del editor: nada se guarda
   const tiros = {}; for(const id in MINA.tiros) tiros[id] = packWorld(MINA.tiros[id]);
   save(P1.guardado, {ver:WORLD_VER, seed:MINA.seed, tiros, stats:MINA.stats});
 }
@@ -1552,6 +1579,17 @@ function drawWheel(i){
   ctx.fillStyle = '#fbf236'; ctx.beginPath(); ctx.moveTo(cx-3, cy-14); ctx.lineTo(cx+4, cy-14); ctx.lineTo(cx+0.5, cy-9); ctx.fill();
   if(!used && Math.floor(t*2) % 2 === 0){ ctx.fillStyle = '#fff'; ctx.fillRect(cx+8, cy-10, 2, 2); }
 }
+// arcade: el cajón donde se depositan los minerales para abrir la compuerta (suelo de la sala)
+function drawCajon(it, X, Y){
+  const g = ctx, ab = !!it.pagado;
+  g.fillStyle = '#000'; g.fillRect(X - 3, Y + 7, T + 6, T - 7);
+  g.fillStyle = '#663931'; g.fillRect(X - 2, Y + 8, T + 4, T - 9);
+  g.fillStyle = '#8f563b'; for(let i=0;i<3;i++) g.fillRect(X - 2, Y + 9 + i*5, T + 4, 3);
+  g.fillStyle = '#45283c'; g.fillRect(X + 2, Y + 8, 2, T - 9); g.fillRect(X + T - 4, Y + 8, 2, T - 9);
+  if(ab){ g.fillStyle = '#000'; g.fillRect(X - 3, Y + 1, T + 6, 7); g.fillStyle = '#8f563b'; g.fillRect(X - 2, Y + 2, T + 4, 5); }
+  else { g.fillStyle = '#000'; g.fillRect(X + T/2 - 5, Y + 7, 10, 3); g.fillStyle = '#fbf236'; g.fillRect(X + T/2 - 4, Y + 8, 8, 1);
+    const k = 0.5 + 0.5*Math.sin(t*4); g.fillStyle = `rgba(251,242,54,${0.25 + 0.35*k})`; g.fillRect(X + T/2 - 1, Y - 2 - Math.round(k*2), 2, 5); }
+}
 function drawItem(it){
   const X = it.c*T, Y = Math.round((it.r - (it.dy||0) - cam)*T);
   if(it.k === 'oil') ctx.drawImage(PS.aceite, X, Y);
@@ -1565,6 +1603,7 @@ function drawItem(it){
   else if(it.k === 'noria') drawNoria(it, X, Y);
   else if(it.k === 'brasa') drawBrasa(it, X, Y);
   else if(it.k === 'portal') drawPortal(it, X, Y);
+  else if(it.k === 'cajon') drawCajon(it, X, Y);
   else if(it.k === 'cofreSala' || it.k === 'cofrePieza'){
     const opened = it.k === 'cofreSala' ? W.rewarded.includes(it.room) : it.abierto, fx = chestFx && chestFx.it === it ? chestFx.t : -1;
     if(fx >= 0 && fx < 2.2){   // rayos de luz al abrirlo
@@ -1762,10 +1801,13 @@ function render(){
   drawTransit();
   if(!escena){ drawBagMarker(fx, fy); if(has('zahori')) drawOilMarker(fx, fy); }
   if(looking){ g.textAlign = 'center'; g.font = '900 14px Nunito, sans-serif'; g.fillStyle = 'rgba(0,0,0,.55)'; g.fillRect(VW/2-70, 8, 140, 22); g.fillStyle = '#fbf236'; g.fillText('Mirando · pulsa Ver', VW/2, 24); }
+  if(latActivo){ const de = LA.latidoDesde ?? 25, k = Math.max(0, (de - lamp)/de), a = 0.2 + 0.25*k + 0.3*latPulso;
+    const gr = g.createRadialGradient(VW/2, VH*0.45, Math.min(VW, VH)*0.28, VW/2, VH*0.45, Math.hypot(VW, VH)*0.55);
+    gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, `rgba(12,0,4,${Math.min(0.85, a)})`); g.fillStyle = gr; g.fillRect(0, 0, VW, VH); }
   if(flashT > 0){ ctx.fillStyle = `rgba(251,242,54,${flashT})`; ctx.fillRect(0,0,VW,VH); }
 }
 // Aire: viñeta azul en la mina y un marcador grande arriba mientras estás bajo la superficie
-let airWarn = false, airTick = 0;
+let airWarn = false, airTick = 0, latT = 0, latPulso = 0, latActivo = false;
 function drawAirOverlay(){
   const mx = airMax(); if(air >= mx - 0.01 || dead) return;
   const k = air/mx, under = submerged, low = k < 0.35, blink = low && Math.floor(t*4) % 2 === 0;
@@ -1847,7 +1889,7 @@ function openRoomChest(it){
 let ruTimers = [], ruPicks = [], wasStartedR = false;
 function cardFace(k, extra){ return `<i>${k.icono}</i><b>${k.nombre}</b><span>${k.texto}</span>${extra||''}`; }
 function pickCards(n){
-  const pool = (D.cartas||[]).filter(k => !(k.unica && has(k.id))), out = [];
+  const pool = (D.cartas||[]).filter(k => (k.peso ?? 1) > 0 && !(k.unica && has(k.id))), out = [];   // peso 0: ya no sale (ahora es un ungüento)
   while(out.length < n && pool.length){
     const tot = pool.reduce((a, k) => a + (k.peso ?? 1), 0); let r = Math.random()*tot, i = 0;
     for(; i<pool.length; i++){ r -= (pool[i].peso ?? 1); if(r <= 0) break; }
@@ -1866,7 +1908,7 @@ function openRuleta(){
   $('ruleta').hidden = false;
 }
 function spinRuleta(){
-  const C = SA.ruleta, all = D.cartas || [], slots = [...document.querySelectorAll('#ruCartas .carta')];
+  const C = SA.ruleta, all = (D.cartas || []).filter(k => (k.peso ?? 1) > 0), slots = [...document.querySelectorAll('#ruCartas .carta')];
   ruPicks = pickCards(3);
   $('ruBtn').disabled = true; $('ruText').textContent = 'Girando…';
   let stopped = 0;
@@ -2037,6 +2079,7 @@ function itemHere(k){ return W.items.find(i => i.alive && i.k === k && i.r === p
 function actionHere(){
   if(!p) return null;
   const L = layout(p.r);
+  if(ARC) return null;
   if(prueba && !itemHere('carga') && !itemHere('ascensor')) return {txt:'Volver al editor', fn: salirPrueba};
   if(L.surface && maxDepth > 2 && TC.principal) return {txt:'Volver al pueblo', fn: () => cashOut()};
   const mc = itemHere('carga');
@@ -2227,6 +2270,9 @@ let wasStartedD = false, ascTexto = null;
 // Se baja a una mina nueva con la pieza que estás editando, empezando justo encima. No se guarda nada:
 // al salir, la partida (almacén, colección, historia…) vuelve a estar como antes y el pozo de verdad sigue igual.
 let prueba = null, recargar = false;
+// Deep Arcade (arcade/index.html): otra página con su propio bucle de puntos; la mina avisa con estos ganchos.
+// ARC = {pozo, puntales, escaleras, cajonCada, golpe(key, esMineral, r, c), sala(i), muerte(causa)}
+let ARC = null;
 function iniciarPrueba(key, pz){
   prueba = {pieza: pz, copia: JSON.stringify({almacen:Pa.almacen, kit:Pa.kit, coleccion:Pa.coleccion, visto:Pa.visto, pueblo:Pa.pueblo})};
   setPozo(key); MINA = newMine(); W = MINA.tiros.principal; setTiro('principal'); recargar = true;
@@ -2342,7 +2388,8 @@ let mision = null;
 const misionCuenta = k => (Pa.almacen[k]||0) + (bag[KEY2T[k]]||0);
 const misionTxt = o => Object.entries(o.coste).map(([k, n]) => M[k].nombre + ' ' + Math.min(misionCuenta(k), n) + '/' + n).join(' · ');
 function misionInicio(){
-  const o = Pa.objetivo(); mision = null; if(!o) return;
+  mision = null; if(ARC) return;
+  const o = Pa.objetivo(); if(!o) return;
   mision = {o, hecho: new Set(Object.entries(o.coste).filter(([k, n]) => misionCuenta(k) >= n).map(([k]) => k))};
   mision.todo = mision.hecho.size === Object.keys(o.coste).length;
   toast('Objetivo: ' + o.corto, misionTxt(o) + (mision.todo ? ' · ¡Ya lo tienes todo!' : ''));
@@ -2410,8 +2457,8 @@ function renderInv(bump){
   let h = '';
   if(bw && bw.here) h += `<span class="chip warn" id="bagChip">🎒 Mochila <b id="bagDist"></b></span>`;
   else if(bw) h += `<span class="chip warn">🎒 Mochila en el <b>${bw.nombre}</b></span>`;
-  h += keys.length ? keys.map(k => chip(k, bag[k], +k === +bump)).join('') : '<span class="chip muted">Mochila vacía</span>';
-  { const w = weight(), cp = Math.max(1, capacity()), f = Math.min(1, w/cp), col = f < 0.5 ? '#6abe30' : f < 0.85 ? '#df7126' : '#d95763';
+  h += keys.length ? keys.map(k => chip(k, bag[k], +k === +bump)).join('') : (ARC ? '<span class="chip muted">Sin minerales</span>' : '<span class="chip muted">Mochila vacía</span>');
+  if(!ARC){ const w = weight(), cp = Math.max(1, capacity()), f = Math.min(1, w/cp), col = f < 0.5 ? '#6abe30' : f < 0.85 ? '#df7126' : '#d95763';
     h += `<span class="chip carga" title="${w} de ${cp}">Carga <i class="cbar"><u style="width:${Math.round(f*100)}%;background:${col}"></u></i></span>`; }
   if(llaves) h += `<span class="chip warn">Llaves <b>${llaves}</b></span>`;
   if(kitLlevo && Pa.pueblo.kitMc) h += `<span class="chip cartaChip" title="Kit de reparación del tejón">🧰 Kit: ${Pa.pueblo.kitMc.pozoNombre}, sala ${Pa.pueblo.kitMc.sala}</span>`;
@@ -2444,7 +2491,7 @@ function hud(force){
   const act = !dead && !cashed && started && !transit ? actionHere() : null;
   if(!act){ if(!$('cashBtn').hidden) $('cashBtn').hidden = true; }
   else { if($('cashBtn').hidden) $('cashBtn').hidden = false; if($('cashBtn').textContent !== act.txt) $('cashBtn').textContent = act.txt; }
-  const canDrop = !!(safe && !dead && !cashed && started && Object.keys(bag).some(k => !k.startsWith('o:') && bag[k] > 0));
+  const canDrop = !ARC && !!(safe && !dead && !cashed && started && Object.keys(bag).some(k => !k.startsWith('o:') && bag[k] > 0));
   if($('dropBtn').hidden === canDrop) $('dropBtn').hidden = !canDrop;
 }
 // ---------- avisos ----------
@@ -2540,7 +2587,7 @@ function frame(now){
       // el derrumbe va llenando el tramo
       const n = Math.ceil(fillQ.length * Math.min(1, dt*3)) + 3;
       for(const [r,c] of fillQ.splice(0, n)){ setT(r, c, fillType(r, c)); if(Math.random() < 0.3) burst(r+0.5, c+0.5, '#847e87', 2); }
-      if(deadT > 1.6 && $('over').hidden){ finishCollapse(); showEnd(); }
+      if(deadT > 1.6 && $('over').hidden && !ARC){ finishCollapse(); showEnd(); }
     }
     for(const it of W.items){ if(it.dy) it.dy = Math.max(0, it.dy - dt*14);
       if(it.t0 !== undefined){ const e = t - it.t0; it.sube = e < 2.4 ? 1 - Math.abs(e - 1.2)/1.2 : 0; if(e >= 2.4){ delete it.t0; it.sube = 0; } } }   // el montacargas sube y vuelve
@@ -2662,6 +2709,38 @@ return {
     if(opts && opts.prueba){ iniciarPrueba(key, opts.prueba); return; }
     if(recargar || (key && key !== PK)){ recargar = false; cargarMundo(key || PK); }
     startOpts = opts || null; activa = true; resize(); startRun(); },
+  // ---- Deep Arcade ----
+  arcade(o){
+    ARC = o; prueba = null; setPozo(o.pozo); MINA = newMine(); W = MINA.tiros.principal; setTiro('principal'); recargar = true;
+    startOpts = null; activa = true; $('over').hidden = true; resize(); startRun();
+    taken = {p:0, l:0, k:0}; props = o.puntales ?? 10; ladders = o.escaleras ?? 8; llaves = 0; cards = {}; ungLlevo = {}; kitLlevo = false;
+    colaAvisos = []; aviso = null; $('toastHost').innerHTML = ''; renderInv(); hud(true);
+  },
+  arcadeEstado(){
+    if(!p || !TC) return null;
+    const L = layout(p.r), mins = {};
+    for(const k in bag){ if(!String(k).startsWith('o:') && INFO[k] && INFO[k].val && bag[k] > 0) mins[INFO[k].key] = bag[k]; }
+    return {inRoom: L.part !== undefined && L.part > 0 && L.part < ROOM_H-1, sala: L.room, superficie: !!L.surface, dead: !!dead, started,
+      profundidad: Math.max(0, p.r - SURF + 1), maxima: maxDepth, bag: mins, lamp, salas: ROOM_ROW.length};
+  },
+  arcadeQuitar(pedido){ for(const [k, n] of Object.entries(pedido)){ const tt = KEY2T[k]; if(tt === undefined) continue; bag[tt] = Math.max(0, (bag[tt]||0) - n); if(!bag[tt]) delete bag[tt]; } renderInv(); },
+  arcadeVaciar(){ for(const k in bag) if(!String(k).startsWith('o:')) delete bag[k]; renderInv(); },
+  arcadeAbrir(room){
+    const r = ROOM_ROW[room] + ROOM_H - 1; for(let c=0;c<COLS;c++) setT(r, c, BEAM);
+    const cj = W.items.find(i => i.k === 'cajon' && i.room === room); if(cj) cj.pagado = true;
+    burst(r, 7.5, '#fbf236', 20); SND('abrir'); shakeKick = Math.max(shakeKick, 2);
+  },
+  arcadeReaparecer(){
+    const r = lastRoomFloor >= (ROOM_ROW.length ? ROOM_ROW[0] + ROOM_H - 1 : 1e9) ? lastRoomFloor - 1 : SURF - 2, c = r === SURF - 2 ? 7 : LLAMAS[0] + 1;
+    dead = null; deadT = 0; p.r = r; p.y = r; p.c = c; p.x = c; p.sx = c; p.falling = false; p.fallN = 0; p.stun = 0; p.act = null;
+    p.onPlat = r === SURF - 2; if(p.onPlat) platOpen = 0;
+    lamp = 100; buried = 0; air = airMax(); flashT = 0.5; wick = 1; started = true; lastT = performance.now();
+    for(const k in input){ input[k] = false; tapped[k] = 0; }
+  },
+  pausa(v){ if(v){ started = false; for(const k in input){ input[k] = false; tapped[k] = 0; } } else { started = true; lastT = performance.now(); } },
+  flotar(txt, col, dy){ if(p) floats.push({x:p.x+0.5, y:p.y - 0.4 - (dy||0), txt, life:1.3, col: col || '#fbf236'}); },
+  avisar(titulo, texto){ toast(titulo, texto); },
+  sonar(n, v){ SND(n, v); },
   // editor de niveles
   generar: generarSector, tramos: tramosDe, get probando(){ return !!prueba; },
   salir(){ activa = false; started = false; },

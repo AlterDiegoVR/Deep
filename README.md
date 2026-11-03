@@ -6,6 +6,7 @@ Juego de minería vertical (prototipo, nombre provisional). Un topo minero baja 
 
 - **En el navegador:** abre `index.html`. No hace falta instalar nada.
 - **En el móvil:** activa GitHub Pages en el repositorio (Settings → Pages → rama `main`, carpeta `/`) y abre la dirección que te da.
+- **Deep Arcade:** la versión arcade (sin pueblo ni historia, un pozo nuevo en cada partida) está en `arcade/` (en GitHub Pages, la misma dirección terminada en `/arcade/`).
 
 El progreso (almacén, herramientas y estado de la mina) se guarda en el navegador.
 
@@ -27,6 +28,10 @@ Dentro de la mina, el botón de ajustes permite probar cambios rápidos sin toca
 | `js/mina.js` | La excavación |
 | `js/pueblo.js` | Mapa con las minas y plaza con las casas |
 | `js/main.js` | Cambio entre pantallas |
+| `arcade/index.html` | Deep Arcade: copia de la pantalla de la mina con el marcador, los cajones y los modos |
+| `js/arcade.js` | Puntos, reloj, combos, cajones, modos y récords del arcade |
+| `css/arcade.css` | Estilos del arcade |
+| `empaquetar.py` | Junta cada página en un solo HTML (`dist/`) |
 
 ## Controles
 

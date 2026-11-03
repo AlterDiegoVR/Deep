@@ -84,6 +84,8 @@ window.Sonido = (()=>{
     // la noria vieja girando
     noria(t,v){ tone(t, 0.3, 0.1*v, 'triangle', 180, 140); noise(t + 0.15, 0.12, 0.15*v, 'bandpass', 700, 0, 3); },
     clic(t,v){ tone(t, 0.05, 0.16*v, 'triangle', 880, 620); noise(t, 0.025, 0.12*v, 'bandpass', 2400, 0, 2); },
+    // latido de la lámpara baja (pum-pum grave)
+    latido(t,v){ tone(t, 0.14, 0.55*v, 'sine', 72, 44); noise(t, 0.06, 0.12*v, 'lowpass', 180); tone(t + 0.19, 0.12, 0.4*v, 'sine', 64, 40); },
     // pasos en la plaza (sobre adoquines)
     pasoPlaza(t,v){ noise(t, 0.04, 0.1*v, 'bandpass', 1300 + Math.random()*400, 0, 1.5); },
   };

@@ -1,0 +1,35 @@
+/* ===================== DEEP ARCADE ===================== */
+/* barra de puntos, tiempo, combo y lo que pide el cajón (debajo de la de la lámpara) */
+#arcBar{display:flex;align-items:center;gap:8px;background:#222034;color:#fff;border:3px solid var(--madera-oo);border-radius:12px;padding:4px 10px;min-height:44px}
+#arcBar .lbl{color:#9badb7;font-size:10px;display:block;line-height:1}
+.arcCaja b{font-family:'Lilita One',sans-serif;font-size:20px;line-height:1.05;color:#fbf236;letter-spacing:.02em}
+#arcTiempo{color:#fff !important}
+#arcTiempo.parado{color:#99e550 !important}
+#arcCombo{font-family:'Lilita One',sans-serif;font-size:22px;color:#222034;background:#99e550;border:2px solid #000;border-radius:10px;padding:0 8px;line-height:1.2}
+#arcCombo.pulso{animation:arcPulso .28s ease-out}
+@keyframes arcPulso{0%{transform:scale(1.45) rotate(-6deg)}100%{transform:scale(1)}}
+#arcObjetivo{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:center;font-size:11.5px;line-height:1.25;font-weight:900;color:#eec39a}
+#arcObjetivo span{display:inline-flex;align-items:center;gap:4px;color:#cbdbfc}
+#arcObjetivo span.ok{color:#99e550}
+#arcObjetivo i{width:9px;height:9px;border-radius:2px;display:inline-block;border:1px solid #000}
+#arcObjetivo .vidas{letter-spacing:2px}
+#arcMenuBtn{flex:none;width:34px;height:34px;align-self:center;font-size:18px}
+#arcBar .arcCaja{flex:none}
+/* recuento, fin de partida y menú */
+.arcCard{max-width:380px}
+.arcCard h2{margin:0}
+.rc{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:2px dashed var(--perg);font-weight:800}
+.rc small{font-weight:700;color:var(--tinta-s)}
+.rc b{font-family:'Lilita One',sans-serif;font-size:20px;white-space:nowrap}
+.rc .list{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.rc.mult b{color:var(--hierba-o)}
+.rc.total{border-bottom:0}
+.rc.total b{font-size:26px;color:#ac3232}
+.arcNuevo{background:#fbf236;border:2px solid var(--madera-oo);border-radius:10px;padding:6px 10px;font-weight:900;margin:0}
+#mnLista{display:flex;flex-direction:column;gap:8px}
+.modo{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:#fff6e8;border:3px solid var(--madera-oo);border-radius:12px;padding:8px 12px;cursor:pointer;box-shadow:0 3px 0 var(--madera-oo);font:inherit;color:var(--tinta)}
+.modo b{font-family:'Lilita One',sans-serif;font-size:20px;font-weight:400}
+.modo span{font-size:13px;font-weight:700;color:var(--tinta-s)}
+.modo i{font-style:normal;font-size:12px;font-weight:900;color:#ac3232}
+.modo.cerrado{opacity:.55;cursor:default;box-shadow:none}
+.modo:not(.cerrado):active{transform:translateY(2px);box-shadow:0 1px 0 var(--madera-oo)}

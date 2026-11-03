@@ -33,7 +33,7 @@
 //    b  brasas (queman la lámpara al pisarlas; el agua las apaga)   X  puerta de la cuadrilla (atrancada)
 //    Q  casco de la cuadrilla (coleccionable)
 //    j  hongo luminoso   R  lámpara de carburo   F  foto de una cuadrilla   w  polilla
-//    *  grisú            &  barro
+//    *  gas              &  barro
 //    T  cartel de tutorial (título, texto y, si quieres, un gif)   D  frase de Deep (con su cara)
 //       (los textos van en «textos»: { 'fila,columna': { titulo, texto, gif } } o { texto, cara })
 //

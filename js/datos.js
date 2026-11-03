@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.215',
+  version: '0.216',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -78,14 +78,14 @@ window.DATOS = {
 
   // ---------- Cartas de la ruleta ----------
   // Se acumulan durante la bajada y se pierden al volver al principio del pozo (cobrar o morir).
-  // peso = probabilidad relativa; unica = solo se puede tener una; las demás se acumulan (cargas).
+  // peso = probabilidad relativa (0 = ya no sale en la ruleta: es un ungüento de la ardilla); unica = solo se puede tener una; las demás se acumulan (cargas).
   cartas: [
     { id: 'mecha_cera',    icono: '🕯️', nombre: 'Mecha de cera',       texto: 'La lámpara gasta un 25 % menos.', valor: 0.75, peso: 1, unica: true },
     { id: 'bidon_grande',  icono: '🛢️', nombre: 'Bidón grande',        texto: 'El aceite da el doble de luz.', valor: 2, peso: 1, unica: true },
-    { id: 'llama_fria',    icono: '🧊', nombre: 'Llama fría',          texto: 'La próxima explosión de grisú no ocurre.', peso: 1 },
-    { id: 'segunda',       icono: '💖', nombre: 'Segunda oportunidad', texto: 'La próxima vez que mueras, vuelves a la última sala segura con tu mochila.', peso: 0.5 },
-    { id: 'casco',         icono: '⛑️', nombre: 'Casco reforzado',     texto: 'Aguantas una piedra encima, una vez.', peso: 0.8 },
-    { id: 'pulmones',      icono: '🫧', nombre: 'Pulmones de topo',    texto: 'El aire bajo el agua o el barro dura el doble.', peso: 0.8, unica: true },
+    { id: 'llama_fria',    icono: '🧊', nombre: 'Llama fría',          texto: 'La próxima explosión de gas no ocurre.', peso: 1 },
+    { id: 'segunda',       icono: '💖', nombre: 'Segunda oportunidad', texto: 'La próxima vez que mueras, vuelves a la última sala segura con tu mochila.', peso: 0 },
+    { id: 'casco',         icono: '⛑️', nombre: 'Casco reforzado',     texto: 'Aguantas una piedra encima, una vez.', peso: 0 },
+    { id: 'pulmones',      icono: '🫧', nombre: 'Pulmones de topo',    texto: 'El aire bajo el agua o el barro dura el doble.', peso: 0, unica: true },
     { id: 'reflejos',      icono: '⚡', nombre: 'Reflejos',            texto: 'Al librarte por los pelos no te quedas tumbado.', peso: 0.8, unica: true },
     { id: 'pico_afilado',  icono: '⛏️', nombre: 'Pico afilado',        texto: 'Un golpe menos para romper cualquier cosa (mínimo uno).', peso: 1, unica: true },
     { id: 'recuperador',   icono: '♻️', nombre: 'Recuperador',         texto: 'Lo que cae y se rompe tiene un 50 % de conservar su material.', valor: 0.5, peso: 0.8, unica: true },
@@ -116,6 +116,7 @@ window.DATOS = {
     radioMax: 7.4,             // radio de luz (casillas) con la lámpara a 100
     multRadioMechaBaja: 0.22,  // la mecha baja reduce el radio a esto (tiene que notarse: con la mecha baja se ve muy poco)
     luzMechaBaja: 0.42,        // y la luz es más débil (1 = igual que con la mecha alta)
+    latidoDesde: 25,           // por debajo de este % (fuera de las salas) suena un latido que se acelera y se oscurecen los bordes
     // brillo de lo que hay tirado por la mina (aceite, cofres, objetos…): solo se ve de cerca, no ilumina la estancia
     brilloAceite: { radio: 0.9, intensidad: 0.3 },
     brilloObjetos: { radio: 1.2, intensidad: 0.35 },
@@ -161,7 +162,7 @@ window.DATOS = {
 
   // ---------- Peligros ----------
   peligros: {
-    grisuLuz: 35,              // % de lámpara que quita una explosión de grisú
+    grisuLuz: 35,              // % de lámpara que quita una explosión de gas
     grisuAviso: 2,             // casillas de distancia a las que la llama se pone azul
     polillaLuz: 20,            // % de lámpara que roba una polilla
     polillaVelocidad: 2.4,     // casillas por segundo al perseguir tu luz
@@ -263,9 +264,21 @@ window.DATOS = {
   // ---------- Mapa: las minas alrededor del pueblo ----------
   // boca: dónde está su entrada en la imagen del mapa (píxeles de js/escenarios.js, 286x512). Cada mina tiene su zona
   // del mapa alrededor (la más cercana a su boca): al abrir su respiradero (llegar al fondo), esa zona reverdece.
-  mapa: { pueblo: [150, 280], viejo: [222, 150] },
+  mapa: { pueblo: [150, 280], viejo: [222, 150],
+    // caminos por los que anda el Deep pequeñito: puntos (píxeles del mapa) y tramos entre ellos. El tramo «oculto-sale» es el
+    // sendero de la casa del viejo topo, que no se ve: Deep se mete detrás del peñasco y sale junto a la casa.
+    nodos: {pueblo:[150,268], n1:[146,240], m1:[147,222], a1:[131,232], a2:[112,207], a3:[110,188], j1:[117,174], o8:[70,166], m8:[42,156], a4:[133,156], j2:[146,150], b1:[135,128], b2:[118,112], b3:[90,96], mP:[58,80], c1:[146,118], c2:[148,100], mS:[146,84], d1:[172,135], d2:[198,124], d3:[218,108], d4:[236,99], m2:[252,98], w1:[110,267], w2:[70,268], m7:[36,262], s1:[157,300], s2:[150,330], s3:[133,358], j3:[140,383], e1:[110,392], e2:[75,398], m6:[30,416], f1:[200,393], f2:[228,410], g1:[150,420], g2:[152,450], m4:[151,483], r1:[178,268], r2:[212,266], m3:[244,256], oculto:[178,205], sale:[212,172], v1:[222,166], casa:[225,160], h1:[245,168], m5:[265,160]},
+    tramos: 'pueblo-n1 n1-m1 n1-a1 a1-a2 a2-a3 a3-j1 j1-o8 o8-m8 j1-a4 a4-j2 j2-b1 b1-b2 b2-b3 b3-mP j2-c1 c1-c2 c2-mS j2-d1 d1-d2 d2-d3 d3-d4 d4-m2 pueblo-w1 w1-w2 w2-m7 pueblo-s1 s1-s2 s2-s3 s3-j3 j3-e1 e1-e2 e2-m6 j3-f1 f1-f2 j3-g1 g1-g2 g2-m4 pueblo-r1 r1-r2 r2-m3 m1-oculto sale-v1 v1-casa v1-h1 h1-m5',
+    oculto: ['oculto', 'sale'],
+    velocidad: 70,             // píxeles del mapa por segundo
+    // punto del camino donde se para Deep en cada mina, el pueblo y la casa del viejo
+    paradas: {1:'m1', 2:'m2', 3:'m3', 4:'m4', 5:'m5', 6:'m6', 7:'m7', 8:'m8', S:'mS', P:'mP', pueblo:'pueblo', viejo:'casa'},
+    // cuánto reverdece cada mina al abrir su respiradero (radio en píxeles alrededor de la boca, dentro de su zona);
+    // la zona entera se completa cuando revive el pueblo
+    verde: {1:34, 2:60, 3:70, 4:80, 5:90, 6:100, 7:110, 8:125, S:0, P:0},
+  },
   minas: [
-    { id: 1, boca: [147, 212], nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin grisú. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
+    { id: 1, boca: [147, 212], nombre: 'Pozo viejo',          abierta: true,  pozo: 'uno',     texto: 'Simulacro del primer pozo: cinco tramos, poca arena y poca agua, sin gas. Arcilla, carbón y algo de cobre, y flores de mina. Al fondo, un ascensor viejo.' },
     { id: 2, boca: [255, 90], nombre: 'Cantera del molino',  abierta: false, pozo: 'dos', desbloqueo: { carbon: 25, cobre: 12 },
       texto: 'Prototipo del segundo pozo: más largo que el primero, con dos ramales, algo de agua y de barro al final, puertas con llave, cuarzo y hongos luminosos. Está cerrada: se abre con carbón y cobre del Pozo viejo.' },
     { id: 3, boca: [248, 245], nombre: 'Galería del río',     abierta: false, pozo: 'tres', desbloqueo: { carbon: 40, cobre: 30, cuarzo: 3 },
@@ -273,10 +286,10 @@ window.DATOS = {
     { id: 4, boca: [150, 475], nombre: 'Mina de los cuervos', abierta: false, texto: 'Próximamente.' },
     { id: 5, boca: [267, 150], nombre: 'El socavón del viejo', abierta: false, texto: 'Junto a la casa del viejo topo. Próximamente.' },
     { id: 6, boca: [22, 407], nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
-    { id: 7, boca: [30, 250], nombre: 'Pozo del grisú',      abierta: false, texto: 'Próximamente.' },
+    { id: 7, boca: [30, 250], nombre: 'Pozo del gas',        abierta: false, texto: 'Próximamente.' },
     { id: 8, boca: [37, 145], nombre: 'La sima',             abierta: false, texto: 'Próximamente.' },
     { id: 'S', boca: [145, 74], nombre: 'Pozo sin fondo',    abierta: true,  pozo: 'viejo',   texto: 'Vertical slice: un pozo sin fondo con lo básico (picar, la lámpara, los derrumbes, los puntales, la mochila y los montacargas) para probar la jugabilidad en sesiones largas.' },
-    { id: 'P', boca: [52, 70], nombre: 'Pozo de pruebas',   abierta: true,  pozo: 'pruebas', texto: 'Banco de pruebas: aquí está todo lo que se va probando (agua, barro, grisú, polillas, cartas, puertas, ramal…).' },
+    { id: 'P', boca: [52, 70], nombre: 'Pozo de pruebas',   abierta: true,  pozo: 'pruebas', texto: 'Banco de pruebas: aquí está todo lo que se va probando (agua, barro, gas, polillas, cartas, puertas, ramal…).' },
   ],
 
   // ---------- Pozos ----------
@@ -331,7 +344,7 @@ window.DATOS = {
     // Banco de pruebas: todo lo que se va probando. Salas sin fin y, a partir del cuarto tramo, tramos temáticos exagerados
     //   temas: se van turnando desde el tramo «temasDesde» (0 = el primero). Cada tema cambia umbrales del generador:
     //     arena (más bajo = más arena) · arcillosa (parte de la arena que hace barro) · cuevas (más bajo = más huecos)
-    //     agua / gas (más bajo = más agua o grisú en los huecos) · polillas (probabilidad por hueco)
+    //     agua / gas (más bajo = más agua o gas en los huecos) · polillas (probabilidad por hueco)
     pruebas: {
       nombre: 'Pozo de pruebas',
       guardado: 'pozoviejo-mina1',
@@ -347,7 +360,7 @@ window.DATOS = {
         { nombre: 'Tramo de arena',      arena: 0.5, arcillosa: 0 },
         { nombre: 'Tramo de barro',      arena: 0.58, arcillosa: 1, cuevas: 0.6, agua: 0.4 },
         { nombre: 'Tramo inundado',      cuevas: 0.5, agua: 0.25 },
-        { nombre: 'Tramo de grisú',      cuevas: 0.55, gas: 0.3, agua: 0.9 },
+        { nombre: 'Tramo de gas',         cuevas: 0.55, gas: 0.3, agua: 0.9 },
         { nombre: 'Tramo de polillas',   cuevas: 0.45, agua: 0.9, gas: 0.9, polillas: 0.08 },
         { nombre: 'Tramo de cuevas',     cuevas: 0.4 },
       ],
@@ -362,7 +375,7 @@ window.DATOS = {
       desdeTramo: { carbon: 1, cuarzo: 2, cobre: 3, cuevas: 0, gas: 1, agua: 2, polillas: 1 },
     },
     // Prototipo del segundo pozo (mina 2, la Cantera del molino): más grande y más complejo que el primero.
-    // Siete tramos que crecen 4 filas, dos ramales (pozos paralelos) con su montacargas al fondo, grisú, barro,
+    // Siete tramos que crecen 4 filas, dos ramales (pozos paralelos) con su montacargas al fondo, gas, barro,
     // puertas con llave, ruleta de cartas, montacargas y cuarzo. Se abre en el mapa pagando materiales del Pozo viejo.
     dos: {
       nombre: 'Cantera del molino',
@@ -395,7 +408,7 @@ window.DATOS = {
         { id: 'molino_a', nombre: 'Galería de los carros', fila: 30, lado: 'izquierda', largo: 30 },
         { id: 'molino_b', nombre: 'Tiro de los cuervos',   fila: 85, lado: 'derecha',   largo: 40 },
       ],
-      contenido: { salaSellada: false, grisu: false },   // sin grisú: irá en un pozo propio
+      contenido: { salaSellada: false, grisu: false },   // sin gas: irá en un pozo propio
       desdeTramo: { carbon: 0, cobre: 2, cuarzo: 3, cuevas: 0, agua: 1, polillas: 1, barro: 5 },
     },
     // Pozo 3 (mina 3, la Galería del río): el pozo del agua. Largo parecido al 2, con mucha agua y pozas.
@@ -480,6 +493,7 @@ window.DATOS = {
   // enseña a preparar un ungüento. Los ungüentos se compran con plantas y son de un solo uso: si llevas uno a la mina,
   // se gasta cuando hace efecto (si no hace falta, vuelve contigo).
   herboristeria: {
+    huecos: 2,                 // ungüentos que puedes llevar a la vez a una bajada (se eligen aquí antes de bajar)
     encargos: [
       { id: 'hongos_1', nombre: 'Hongos luminosos', pide: { hongo_azul: 5 }, receta: 'pulmones', regalo: { pulmones: 1 },
         texto: 'Cinco hongos luminosos de la Cantera del molino.' },
@@ -513,4 +527,38 @@ window.DATOS = {
     { id: 'paja2',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Una casita de paja con la puerta clavada. Alguien dejó unas macetas secas en la ventana.' },
     { id: 'paja3',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Tapiada. Por una rendija se ven muebles cubiertos con sábanas.' },
   ],
+
+  // =====================================================================
+  //  DEEP ARCADE (arcade/index.html): un pozo nuevo en cada partida, sin pueblo ni historia
+  // =====================================================================
+  arcade: {
+    puntales: 12, escaleras: 10,     // con lo que empiezas (los cofres de las salas dan más)
+    cajonCada: 4,                    // la cuarta sala segura de cada fase tiene el cajón
+    // cinco fases de cuatro secciones; cada fase con sus minerales (umbral: más bajo = más), sus peligros y lo que pide su cajón
+    //   arena / cuevas / agua: umbrales del ruido (más alto = menos; 2 = nada) · polillas: probabilidad por hueco
+    fases: [
+      { nombre: 'Galerías de arcilla', largo: 14, pide: { arcilla: 10, carbon: 4 },
+        min: { arcilla: 0.66, carbon: 0.78 }, arena: 0.88, cuevas: 0.76, agua: 2, polillas: 0 },
+      { nombre: 'Vetas de carbón',     largo: 18, pide: { carbon: 14, cobre: 4 },
+        min: { arcilla: 0.8, carbon: 0.71, cobre: 0.8 }, arena: 0.85, cuevas: 0.72, agua: 2, polillas: 0 },
+      { nombre: 'Cuevas del cobre',    largo: 22, pide: { cobre: 14, carbon: 6 },
+        min: { carbon: 0.77, cobre: 0.72 }, arena: 0.83, cuevas: 0.68, agua: 0.62, polillas: 0 },
+      { nombre: 'Grutas de cuarzo',    largo: 26, pide: { cuarzo: 4, cobre: 10 },
+        min: { carbon: 0.8, cobre: 0.75, cuarzo: 0.035 }, arena: 0.82, cuevas: 0.66, agua: 0.62, polillas: 0.03 },
+      { nombre: 'Lo más hondo',        largo: 30, pide: { carbon: 12, cobre: 12, cuarzo: 4 },
+        min: { arcilla: 0.82, carbon: 0.74, cobre: 0.74, cuarzo: 0.03 }, arena: 0.8, cuevas: 0.64, agua: 0.6, polillas: 0.04 },
+    ],
+    // puntos: lo que vale cada mineral (al picarlo, por el combo; y en el recuento, lo que sobra)
+    puntos: { arcilla: 10, carbon: 10, cobre: 20, cuarzo: 30 },
+    combo: { tope: 9 },              // cada mineral seguido sube el multiplicador 1; si es del mismo tipo que el anterior, 2
+    porSegundo: 5,                   // puntos por cada segundo por debajo del tiempo de referencia
+    segundosPorFila: 2.2,            // tiempo de referencia: filas de la fase (o metros del recorrido) por esto
+    vidas: 3,                        // modo de tres vidas: reapareces en la última sala segura
+    // recorridos de 100, 300 y 500 m: sin salas seguras, con franjas de roca maciza (hueco a un lado, cambiando cada vez)
+    // y más aceite. Cuenta el tiempo y los minerales
+    recorridos: {
+      franjas: { cada: 22, hueco: 2 }, aceiteFilas: 11,
+      tema: { min: { arcilla: 0.76, carbon: 0.75, cobre: 0.77, cuarzo: 0.015 }, arena: 0.85, cuevas: 0.7, agua: 0.66, polillas: 0.015 },
+    },
+  },
 };

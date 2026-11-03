@@ -13,7 +13,7 @@ window.Editor = (()=>{
   const PAL = [
     {g:'Terreno', items:[
       ['.', 'Libre (lo pone el generador)'], ['_', 'Aire'], ['t', 'Tierra'], ['p', 'Piedra'], ['d', 'Roca dura (fija)'], ['m', 'Roca maciza (taladro)'], ['x', 'Roca madre (irrompible)'],
-      ['a', 'Arena'], ['g', 'Arena arcillosa (barro)'], ['~', 'Agua'], ['&', 'Barro'], ['*', 'Grisú'], ['e', 'Escombro']]},
+      ['a', 'Arena'], ['g', 'Arena arcillosa (barro)'], ['~', 'Agua'], ['&', 'Barro'], ['*', 'Gas'], ['e', 'Escombro']]},
     {g:'Minerales', items:[['r', 'Arcilla'], ['c', 'Carbón'], ['u', 'Cobre'], ['q', 'Cuarzo']]},
     {g:'Objetos', items:[['o', 'Bidón de aceite'], ['k', 'Llave'], ['h', 'Escalera suelta'], ['H', 'Puntal suelto'], ['B', 'Cofre con premio'],
       ['f', 'Flor de mina'], ['j', 'Hongo luminoso'], ['R', 'Lámpara de carburo'], ['F', 'Foto de una cuadrilla'], ['N', 'Nota de la cuadrilla'], ['Q', 'Casco de la cuadrilla'],
@@ -28,7 +28,7 @@ window.Editor = (()=>{
     r:MAT.arcilla.color, c:MAT.carbon.color, u:MAT.cobre.color, q:MAT.cuarzo.color, P:'#3f3f74', G:'#3f3f74'};
   const ICONO = {o:'🛢️', k:'🔑', h:'🪜', H:'🪵', B:'📦', f:'🌸', j:'🍄', R:'🏮', F:'🖼️', N:'📜', Q:'⛑️', K:'⛏️', Z:'⚙️', w:'🦋', M:'🛗', A:'🚡', V:'♨️', W:'🎡', b:'🔥', X:'🚪', P:'🔒', T:'💬', D:'🗨️', '*':'☁️'};
   // contador: qué se cuenta en cada sector
-  const CUENTA = [['Arcilla', 'r'], ['Carbón', 'c'], ['Cobre', 'u'], ['Cuarzo', 'q'], ['Agua', '~'], ['Arena', 'ag'], ['Grisú', '*'], ['Aceite', 'o'], ['Flores', 'f'], ['Hongos', 'j'],
+  const CUENTA = [['Arcilla', 'r'], ['Carbón', 'c'], ['Cobre', 'u'], ['Cuarzo', 'q'], ['Agua', '~'], ['Arena', 'ag'], ['Gas', '*'], ['Aceite', 'o'], ['Flores', 'f'], ['Hongos', 'j'],
     ['Escaleras y puntales sueltos', 'hH'], ['Llaves', 'k'], ['Cofres', 'B'], ['Polillas', 'w'], ['Aire (huecos)', '_']];
   const contar = filas => { const n = {}; for(const [nom, cs] of CUENTA){ n[nom] = 0; for(const f of filas) for(const ch of f) if(cs.includes(ch)) n[nom]++; } return n; };
 
