@@ -215,6 +215,10 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 .dlg-caja.der.tejon b{background:#9badb7}
 .dlg-caja.der.viejo b{background:#cbdbfc}
 .dlg-caja.der.ardilla b{background:#99e550}
+.dlg-caja.der.alcalde b{background:#5b6ee1;color:#fff}
+.dlg-caja.der.castor b{background:#d9a066}
+.dlg-caja.der.marmota b{background:#eec39a}
+.dlg-caja.der.gemelos b{background:#639bff;color:#fff}
 .dlg-caja p{margin:6px 0 0;font-size:18px;line-height:1.4;font-weight:700}
 #dlgSig{position:absolute;right:16px;bottom:6px;font-size:14px;color:var(--madera);animation:dlgsig 0.8s ease-in-out infinite}
 @keyframes dlgsig{50%{transform:translateY(3px)}}
@@ -306,3 +310,20 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 /* cartel de tutorial con gif, dentro de la mina */
 .toast.cartel{white-space:normal;max-width:min(92%, 380px)}
 .toast.cartel img{display:block;max-width:100%;max-height:150px;margin:4px auto;border-radius:8px;image-rendering:pixelated}
+/* ---- casa de Deep (0.219): pestañas, diario a mano, armario y datos ---- */
+.tabs{display:flex;gap:4px;margin:0 0 10px;flex-wrap:wrap}
+.tabs .tab{flex:1;min-width:0;font:inherit;font-size:13px;font-weight:900;padding:6px 4px;border-radius:10px;border:2px solid var(--perg);background:#fff6e8;color:var(--tinta);cursor:pointer}
+.tabs .tab.on{background:var(--amarillo);border-color:var(--madera-oo)}
+.diario{background:#fffaf0 repeating-linear-gradient(transparent 0 27px, #cbdbfc 27px 28px);border:2px solid var(--perg);border-radius:6px;padding:8px 14px 10px 26px;
+  box-shadow:inset 18px 0 0 -16px #d95763;font-family:'Caveat', 'Segoe Print', 'Comic Sans MS', cursive;font-size:21px;line-height:28px;color:#3f3f74;max-height:52vh;overflow:auto}
+.diario p{margin:0}
+.diario hr{border:0;margin:0;height:28px;background:none;text-align:center}
+.diario hr::after{content:'~';color:#9badb7}
+.armario{display:grid;grid-template-columns:repeat(auto-fill, minmax(84px, 1fr));gap:8px}
+.armario .asp{font:inherit;font-size:12px;font-weight:900;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:2px solid var(--perg);border-radius:10px;background:#fff6e8;color:var(--tinta);cursor:pointer}
+.armario .asp.on{background:var(--amarillo);border-color:var(--madera-oo)}
+.armario .asp img{width:54px;height:56px;image-rendering:pixelated}
+.datos p{margin:2px 0;display:flex;justify-content:space-between;gap:8px;font-weight:700}
+.shop .row b.num{min-width:26px;text-align:center;font-size:18px}
+.shop .row button[data-p]{min-width:36px}
+label.chip.llevar{margin:0;cursor:pointer}

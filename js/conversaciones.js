@@ -6,6 +6,9 @@
 //  Caras del tejón: contento, alegre, sorprendido, pensativo, sudando
 //  Caras del viejo topo: gruñon, sorprendido, triste, pensativo, cansado
 //  Caras de la ardilla: contenta, alegre, emocionada, sorprendida, pensativa, despistada
+//  Caras del alcalde: contento, orgulloso, serio, triste, sorprendido, nervioso
+//  Caras del castor: contento, alegre, pensativo, sorprendido · de la marmota: contenta, alegre, dormida, sorprendida, pensativa
+//  Caras de los gemelos: contentos, alegres, traviesos, sorprendidos
 // =====================================================================
 window.Conversaciones = (()=>{
   const Pa = window.Partida;
@@ -14,6 +17,10 @@ window.Conversaciones = (()=>{
   const t = (cara, texto) => ({quien:'tejon', cara, texto});
   const v = (cara, texto) => ({quien:'viejo', cara, texto});
   const a = (cara, texto) => ({quien:'ardilla', cara, texto});
+  const al = (cara, texto) => ({quien:'alcalde', cara, texto});
+  const ca = (cara, texto) => ({quien:'castor', cara, texto});
+  const ma = (cara, texto) => ({quien:'marmota', cara, texto});
+  const ge = (cara, texto) => ({quien:'gemelos', cara, texto});
   const D = window.DATOS, MAT = D.materiales;
   const listaMat = o => Object.entries(o).map(([k, n]) => n + ' de ' + MAT[k].nombre.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' y $1');
 
@@ -206,8 +213,164 @@ window.Conversaciones = (()=>{
     [v('pensativo', 'Tu padre siempre decía que la montaña habla, si sabes escuchar. Yo hace años que me tapé los oídos.'), d('pensativo', '¿Y qué decía?')],
   ];
 
+  // ---------- El alcalde ----------
+  const ALCALDE_INTRO = [
+    al('orgulloso', '¡Hombre, el pequeño Deep! Pasa, pasa. Mira qué despacho. Madera noble. Bueno, noble… de pino, pero noble.'),
+    d('pensativo', 'Buenos días, señor alcalde. Quería preguntarle por las minas.'),
+    al('contento', '¡Las minas! Ya está todo arreglado: unos señores de la ciudad nos las compran. Las sellan con hormigón, nos pagan y el pueblo tiene dinero para… para muchas cosas. Cosas importantes.'),
+    d('triste', 'Pero son las minas del pueblo.'),
+    al('serio', 'Eran, chaval. Hace muchos años que nadie baja. Los pozos se tapan, las galerías se caen… Nadie va a volver a picar ahí abajo.'),
+    d('decidido', 'Yo he bajado.'),
+    al('sorprendido', '¿Tú? …Bueno. Muy valiente. Muy valiente y muy peligroso.'),
+    al('triste', 'Mira, a mí también me da pena. Mi abuelo era minero, ¿sabes? Pero las minas son parte del pasado. Ya no valen para nada.'),
+    al('orgulloso', 'Hay que mirar hacia delante. ¡Progreso! Lo pone en mi banda. Bueno, no lo pone, pero lo pondría.'),
+    d('pensativo', '…'),
+  ];
+  const ALCALDE_DESPUES = [
+    [al('orgulloso', 'Los señores de la ciudad vienen en primavera a firmar. Me estoy dejando el bigote para la foto.'), d('pensativo', 'Ya…')],
+    [al('nervioso', '¿Otra vez bajando a las minas? Si te pasa algo, la culpa será mía. ¡Y yo no tengo tiempo para culpas!'), d('decidido', 'Tendré cuidado.')],
+    [al('triste', 'Dicen que la plaza está más verde. Será la lluvia. Seguro que es la lluvia.'), d('contento', 'Seguro.')],
+  ];
+  const ALCALDE_NIEGA = [
+    d('decidido', 'Señor alcalde, necesito la llave del museo. El tejón dice que en la vitrina hay un taladro de la época dorada.'),
+    al('serio', '¿El museo? Ni hablar. Lleva cerrado desde… desde que tenía que estar cerrado.'),
+    al('triste', '¿Para qué remover el pasado, Deep? Fotos viejas, cascos viejos, topos que ya no están. Eso no le hace bien a nadie.'),
+    d('triste', 'Mi padre está en esas fotos.'),
+    al('nervioso', '…La llave no está en venta. Ni en préstamo. Ni nada. Buenos días.'),
+  ];
+  const ALCALDE_CEDE = [
+    d('decidido', 'He vuelto por la llave del museo.'),
+    al('serio', 'Ya te dije que…'),
+    al('triste', '…'),
+    al('triste', 'Mi abuelo tenía un casco con una lámpara de carburo. Me dejaba ponérmelo los domingos. Me quedaba enorme.'),
+    al('nervioso', 'Toma. La llave. Pero no le digas a nadie que te la he dado. Y no rompas nada. Y límpiate los pies.'),
+    d('alegre', '¡Gracias, señor alcalde!'),
+    al('orgulloso', 'Nada, nada. Un alcalde tiene que saber cuándo… ceder con elegancia. Eso también lo pondría en mi banda.'),
+  ];
+  const ALCALDE_MUSEO = [
+    [al('triste', 'He pasado por el museo. Hay una foto de mi abuelo con el casco. No me acordaba de que sonreía tanto.'), d('contento', 'Se parece a usted.')],
+    [al('orgulloso', 'El museo abierto le da prestigio al pueblo, ¿eh? Fue idea mía. Bueno, fue idea tuya, pero yo dejé la llave.'), d('alegre', 'Gracias otra vez.')],
+  ];
+  // ---------- El museo ----------
+  const MUSEO_CERRADO = [[d('pensativo', 'El viejo museo de minería. La puerta está clavada con tablas. Por la rendija solo se ve polvo.')]];
+  const MUSEO_CERRADO_PISTA = [[d('pensativo', 'Aquí dentro está el taladro… La puerta tiene un candado enorme. El alcalde tiene la llave.')]];
+  const MUSEO_ENTRAR = [
+    d('pensativo', 'La llave entra a la primera. Quito las tablas… La puerta cruje como si llevara años aguantando la respiración.'),
+    d('sorprendido', 'Vitrinas, cascos, lámparas, mapas de las galerías… Todo cubierto de polvo. Y fotos. Muchas fotos de topos sonriendo.'),
+    d('triste', 'En una está la cuadrilla. Seis topos a la entrada de un pozo. El del medio… es papá. Muy joven.'),
+    d('decidido', 'Y ahí está la vitrina. Un taladro de la época dorada. Pesa un montón… ¡pero me lo llevo!'),
+    d('contento', 'A partir de hoy, el museo se queda abierto. Lo que vaya encontrando en las minas vendrá aquí, con ellos.'),
+  ];
+  // ---------- El tejón y el taladro ----------
+  const TEJON_PISTA_TALADRO = [
+    t('pensativo', 'Oye, chaval. ¿Has visto allá abajo una roca azulada, dura como el demonio, que no hay pico que la arañe?'),
+    d('sorprendido', '¡Sí! Hay en el Pozo viejo y en la cantera. No hay forma de romperla.'),
+    t('contento', 'Roca maciza. En la época dorada la rompían con taladros. Había uno en la vitrina del viejo museo, lo sé porque yo mismo le cambié la broca.'),
+    d('decidido', '¿Y dónde está el museo?'),
+    t('pensativo', 'En la plaza, tapiado. La llave la tiene el alcalde… y el alcalde no suelta una llave ni aunque le pagues. Tú inténtalo.'),
+  ];
+  const TJ = () => { const m = ((D.taller && D.taller.mejoras) || []).find(x => x.id === 'taladro'); return m ? listaMat(m.precio) : 'algo de mineral'; };
+  const TEJON_TALADRO = () => [
+    d('alegre', '¡Lo tengo! El taladro del museo.'),
+    t('sorprendido', '¿Le has sacado la llave al alcalde? Tú vales más de lo que pesas, chaval.'),
+    t('pensativo', 'A ver… Óxido, la broca mellada, el motor hecho polvo. Pero el corazón está sano.'),
+    t('alegre', 'Tráeme ' + TJ() + ' y te lo dejo como nuevo. Con él podrás romper la roca maciza.'),
+    d('decidido', '¡Bajo a por ello!'),
+  ];
+  // ---------- Vecinos nuevos ----------
+  const VECINOS = {
+    castor: { casa: 'paja1', habla: ca, caras: {c: 'contento', a: 'alegre', p: 'pensativo', s: 'sorprendido'},
+      intro: [
+        ca('contento', '¡Hola, hola! Tú debes de ser Deep. Soy nuevo en el pueblo. He oído que esto vuelve a ser un buen sitio para vivir.'),
+        d('sorprendido', '¿Un vecino nuevo? ¡Hacía años que no venía nadie!'),
+        ca('alegre', 'Vengo del río, más arriba. Allí ya no queda nada que roer. Dicen que en la Galería del río ha vuelto a correr el agua… y donde corre el agua, un castor es feliz.'),
+        ca('pensativo', 'Voy a arreglar esta casita. Si me traes cosas de las minas, te pago con escaleras y puntales. Hago los mejores de la comarca. Bueno, los únicos.'),
+        d('contento', '¡Trato hecho!'),
+      ],
+      gracias: [ca('alegre', '¡Justo lo que necesitaba! Toma, recién hechos. Huelen a madera buena.'), d('contento', '¡Gracias!')],
+      espera: [[ca('pensativo', 'Sigo esperando lo que te pedí. Sin prisa, sin prisa… bueno, con un poco de prisa.'), d('decidido', 'Ya voy.')]],
+      fin: [[ca('contento', 'La casa ya está como nueva. ¿Has visto el tejado? Ni una gota. ¡Gracias, vecino!'), d('alegre', 'Ha quedado preciosa.')]] },
+    marmota: { casa: 'paja2', habla: ma, caras: {c: 'contenta', a: 'alegre', p: 'pensativa', s: 'sorprendida'},
+      intro: [
+        ma('dormida', '¿Eh? ¿Qué día es hoy?'),
+        d('pensativo', 'Martes, creo.'),
+        ma('sorprendida', '¿Martes? ¿Otra vez? Te juro que ayer también era martes. Y anteayer. Me despierto y siempre es el mismo día…'),
+        d('sorprendido', '¿Eres nueva en el pueblo?'),
+        ma('contenta', 'Recién llegada. Bajé de la montaña nevada: dicen que este pueblo vuelve a estar vivo. Y yo necesito un sitio tranquilo donde dormir… hasta la primavera. O hasta el martes.'),
+        ma('pensativa', 'Por cierto: si salgo y veo mi sombra, seis semanas más de invierno. Así que, por si acaso, no salgo. Si me traes cosas, te pago con escaleras y puntales.'),
+        d('alegre', '¡Bienvenida!'),
+      ],
+      gracias: [ma('alegre', '¡Uy, qué bien! Toma, que yo para lo que salgo… Oye, ¿hoy no es martes?'), d('contento', 'No, hoy no.')],
+      espera: [[ma('dormida', 'Zzz… ¿Ya lo traes? …Zzz.'), d('pensativo', 'Todavía no.')]],
+      fin: [[ma('contenta', 'Gracias a ti tengo la casa más calentita del valle. Ahora sí, a hibernar.'), d('contento', 'Que descanses.')]] },
+    gemelos: { casa: 'paja3', habla: ge, caras: {c: 'contentos', a: 'alegres', p: 'traviesos', s: 'sorprendidos'},
+      intro: [
+        ge('alegres', '¡Hola! ¡Hola! ¿Tú eres el topo que baja a las minas? ¡Nuestros padres dicen que gracias a ti nos hemos mudado aquí!'),
+        d('sorprendido', '¿Dos hámsters? ¿Gemelos?'),
+        ge('traviesos', 'Yo soy el mayor. ¡Mentira, soy yo! Bueno, por tres minutos. ¡Por cuatro!'),
+        ge('contentos', '¿Nos traes cosas de las minas? ¡Te damos escaleras y puntales! Papá los hace en el taller del tejón.'),
+        d('alegre', '¡Claro que sí!'),
+      ],
+      gracias: [ge('alegres', '¡Toma! ¡Toma! ¡Esto es para ti! ¡No, esto también!'), d('contento', '¡Gracias, chicos!')],
+      espera: [[ge('traviesos', '¿Lo traes? ¿Lo traes? ¿No? ¡Jo!'), d('contento', 'Pronto, pronto.')]],
+      fin: [[ge('contentos', '¡De mayores vamos a ser mineros como tú!'), d('alegre', 'Os enseñaré a picar.')]] },
+  };
+  const VD = D.vecinos || {};
+  const nombreCosa = k => MAT[k] ? n => n + ' de ' + MAT[k].nombre.toLowerCase() : n => n + ' ' + (OBJ[k] ? (n > 1 && OBJ[k].plural ? OBJ[k].plural : OBJ[k].nombre.toLowerCase()) : k);
+  const listaCosas = o => Object.entries(o).map(([k, n]) => nombreCosa(k)(n)).join(', ').replace(/, ([^,]*)$/, ' y $1');
+  function vecino(id){
+    const V = VECINOS[id], E = (VD[id] || {}).encargos || [], est = Pa.vecino(id);
+    if(!est.intro){
+      const e0 = E[0];
+      return {lineas: V.intro.concat(e0 ? [V.habla(V.caras.p, 'Para empezar, me vendría bien ' + listaCosas(e0.pide) + '.')] : []), fin: () => { est.intro = true; Pa.guardar(); Pa.sumarProsperidad(1); }};
+    }
+    const e = E[est.hechos || 0];
+    if(!e) return {lineas: azar(V.fin), fin: null};
+    if(Pa.puedeDar(e.pide)){
+      const sig = E[(est.hechos || 0) + 1];
+      return {lineas: [d('alegre', 'Te traigo ' + listaCosas(e.pide) + '.')].concat(V.gracias,
+        sig ? [V.habla(V.caras.p, 'Ahora que lo pienso… ¿me traerías ' + listaCosas(sig.pide) + '?')] : []),
+        fin: () => { Pa.cobrarCosas(e.pide); Pa.kit.escaleras = (Pa.kit.escaleras || 0) + (e.da.escaleras || 0); Pa.kit.puntales = (Pa.kit.puntales || 0) + (e.da.puntales || 0);
+          est.hechos = (est.hechos || 0) + 1; Pa.sumarProsperidad(1); Pa.guardar(); }};
+    }
+    return {lineas: azar(V.espera).concat([V.habla(V.caras.c, 'Recuerda: ' + listaCosas(e.pide) + '.')]), fin: null};
+  }
+  // ---------- La coneja y las flores de colores ----------
+  const CONEJA_COLOR = fc => [
+    d('alegre', '¡Señora Coneja! Mire: una flor de mina ' + fc.nombre + '.'),
+    c('sorprendida', '¿' + fc.nombre[0].toUpperCase() + fc.nombre.slice(1) + '? ¡Nunca había visto una! Tu padre decía que en lo más hondo salían de todos los colores, pero yo creía que eran cuentos.'),
+    c('emocionada', 'Toma, llévate unas escaleras y unos puntales. Y esto… era de tu padre. Lo guardaba para cuando fueras mayor. Ve a casa a probártelo.'),
+    d('contento', '¡Gracias!'),
+  ];
+  // ---------- El viejo topo en la boca del socavón (mina 5) ----------
+  const VIEJO_MINA5 = [
+    v('gruñon', '¿Adónde vas?'),
+    d('sorprendido', '¡Señor! No le había visto. Quería entrar en el socavón.'),
+    v('pensativo', 'Este socavón no es como las otras minas, chaval. No hay mineral que sacar. Lo que hay ahí dentro… es otra cosa.'),
+    d('decidido', '¿Tiene que ver con mi padre?'),
+    v('triste', '…Todo tiene que ver con tu padre. Por eso no.'),
+    v('cansado', 'Todavía no estás preparado. Y yo tampoco. Vuelve más adelante.'),
+  ];
+
   // Devuelve la conversación que toca al entrar en una casa (o null) y lo que pasa al acabarla
   function alEntrar(casa){
+    if(casa === 'alcaldia'){
+      if(!Pa.bandera('alcalde_intro')) return {lineas: ALCALDE_INTRO, fin: () => Pa.ponerBandera('alcalde_intro')};
+      if(Pa.bandera('pista_taladro') && !Pa.bandera('llave_museo')){
+        if(!Pa.bandera('alcalde_niega')) return {lineas: ALCALDE_NIEGA, fin: () => Pa.ponerBandera('alcalde_niega')};
+        return {lineas: ALCALDE_CEDE, fin: () => { Pa.ponerBandera('llave_museo'); Pa.sumarProsperidad(1); }};
+      }
+      return {lineas: azar(Pa.bandera('museo_abierto') ? ALCALDE_MUSEO : ALCALDE_DESPUES), fin: null};
+    }
+    if(casa === 'museo'){
+      if(Pa.bandera('llave_museo') && !Pa.bandera('museo_abierto')) return {lineas: MUSEO_ENTRAR, fin: () => {
+        Pa.ponerBandera('museo_abierto'); Pa.guardarEnColeccion('taladro_viejo', 1); Pa.sumarProsperidad(2); Pa.guardar(); }};
+      if(!Pa.bandera('museo_abierto')) return {lineas: Pa.bandera('pista_taladro') ? MUSEO_CERRADO_PISTA : MUSEO_CERRADO, fin: null};
+      return null;
+    }
+    if(casa === 'casa') return null;
+    const veci = Object.keys(VECINOS).find(k => VECINOS[k].casa === casa);
+    if(veci) return vecino(veci);
     if(casa === 'taller'){
       if(Pa.bandera('ascensor_pozo1_roto') && !Pa.bandera('ascensor_pozo1_apanado'))
         return {lineas: TEJON_ASCENSOR(), fin: () => { Pa.ponerBandera('ascensor_pozo1_apanado'); Pa.sumarProsperidad(1); }};
@@ -216,8 +379,12 @@ window.Conversaciones = (()=>{
         return {lineas: azar(TEJON_FALTA()), fin: null};
       }
       if(Pa.bandera('mina_3_abierta') && !Pa.bandera('tejon_mochila')) return {lineas: TEJON_MOCHILA, fin: () => Pa.ponerBandera('tejon_mochila')};
+      // el taladro: primero la pista (hay roca maciza desde el primer pozo) y, con el taladro viejo del museo, el arreglo
+      if(Pa.bandera('mina_2_abierta') && !Pa.bandera('pista_taladro')) return {lineas: TEJON_PISTA_TALADRO, fin: () => Pa.ponerBandera('pista_taladro')};
+      if(Pa.bandera('museo_abierto') && !Pa.bandera('tejon_taladro')) return {lineas: TEJON_TALADRO(), fin: () => Pa.ponerBandera('tejon_taladro')};
       return {lineas: azar(Pa.bandera('ascensor_pozo1_fino') ? TEJON_DESPUES : TEJON_NADA), fin: null};
     }
+    if(casa === 'mina5') return {lineas: VIEJO_MINA5, fin: () => Pa.ponerBandera('viejo_mina5')};
     if(casa === 'viejo'){
       if((Pa.coleccion.pico_padre || 0) > 0 && !Pa.bandera('viejo_pico')) return {lineas: VIEJO_PICO, fin: () => { Pa.ponerBandera('viejo_pico'); }};
       return {lineas: azar(Pa.bandera('viejo_pico') ? VIEJO_DESPUES : VIEJO_CERRADO), fin: null};
@@ -246,6 +413,9 @@ window.Conversaciones = (()=>{
         Pa.kit.puntales = (Pa.kit.puntales || 0) + 2;
         Pa.ponerBandera('flor_entregada'); Pa.sumarProsperidad(1);
       }};
+    // flor de mina de un color nuevo: escaleras, puntales y un aspecto para el armario
+    const fc = Pa.florNueva && Pa.florNueva();
+    if(fc) return {lineas: CONEJA_COLOR(fc), fin: () => Pa.entregarFlorColor(fc.id)};
     // con un hongo luminoso en la colección: la coneja te manda a la herboristería
     if(!Pa.bandera('coneja_hongo') && (Pa.coleccion.hongo_azul || 0) > 0) return {lineas: CONEJA_HONGO, fin: () => Pa.ponerBandera('coneja_hongo')};
     return {lineas: azar(Pa.bandera('flor_entregada') ? CONEJA_DESPUES : CONEJA_ESPERA), fin: null};

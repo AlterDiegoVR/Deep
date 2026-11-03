@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.218b',
+  version: '0.219',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -477,6 +477,9 @@ window.DATOS = {
     },
   },
 
+  // roca maciza con el taladro del tejón: golpes que hacen falta
+  taladro: { golpes: 6 },
+
   // ---------- Ramales (tiros secundarios) ----------
   // Un ramal es otro tiro al que se pasa por un pasadizo (con fundido a negro). Solo el tiro principal llega al fondo;
   // los ramales son callejones con premio. fila = profundidad de la boca del pasadizo en el tiro principal.
@@ -511,6 +514,8 @@ window.DATOS = {
                       texto: 'Una hoja redonda con una flor pálida que brilla un poco. Flota en las pozas de la Galería del río.' },
     campanilla:     { nombre: 'Campanilla de nieve', plural: 'campanillas de nieve', categoria: 'herbario', icono: '❄️', dibujo: 'campanilla', brilla: true, mina: 4,
                       texto: 'Una florecilla blanca que asoma entre el hielo. Crece en la Mina de los cuervos.' },
+    taladro_viejo:  { nombre: 'Taladro viejo', categoria: 'mineria', icono: '🔩', dibujo: 'reliquia',
+                      texto: 'El taladro de la vitrina del museo, de la época dorada. Está oxidado, pero el tejón dice que tiene arreglo.' },
     pieza_ascensor: { nombre: 'Pieza del ascensor', categoria: 'mineria', icono: '⚙️', dibujo: 'pieza',
                       texto: 'Un engranaje grande, viejo pero entero. Parece del mecanismo de un ascensor.' },
   },
@@ -551,15 +556,82 @@ window.DATOS = {
 
   // ---------- Taller del tejón: mejoras para siempre ----------
   // REGLA: cada mejora pide dos materiales distintos. «desde»: bandera con la que aparece (por ejemplo, abrir una mina).
-  //   efecto: mochila (x capacidad) · golpe (golpes menos al picar, mínimo uno)
+  //   efecto: mochila (x capacidad) · golpe (golpes menos al picar, mínimo uno) · taladro (rompe la roca maciza)
+  //   necesita: algo que tiene que estar en tu colección (el pico, el taladro viejo…)
   taller: {
     mejoras: [
       { id: 'mochila_1', icono: '🎒', nombre: 'Mochila reforzada', desde: 'mina_3_abierta', precio: { hierro: 16, cobre: 8 }, efecto: { mochila: 1.4 },
         texto: 'Le cose cuero doble y le pone remaches de hierro: cabe un 40 % más.' },
       { id: 'pico_padre', icono: '⛏️', nombre: 'Pico del padre, restaurado', desde: 'mina_4_abierta', precio: { hierro: 20, estano: 15 }, efecto: { golpe: 1 },
         texto: 'Mango nuevo, punta de hierro y estaño: un golpe menos para romper cualquier cosa.', necesita: 'pico_padre' },
+      { id: 'taladro', icono: '🔩', nombre: 'Taladro de la época dorada', desde: 'museo_abierto', precio: { cobre: 12, cuarzo: 6 }, efecto: { taladro: 1 },
+        texto: 'Lo limpia, le cambia la broca y lo engrasa: rompe la roca maciza (la azul).', necesita: 'taladro_viejo' },
     ],
   },
+
+  // ---------- Vecinos nuevos de las casas de paja ----------
+  // Llegan al pueblo cuando revive (al abrir el respiradero de una mina). Sus encargos van uno detrás de otro;
+  // piden minerales (del almacén) o cosas de la colección, y pagan sobre todo con escaleras y puntales.
+  vecinos: {
+    castor: { encargos: [
+      { pide: { hierro: 10 },            da: { escaleras: 4, puntales: 3 } },
+      { pide: { nenufar: 3 },            da: { escaleras: 3, puntales: 4 } },
+      { pide: { carbon: 15, cobre: 8 },  da: { escaleras: 6, puntales: 6 } },
+    ] },
+    marmota: { encargos: [
+      { pide: { estano: 12 },            da: { escaleras: 4, puntales: 4 } },
+      { pide: { campanilla: 3 },         da: { escaleras: 4, puntales: 4 } },
+      { pide: { hierro: 12, estano: 10 }, da: { escaleras: 7, puntales: 7 } },
+    ] },
+    gemelos: { encargos: [
+      { pide: { flor_mina: 5 },          da: { escaleras: 4, puntales: 4 } },
+      { pide: { plata: 10 },             da: { escaleras: 5, puntales: 5 } },
+      { pide: { cuarzo: 6, plata: 8 },   da: { escaleras: 8, puntales: 8 } },
+    ] },
+  },
+
+  // ---------- Casa de Deep ----------
+  //   dormir: se puede una vez cada «cada» bajadas; en la bajada siguiente cabe «carga» veces más en la mochila
+  //   armario: aspectos del arcade que se ganan en el juego (ids de arcade.aspectos): uno por mina terminada (respiradero)
+  //            y uno por cada flor de mina de un color nuevo que le llevas a la coneja. Para cambiarte hay que venir a casa.
+  casaDeep: {
+    dormir: { cada: 3, carga: 1.25 },
+    armario: {
+      minas: { 1: 'alfarero', 2: 'carbonero', 3: 'buzo', 4: 'explorador', 5: 'viejo', 6: 'cobrizo', 7: 'singafas', 8: 'oro', 9: 'cuarzo', 10: 'natural' },
+      flores: { azul: 'azul', amarilla: 'rayo', blanca: 'fantasma', naranja: 'ardilla', morada: 'neon', roja: 'coneja' },
+    },
+    // diario: lo que Deep escribe a mano. Sale cada entrada cuando se cumple su condición («si»: una bandera, o «col:» y un objeto de la colección)
+    diario: [
+      { si: null, texto: 'Dicen que van a cerrar las minas. Que unos señores de la ciudad quieren sellarlas con hormigón. Papá decía que las minas eran el corazón del pueblo. Yo no sé si un pueblo puede vivir sin corazón.' },
+      { si: 'flor_entregada', texto: 'Hoy he bajado al Pozo viejo. Solo. Hacía frío y la lámpara temblaba, pero abajo había una flor que brillaba como una brasa. Se la he llevado a la señora Coneja. Ha llorado un poco. Yo también, pero no se lo digas a nadie.' },
+      { si: 'pico_encontrado', texto: 'En el fondo del Pozo viejo había un pico con un símbolo grabado. Lo tengo encima de la mesa y no paro de mirarlo. No sé por qué, pero me da calor en las manos.' },
+      { si: 'viejo_pico', texto: 'El viejo topo dice que es el pico de papá. Que aquel día no bajaron por el Pozo viejo. Entonces, ¿cómo llegó hasta allí? Esta noche no voy a dormir.' },
+      { si: 'ascensor_pozo1_apanado', texto: 'El tejón ha arreglado el ascensor de los topos. Dice que lo construyó mi gente. Mi gente. Nunca había pensado que yo tuviera «gente».' },
+      { si: 'mina_2_abierta', texto: 'He abierto la Cantera del molino. Huele a harina vieja y a piedra. Hay hongos que brillan azul; la ardilla dice que con ellos se aguanta el aire bajo el agua. Me gusta la ardilla. Habla sola, como yo.' },
+      { si: 'col:nota_1', texto: 'He encontrado una nota de la cuadrilla. «Somos seis.» Papá era uno de los seis. La he leído tantas veces que ya me la sé de memoria.' },
+      { si: 'alcalde_intro', texto: 'El alcalde dice que lo mejor es vender las minas. Que son el pasado. Lo dice muy seguro, con el pecho hinchado, pero cuando habla de los mineros mira al suelo.' },
+      { si: 'mina_3_abierta', texto: 'La Galería del río. Agua por todas partes. Hay un abismo tan hondo que no se ve el fondo. Algún día lo cruzaré. Algo me dice que al otro lado hay respuestas.' },
+      { si: 'col:casco_cuadrilla', texto: 'Un casco abollado con el símbolo de la cuadrilla. Aguantó el golpe. Quiero creer que quien lo llevaba también.' },
+      { si: 'museo_abierto', texto: 'He entrado en el museo. Polvo, vitrinas, fotos de topos sonriendo. En una de ellas estaba papá, muy joven. Me he llevado el taladro de la vitrina. Creo que a él le habría parecido bien.' },
+      { si: 'respiradero_3', texto: 'Ha llegado un castor al pueblo. ¡Un vecino nuevo! Dice que ha oído que esto vuelve a ser un buen sitio. La plaza está un poco más verde. No es mucho, pero es algo.' },
+      { si: 'respiradero_4', texto: 'Una marmota se ha mudado a la casa de paja. Duerme más que yo. El pueblo se llena de ruido otra vez y me gusta.' },
+      { si: 'viejo_mina5', texto: 'El viejo topo me ha cerrado el paso al socavón. Nunca le había visto tan serio. ¿Qué hay ahí dentro que no quiere que vea?' },
+    ],
+  },
+
+  // ---------- Flores de mina de colores ----------
+  // Desde la mina 4, una flor de mina puede salir de color (sigue siendo una flor de mina). Los colores posibles se van
+  // ampliando: «desde» = mina que hay que tener abierta. Más «peso» = más fácil. Llevarle a la coneja una de un color
+  // nuevo da escaleras, puntales y un aspecto (casaDeep.armario.flores).
+  floresColor: { prob: 0.15, regalo: { escaleras: 3, puntales: 3 },
+    colores: [
+      { id: 'azul',     nombre: 'azul',     color: '#639bff', claro: '#cbdbfc', desde: 4, peso: 5 },
+      { id: 'amarilla', nombre: 'amarilla', color: '#fbf236', claro: '#fffbb0', desde: 4, peso: 4 },
+      { id: 'blanca',   nombre: 'blanca',   color: '#ffffff', claro: '#ffffff', desde: 5, peso: 3 },
+      { id: 'naranja',  nombre: 'naranja',  color: '#df7126', claro: '#f0b070', desde: 6, peso: 2.5 },
+      { id: 'morada',   nombre: 'morada',   color: '#76428a', claro: '#d77bba', desde: 7, peso: 1.6 },
+      { id: 'roja',     nombre: 'roja',     color: '#ac3232', claro: '#d95763', desde: 8, peso: 1 },
+    ] },
 
   // ---------- Pueblo: casas de la plaza ----------
   casas: [
@@ -567,13 +639,19 @@ window.DATOS = {
     { id: 'almacen',  nombre: 'Almacén',         dueno: 'Tu almacén',    tipo: 'almacen', color: '#8f563b' },
     { id: 'herboristeria', nombre: 'Herboristería', dueno: 'La ardilla', tipo: 'herbolaria', color: '#6abe30' },
     { id: 'taller',   nombre: 'Taller del tejón', dueno: 'El tejón',     tipo: 'taller',  color: '#df7126' },
-    { id: 'alcaldia', nombre: 'Ayuntamiento',    dueno: 'El alcalde',    tipo: 'vecino',  color: '#3f3f74' },
-    { id: 'casa',     nombre: 'Casa de Deep',   dueno: 'Tu casa',       tipo: 'vecino',  color: '#37946e' },
-    // cerradas al principio: el museo lo recuperará Deep; en las casas de paja irán llegando vecinos nuevos
-    { id: 'museo',    nombre: 'Museo de minería', dueno: 'Cerrado',      tipo: 'cerrada', texto: 'El viejo museo de minería. Las puertas están clavadas con tablas y el letrero, comido por el polvo.' },
-    { id: 'paja1',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Las ventanas están tapadas con tablas. Hace años que aquí no vive nadie.' },
-    { id: 'paja2',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Una casita de paja con la puerta clavada. Alguien dejó unas macetas secas en la ventana.' },
-    { id: 'paja3',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Tapiada. Por una rendija se ven muebles cubiertos con sábanas.' },
+    { id: 'alcaldia', nombre: 'Ayuntamiento',    dueno: 'El alcalde',    tipo: 'alcaldia', color: '#3f3f74' },
+    { id: 'casa',     nombre: 'Casa de Deep',   dueno: 'Tu casa',       tipo: 'casa',    color: '#37946e' },
+    // cerradas al principio: el museo lo recuperará Deep; en las casas de paja irán llegando vecinos nuevos.
+    //   abreCon: bandera con la que se abre · abierta: cómo queda (nombre, dueño, tipo y, si es de un vecino, cuál).
+    //   Al abrirse, en la plaza se dibuja la casa abierta (la de la imagen verde).
+    { id: 'museo',    nombre: 'Museo de minería', dueno: 'Cerrado',      tipo: 'cerrada', texto: 'El viejo museo de minería. Las puertas están clavadas con tablas y el letrero, comido por el polvo.',
+      abreCon: 'museo_abierto', abierta: { dueno: 'Tu colección', tipo: 'museo' } },
+    { id: 'paja1',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Las ventanas están tapadas con tablas. Hace años que aquí no vive nadie.',
+      abreCon: 'respiradero_3', abierta: { nombre: 'Casa del castor', dueno: 'El castor', tipo: 'vecino', vecino: 'castor' } },
+    { id: 'paja2',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Una casita de paja con la puerta clavada. Alguien dejó unas macetas secas en la ventana.',
+      abreCon: 'respiradero_4', abierta: { nombre: 'Casa de la marmota', dueno: 'La marmota', tipo: 'vecino', vecino: 'marmota' } },
+    { id: 'paja3',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Tapiada. Por una rendija se ven muebles cubiertos con sábanas.',
+      abreCon: 'respiradero_6', abierta: { nombre: 'Casa de los gemelos', dueno: 'Los gemelos', tipo: 'vecino', vecino: 'gemelos' } },
   ],
 
   // =====================================================================

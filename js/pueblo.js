@@ -251,6 +251,10 @@ window.Pueblo = (()=>{
       // Pozo viejo: el ascensor según la historia
       if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_roto') && !Pa.bandera('ascensor_pozo1_apanado')) $('mpTexto').innerHTML = '<p>El ascensor del fondo está estropeado.</p>';
       if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_fino')){ $('mpBoton2').hidden = false; $('mpBoton2').textContent = 'Ascensor (al fondo)'; btn.textContent = 'Bajar por la boca'; }
+    } else if(m.id === 5 && Pa.bandera('respiradero_4')){
+      // el socavón del viejo: al acercarte, el viejo topo sale a cortarte el paso
+      $('mpTexto').innerHTML = Pa.bandera('viejo_mina5') ? '<p>El viejo topo no te deja pasar. 🚧 Próximamente.</p>' : '';
+      btn.disabled = false; btn.textContent = 'Acercarse a la boca';
     } else if(m.desbloqueo && !m.pozo){
       // ya se sabe lo que pedirá, pero la mina aún no está hecha
       $('mpTexto').innerHTML = costeChips(m.desbloqueo) + '<p>🚧 Próximamente.</p>';
@@ -275,6 +279,11 @@ window.Pueblo = (()=>{
       return;
     }
     const m = D.minas[mapaSel];
+    if(m.id === 5 && !abierta(m) && Pa.bandera('respiradero_4')){
+      const conv = window.Conversaciones && window.Conversaciones.alEntrar('mina5');
+      if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); marcar(); });
+      return;
+    }
     if(abierta(m)){ window.Pantallas.mostrar('mina', m.pozo || 'viejo'); return; }
     if(m.desbloqueo && m.pozo && Pa.puedePagar(m.desbloqueo)){
       for(const [k, n] of Object.entries(m.desbloqueo)) Pa.almacen[k] -= n;
@@ -310,10 +319,28 @@ window.Pueblo = (()=>{
     PLZ.cv.getContext('2d').putImageData(out, 0, 0);
   }
   const CASA = c => PL.edificios[c.id];
+  // casas que se abren a lo largo del juego (el museo, las casas de paja): cómo están ahora
+  const casaVer = c => c.abreCon && Pa.bandera(c.abreCon) ? Object.assign({}, c, c.abierta) : c;
+  // casa abierta: se pinta encima su versión de la imagen verde (puertas y ventanas sin tablas), solo la silueta del edificio
+  const SILUETA = {};
+  function silueta(id){
+    if(SILUETA[id] !== undefined) return SILUETA[id];
+    const runs = (PL.contornos || {})[id]; if(!runs || !PLZ.viva){ return null; }
+    const filas = {}; for(const [y, a, b] of runs){ const f = filas[y] || (filas[y] = [1e9, -1]); f[0] = Math.min(f[0], a); f[1] = Math.max(f[1], b); }
+    const ys = Object.keys(filas).map(Number); if(!ys.length) return (SILUETA[id] = null);
+    const y0 = Math.min(...ys), y1 = Math.max(...ys), x0 = Math.min(...ys.map(y => filas[y][0])), x1 = Math.max(...ys.map(y => filas[y][1]));
+    const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
+    const g = cv.getContext('2d'), im = g.createImageData(cv.width, cv.height);
+    for(let y=y0;y<=y1;y++){ const f = filas[y]; if(!f) continue;
+      for(let x=f[0];x<=f[1];x++){ const k = (y*PW + x)*4, j = ((y - y0)*cv.width + (x - x0))*4; im.data[j] = PLZ.viva[k]; im.data[j+1] = PLZ.viva[k+1]; im.data[j+2] = PLZ.viva[k+2]; im.data[j+3] = 255; } }
+    g.putImageData(im, 0, 0);
+    return (SILUETA[id] = {cv, x: x0, y: y0});
+  }
   function dibujarPlaza(t){
     const x = px;
     componerPlaza();
     x.drawImage(PLZ.cv, 0, 0);
+    for(const c of D.casas) if(c.abreCon && Pa.bandera(c.abreCon)){ const sl = silueta(c.id); if(sl) x.drawImage(sl.cv, sl.x, sl.y); }
     moverTopo(t);
     const andando = topo.camino.length > 0, frs = andando ? TOPO_ANDAR : TOPO_REPOSO;
     const fr = frs[Math.floor(t*(andando ? 9 : 2)) % frs.length];
@@ -378,8 +405,9 @@ window.Pueblo = (()=>{
   function montarPuntosPlaza(){
     const cont = $('plazaPuntos'); cont.innerHTML = '';
     const g = plazaGeo, at = (qx, qy) => ({left: g.left + qx*g.css, top: g.top + qy*g.css});
-    D.casas.forEach((c, i) => {
-      const e = CASA(c); if(!e) return;
+    D.casas.forEach((c0, i) => {
+      const e = CASA(c0); if(!e) return;
+      const c = casaVer(c0);
       const [x0, y0, x1, y1] = e.caja, b = document.createElement('button');
       b.className = 'punto' + (c.tipo === 'cerrada' ? ' cerrada' : ''); const q = at((x0 + x1)/2, (y0 + y1)/2); b.style.left = q.left+'px'; b.style.top = q.top+'px';
       b.innerHTML = `<span class="zona" style="width:${(x1-x0)*g.css}px;height:${(y1-y0)*g.css}px"></span>` + (c.tipo === 'cerrada' ? '' : `<span class="etq">${c.nombre}</span>`);
@@ -389,8 +417,9 @@ window.Pueblo = (()=>{
         irA(puerta(i), () => {
           if(plazaSel !== i) return;
           // al llegar a la puerta: si toca conversación, primero el diálogo y luego la casa
-          const conv = window.Conversaciones && window.Conversaciones.alEntrar(c.id);
-          if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); panelCasa(); });
+          const cv2 = casaVer(D.casas[i]), cerrada = cv2.tipo === 'cerrada' && c0.id !== 'museo';
+          const conv = !cerrada && window.Conversaciones && window.Conversaciones.alEntrar(c0.id);
+          if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); montarPuntosPlaza(); panelCasa(); });
           else panelCasa();
         }); };
       cont.appendChild(b);
@@ -415,13 +444,56 @@ window.Pueblo = (()=>{
   const objChip = (k, tiene, n) => `<span class="chip${tiene >= n ? '' : ' muted'}">${OBJ[k] ? OBJ[k].icono : ''} ${OBJ[k] ? OBJ[k].nombre : k} <b>${Math.min(tiene, n)}/${n}</b></span>`;
   // kit del tejón: 1,5 veces lo que pide ese montacargas abajo (redondeando hacia arriba)
   const kitPrecio = c => Object.fromEntries(Object.entries(c).map(([k, n]) => [k, Math.ceil(n * ((D.montacargas && D.montacargas.kit) || 1.5))]));
+  // elegir los ungüentos que te llevas (en la herboristería y en el almacén)
+  function bindUng(cuerpo, HUECOS){
+    cuerpo.querySelectorAll('input[data-l]').forEach(i => i.onchange = () => {
+      const L2 = Pa.kit.llevarUng || (Pa.kit.llevarUng = {}), antes = Pa.ungElegidos();
+      if(i.checked && antes.length >= HUECOS){ i.checked = false; $('ungNota').textContent = `Solo caben ${HUECOS} ungüentos. Quita uno antes de elegir otro.`; window.Sonido && window.Sonido.tocar('tropiezo', 0.5); return; }
+      for(const id of Object.keys(HB.unguentos)) L2[id] = antes.includes(id);   // a partir de ahora, la elección es la que ves
+      L2[i.dataset.l] = i.checked; Pa.guardar(); panelCasa(); });
+  }
+  const chipFalta = (k, tiene, n) => `<span class="chip${tiene >= n ? '' : ' muted'}"><i style="background:${MAT[k] && MAT[k].color || '#999'}"></i>${MAT[k] ? MAT[k].nombre : k} <b>${Math.min(tiene, n)}/${n}</b></span>`;
+  // ---- casa de Deep: diario, armario, dormir y datos ----
+  let casaTab = 'diario';
+  function panelCasaDeep(cuerpo){
+    const CD = D.casaDeep || {diario: [], dormir: {cada: 3}}, tabs = {diario: '📖 Diario', armario: '👕 Armario', dormir: '🛏️ Dormir', datos: '📊 Datos'};
+    let h = '<div class="tabs">' + Object.entries(tabs).map(([k, n]) => `<button class="tab${casaTab === k ? ' on' : ''}" data-t="${k}">${n}</button>`).join('') + '</div>';
+    if(casaTab === 'diario'){
+      const se = e => !e.si || (e.si.startsWith('col:') ? !!(Pa.coleccion[e.si.slice(4)] || Pa.visto[e.si.slice(4)]) : Pa.bandera(e.si));
+      const ents = CD.diario.filter(se);
+      h += '<div class="diario">' + ents.map(e => `<p>${e.texto}</p>`).join('<hr>') + '</div>';
+    } else if(casaTab === 'armario'){
+      const AS = (D.arcade && D.arcade.aspectos) || [], gan = Pa.aspectosGanados(), act = Pa.pueblo.aspecto || 'clasico';
+      const total = new Set(['clasico', ...Object.values(CD.armario.minas), ...Object.values(CD.armario.flores)]).size;
+      h += `<p class="note">Un aspecto por cada mina que terminas y otro por cada flor de mina de un color nuevo que le llevas a la coneja. Tienes ${gan.length} de ${total}.</p><div class="armario">` +
+        gan.map(id => { const a = AS.find(x => x.id === id) || {id: 'clasico', nombre: 'Clásico'};
+          const img = window.Mina && window.Mina.retratoAspecto ? window.Mina.retratoAspecto(a.pal ? a : null, 2) : '';
+          return `<button class="asp${id === act ? ' on' : ''}" data-a="${id}"><img src="${img}" alt=""><span>${a.nombre}</span></button>`; }).join('') + '</div>';
+    } else if(casaTab === 'dormir'){
+      const E = Pa.estad(), ult = Pa.pueblo.siesta ?? -99, faltan = (CD.dormir.cada || 3) - (E.bajadas - ult);
+      if(Pa.pueblo.descansado) h += '<p>Has dormido como un tronco. En la próxima bajada te cabe más en la mochila.</p>';
+      else if(faltan > 0) h += `<p>Aún no tienes sueño. Podrás dormir dentro de ${faltan} ${faltan === 1 ? 'bajada' : 'bajadas'}.</p>`;
+      else h += `<p>Estás molido de tanto bajar. Una buena siesta y en la próxima bajada te cabe un ${Math.round(((CD.dormir.carga || 1.25) - 1)*100)} % más en la mochila.</p><div class="fila"><button class="btn" id="dormirBtn">Dormir</button></div>`;
+    } else {
+      const E = Pa.estad(), mins = Object.entries(E.minerales || {}).filter(([, n]) => n > 0);
+      const abiertas = D.minas.filter(m => typeof m.id === 'number' && (m.abierta || Pa.bandera('mina_' + m.id + '_abierta'))).length;
+      const terminadas = D.minas.filter(m => typeof m.id === 'number' && Pa.bandera('respiradero_' + m.id)).length;
+      h += `<div class="datos"><p>⛏️ Bajadas <b>${E.bajadas}</b></p><p>💀 Veces que te quedaste abajo <b>${E.muertes}</b></p><p>📏 Lo más hondo <b>${E.record} m</b></p>
+        <p>🗺️ Minas abiertas <b>${abiertas}</b> · terminadas <b>${terminadas}</b></p><p>🏛️ Colección <b>${colTxt()}</b></p><p>🌱 El pueblo revive <b>${Pa.pueblo.prosperidad}</b></p></div>
+        <p class="lbl">Minerales subidos</p><div class="list">${mins.length ? mins.map(([k, n]) => chip(k, n)).join('') : '<span class="chip muted">Aún nada</span>'}</div>`;
+    }
+    cuerpo.innerHTML = h;
+    cuerpo.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => { casaTab = b.dataset.t; panelCasa(); });
+    cuerpo.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { Pa.pueblo.aspecto = b.dataset.a; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir', 0.6); panelCasa(); });
+    const db = $('dormirBtn'); if(db) db.onclick = () => { Pa.pueblo.descansado = true; Pa.pueblo.siesta = Pa.estad().bajadas; Pa.guardar(); window.Sonido && window.Sonido.tocar('sala', 0.6); panelCasa(); };
+  }
   function panelCasa(){
     document.querySelectorAll('#plazaPuntos .punto').forEach((b, j) => b.classList.toggle('sel', j === plazaSel));
     $('plazaKit').textContent = kitTxt();
     const cuerpo = $('ppCuerpo');
     if(plazaSel === null){ $('plazaPanel').hidden = true; return; }
     $('plazaPanel').hidden = false;
-    const c = D.casas[plazaSel];
+    const c = casaVer(D.casas[plazaSel]);
     $('ppEyebrow').textContent = c.dueno; $('ppTitulo').textContent = c.nombre;
     if(c.tipo === 'tienda'){
       cuerpo.innerHTML = '<div class="shop">' + D.tienda.map((it, j) =>
@@ -429,12 +501,29 @@ window.Pueblo = (()=>{
         `<p class="note">${kitTxt()}.</p>`;
       cuerpo.querySelectorAll('button[data-j]').forEach(b => b.onclick = () => { Pa.comprar(D.tienda[+b.dataset.j]); panelCasa(); });
     } else if(c.tipo === 'almacen'){
+      // preparar la bajada: lo que te llevas (puntales, escaleras y ungüentos), los minerales con lo que falta y las mejoras
       const ks = Object.keys(Pa.almacen).filter(k => Pa.almacen[k] > 0);
-      cuerpo.innerHTML = `<div class="list">${ks.length ? ks.map(k => chip(k, Pa.almacen[k])).join('') : '<span class="chip muted">Vacío</span>'}</div>
-        <p class="note">${kitTxt()}.</p>
-        <p class="lbl">Colección · ${colTxt()}</p>
-        <div class="list">${colChips()}</div>
-        <div class="fila"><button class="btn ghost" id="borrarTodo">Empezar de cero (borra mina, almacén, colección y herramientas)</button></div>`;
+      const obj = Pa.objetivo(), U = Pa.kit.unguentos || {}, ELEG = Pa.ungElegidos(), HUECOS = HB.huecos || 2;
+      const Mi = window.Mina, L = Mi && Mi.llevo ? Mi.llevo : LLEVAR(), lp = L.p ?? L.llevP, ll = L.l ?? L.llevL;
+      const paso = (id, txt, v, max) => `<div class="row"><span>${txt}<small>En el almacén: ${max}</small></span><button data-p="${id}" data-d="-1">−</button><b class="num">${v}</b><button data-p="${id}" data-d="1">+</button></div>`;
+      let h = '<p class="lbl">Para la próxima bajada</p><div class="shop">' + paso('p', '🪵 Puntales', lp, Pa.kit.puntales || 0) + paso('l', '🪜 Escaleras', ll, Pa.kit.escaleras || 0) + '</div>';
+      const misU = Object.keys(HB.unguentos).filter(id => U[id]);
+      if(misU.length) h += `<div class="list">${misU.map(id => `<label class="chip llevar"><input type="checkbox" data-l="${id}" ${ELEG.includes(id) ? 'checked' : ''}> ${HB.unguentos[id].icono} ${HB.unguentos[id].nombre} <b>${U[id]}</b></label>`).join('')}</div>
+        <p class="note" id="ungNota">Caben ${HUECOS} ungüentos (llevas ${ELEG.length}).</p>`;
+      if(Pa.pueblo.kitMc) h += `<p class="note">🧰 Llevas el kit del tejón para ${Pa.pueblo.kitMc.pozoNombre}, sala ${Pa.pueblo.kitMc.sala}.</p>`;
+      if(Pa.pueblo.descansado) h += '<p class="note">😴 Has dormido: en la próxima bajada te cabe más en la mochila.</p>';
+      h += '<p class="lbl">Minerales</p><div class="list">' + (ks.length ? ks.map(k => chip(k, Pa.almacen[k])).join('') : '<span class="chip muted">Vacío</span>') + '</div>';
+      if(obj) h += `<p class="lbl">Para ${obj.nombre}</p><div class="list">${Object.entries(obj.coste).map(([k, n]) => chipFalta(k, Pa.almacen[k] || 0, n)).join('')}</div>`;
+      const MJ = ((D.taller && D.taller.mejoras) || []).filter(m => (Pa.pueblo.mejoras || {})[m.id]);
+      if(MJ.length) h += '<p class="lbl">Mejoras</p><div class="list">' + MJ.map(m => `<span class="chip">${m.icono} ${m.nombre}</span>`).join('') + '</div>';
+      if(!Pa.bandera('museo_abierto')) h += `<p class="lbl">Colección · ${colTxt()}</p><div class="list">${colChips()}</div>`;
+      else h += '<p class="note">Tu colección está ahora en el museo.</p>';
+      h += '<div class="fila"><button class="btn ghost" id="borrarTodo">Empezar de cero (borra mina, almacén, colección y herramientas)</button></div>';
+      cuerpo.innerHTML = h;
+      cuerpo.querySelectorAll('button[data-p]').forEach(b => b.onclick = () => {
+        const k = b.dataset.p, cur = k === 'p' ? lp : ll, v = Math.max(0, Math.min(40, cur + +b.dataset.d));
+        if(Mi && Mi.llevar) Mi.llevar(k, v); window.Sonido && window.Sonido.tocar('clic', 0.6); panelCasa(); });
+      bindUng(cuerpo, HUECOS);
       let armado = false;
       $('borrarTodo').onclick = () => {
         if(!armado){ armado = true; $('borrarTodo').textContent = 'Pulsa otra vez para borrarlo todo'; return; }
@@ -480,11 +569,28 @@ window.Pueblo = (()=>{
       cuerpo.querySelectorAll('button[data-u]').forEach(b => b.onclick = () => { const u = HB.unguentos[b.dataset.u]; if(!puedeObj(u.precio)) return;
         for(const [k, n] of Object.entries(u.precio)){ Pa.coleccion[k] -= n; if(Pa.coleccion[k] <= 0) delete Pa.coleccion[k]; }
         const UU = Pa.kit.unguentos || (Pa.kit.unguentos = {}); UU[b.dataset.u] = (UU[b.dataset.u] || 0) + 1; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
-      cuerpo.querySelectorAll('input[data-l]').forEach(i => i.onchange = () => {
-        const L2 = Pa.kit.llevarUng || (Pa.kit.llevarUng = {}), antes = Pa.ungElegidos();
-        if(i.checked && antes.length >= HUECOS){ i.checked = false; $('ungNota').textContent = `Solo caben ${HUECOS} ungüentos. Quita uno antes de elegir otro.`; window.Sonido && window.Sonido.tocar('tropiezo', 0.5); return; }
-        for(const id of Object.keys(HB.unguentos)) L2[id] = antes.includes(id);   // a partir de ahora, la elección es la que ves
-        L2[i.dataset.l] = i.checked; Pa.guardar(); panelCasa(); });
+      bindUng(cuerpo, HUECOS);
+    } else if(c.tipo === 'alcaldia'){
+      cuerpo.innerHTML = '<p>' + (Pa.bandera('museo_abierto') ? 'El alcalde mira por la ventana hacia el museo. Hace como que no.' : 'El alcalde firma papeles con mucha ceremonia. En la pared, un mapa de las minas con una cruz roja encima.') + '</p>';
+    } else if(c.tipo === 'casa'){
+      panelCasaDeep(cuerpo);
+    } else if(c.tipo === 'museo'){
+      // el museo guarda la colección, por secciones
+      const SEC = {mineria: '⛏️ Minería', herbario: '🌿 Herbario', mineralogia: '💎 Mineralogía', bestiario: '🦇 Bestiario'};
+      let h = `<p class="lbl">Colección · ${colTxt()}</p>`;
+      for(const [cat, nom] of Object.entries(SEC)){
+        const ids = Object.keys(OBJ).filter(id => (OBJ[id].categoria || 'mineria') === cat && !OBJ[id].color);
+        if(!ids.length) continue;
+        h += `<p class="lbl">${nom}</p><div class="list">` + ids.map(id => Pa.coleccion[id] || Pa.visto[id]
+          ? `<span class="chip" title="${OBJ[id].texto}">${OBJ[id].icono} ${OBJ[id].nombre}${Pa.coleccion[id] ? ' <b>' + Pa.coleccion[id] + '</b>' : ''}</span>`
+          : '<span class="chip muted">❔ ???</span>').join('') + '</div>';
+      }
+      cuerpo.innerHTML = h;
+    } else if(c.tipo === 'vecino'){
+      const V = (D.vecinos || {})[c.vecino] || {encargos: []}, est = Pa.vecino(c.vecino), e = V.encargos[est.hechos || 0];
+      const cosa = (k, n) => MAT[k] ? chipFalta(k, Pa.almacen[k] || 0, n) : objChip(k, Pa.coleccion[k] || 0, n);
+      cuerpo.innerHTML = e ? `<p class="lbl">Encargo ${(est.hechos || 0) + 1} de ${V.encargos.length}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => cosa(k, n)).join('')}</div>
+        <p class="note">Te da ${e.da.escaleras || 0} escaleras y ${e.da.puntales || 0} puntales. Entra a hablar cuando lo tengas.</p>` : '<p class="note">Ya no le hace falta nada. ¡Gracias por todo!</p>';
     } else if(c.tipo === 'cerrada'){
       cuerpo.innerHTML = `<p>${c.texto || 'Está cerrada.'}</p>`;
     } else {
@@ -492,9 +598,9 @@ window.Pueblo = (()=>{
     }
   }
   // colección: lo encontrado en las minas (base del futuro museo)
-  function colTxt(){ const all = Object.keys(D.objetos || {}), n = all.filter(id => Pa.coleccion[id]).length; return n + ' de ' + all.length + ' objetos'; }
+  function colTxt(){ const all = Object.keys(D.objetos || {}).filter(id => !D.objetos[id].color), n = all.filter(id => Pa.coleccion[id]).length; return n + ' de ' + all.length + ' objetos'; }
   function colChips(){
-    const ids = Object.keys(D.objetos || {}).filter(id => Pa.coleccion[id]);
+    const ids = Object.keys(D.objetos || {}).filter(id => Pa.coleccion[id] && !D.objetos[id].color);
     return ids.length ? ids.map(id => { const o = D.objetos[id]; return `<span class="chip" title="${o.texto}">${o.icono} ${o.nombre} <b>${Pa.coleccion[id]}</b></span>`; }).join('') : '<span class="chip muted">Aún nada</span>';
   }
   $('plazaVolver').onclick = () => window.Pantallas.mostrar('mapa');

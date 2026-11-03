@@ -52,6 +52,23 @@ window.Partida = (()=>{
       for(const e of E) if(e.mina && !hecho(e) && P.bandera('mina_' + e.mina + '_abierta')) out.push(e);
       return out;
     },
+    // ---- vecinos nuevos y cosas que piden (minerales del almacén u objetos de la colección) ----
+    vecino(id){ const V = P.pueblo.vecinos || (P.pueblo.vecinos = {}); return V[id] || (V[id] = {intro: false, hechos: 0}); },
+    puedeDar(pide){ return Object.entries(pide).every(([k, n]) => ((D.materiales[k] ? P.almacen[k] : P.coleccion[k]) || 0) >= n); },
+    cobrarCosas(pide){ for(const [k, n] of Object.entries(pide)){ const A = D.materiales[k] ? P.almacen : P.coleccion; A[k] = (A[k] || 0) - n; if(A[k] <= 0) delete A[k]; } P.guardar(); },
+    // ---- flores de mina de colores: {color: 'nueva' | 'entregada'} ----
+    florNueva(){ const F = P.pueblo.flores || {}, FC = D.floresColor || {colores: []}; return FC.colores.find(c => F[c.id] === 'nueva') || null; },
+    entregarFlorColor(id){ const F = P.pueblo.flores || (P.pueblo.flores = {}), R = (D.floresColor || {}).regalo || {};
+      F[id] = 'entregada'; P.kit.escaleras = (P.kit.escaleras || 0) + (R.escaleras || 0); P.kit.puntales = (P.kit.puntales || 0) + (R.puntales || 0); P.sumarProsperidad(1); P.guardar(); },
+    // ---- armario: aspectos ganados (uno por mina terminada y uno por flor de color entregada) ----
+    aspectosGanados(){
+      const AR = (D.casaDeep && D.casaDeep.armario) || {minas: {}, flores: {}}, out = ['clasico'];
+      for(const [m, id] of Object.entries(AR.minas)) if(P.bandera('respiradero_' + m)) out.push(id);
+      for(const [f, id] of Object.entries(AR.flores)) if((P.pueblo.flores || {})[f] === 'entregada') out.push(id);
+      return [...new Set(out)];
+    },
+    // ---- estadísticas de la partida ----
+    estad(){ return P.pueblo.estad || (P.pueblo.estad = {bajadas: 0, muertes: 0, record: 0, minerales: {}, cofres: 0}); },
     puedePagar(precio){ return Object.entries(precio).every(([m, n]) => (P.almacen[m] || 0) >= n); },
     comprar(item){
       if(!P.puedePagar(item.precio)) return false;
