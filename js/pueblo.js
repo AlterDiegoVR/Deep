@@ -454,14 +454,17 @@ window.Pueblo = (()=>{
   }
   const chipFalta = (k, tiene, n) => `<span class="chip${tiene >= n ? '' : ' muted'}"><i style="background:${MAT[k] && MAT[k].color || '#999'}"></i>${MAT[k] ? MAT[k].nombre : k} <b>${Math.min(tiene, n)}/${n}</b></span>`;
   // ---- casa de Deep: diario, armario, dormir y datos ----
-  let casaTab = 'diario';
+  let casaTab = 'diario', diarioPag = null;
   function panelCasaDeep(cuerpo){
     const CD = D.casaDeep || {diario: [], dormir: {cada: 3}}, tabs = {diario: '📖 Diario', armario: '👕 Armario', dormir: '🛏️ Dormir', datos: '📊 Datos'};
     let h = '<div class="tabs">' + Object.entries(tabs).map(([k, n]) => `<button class="tab${casaTab === k ? ' on' : ''}" data-t="${k}">${n}</button>`).join('') + '</div>';
     if(casaTab === 'diario'){
+      // el diario: un cuaderno a toda pantalla, una entrada por página (se abre por la última; tocar la hoja pasa a la siguiente)
       const se = e => !e.si || (e.si.startsWith('col:') ? !!(Pa.coleccion[e.si.slice(4)] || Pa.visto[e.si.slice(4)]) : Pa.bandera(e.si));
-      const ents = CD.diario.filter(se);
-      h += '<div class="diario">' + ents.map(e => `<p>${e.texto}</p>`).join('<hr>') + '</div>';
+      const ents = CD.diario.filter(se), n = ents.length;
+      if(diarioPag === null || diarioPag >= n) diarioPag = n - 1;
+      h += `<div class="cuaderno" id="cuaderno"><div class="pag">${ents[diarioPag] ? ents[diarioPag].texto : ''}</div>
+        <div class="pie"><button id="pagAnt" ${diarioPag <= 0 ? 'disabled' : ''} aria-label="Página anterior">‹</button><span>Página ${diarioPag + 1} de ${n}</span><button id="pagSig" ${diarioPag >= n - 1 ? 'disabled' : ''} aria-label="Página siguiente">›</button></div></div>`;
     } else if(casaTab === 'armario'){
       const AS = (D.arcade && D.arcade.aspectos) || [], gan = Pa.aspectosGanados(), act = Pa.pueblo.aspecto || 'clasico';
       const total = new Set(['clasico', ...Object.values(CD.armario.minas), ...Object.values(CD.armario.flores)]).size;
@@ -483,7 +486,10 @@ window.Pueblo = (()=>{
         <p class="lbl">Minerales subidos</p><div class="list">${mins.length ? mins.map(([k, n]) => chip(k, n)).join('') : '<span class="chip muted">Aún nada</span>'}</div>`;
     }
     cuerpo.innerHTML = h;
-    cuerpo.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => { casaTab = b.dataset.t; panelCasa(); });
+    const pasar = d => { const v = diarioPag + d; if(v < 0 || v >= (D.casaDeep.diario || []).length) return; diarioPag = v; window.Sonido && window.Sonido.tocar('clic', 0.5); panelCasa(); };
+    if($('pagAnt')){ $('pagAnt').onclick = e => { e.stopPropagation(); pasar(-1); }; $('pagSig').onclick = e => { e.stopPropagation(); if(!$('pagSig').disabled) pasar(1); };
+      $('cuaderno').onclick = () => { if(!$('pagSig').disabled) pasar(1); }; }
+    cuerpo.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => { casaTab = b.dataset.t; if(casaTab === 'diario') diarioPag = null; panelCasa(); });
     cuerpo.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { Pa.pueblo.aspecto = b.dataset.a; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir', 0.6); panelCasa(); });
     const db = $('dormirBtn'); if(db) db.onclick = () => { Pa.pueblo.descansado = true; Pa.pueblo.siesta = Pa.estad().bajadas; Pa.guardar(); window.Sonido && window.Sonido.tocar('sala', 0.6); panelCasa(); };
   }

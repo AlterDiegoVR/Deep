@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.220',
+  version: '0.221',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -626,7 +626,7 @@ window.DATOS = {
         texto: 'Le cose cuero doble y le pone remaches de hierro: cabe un 40 % más.' },
       { id: 'pico_padre', icono: '⛏️', nombre: 'Pico del padre, restaurado', desde: 'mina_4_abierta', precio: { hierro: 20, estano: 15 }, efecto: { golpe: 1 },
         texto: 'Mango nuevo, punta de hierro y estaño: un golpe menos para romper cualquier cosa.', necesita: 'pico_padre' },
-      { id: 'taladro', icono: '🔩', nombre: 'Taladro de la época dorada', desde: 'museo_abierto', precio: { cobre: 12, cuarzo: 6 }, efecto: { taladro: 1 },
+      { id: 'taladro', icono: '🔩', nombre: 'Taladro de la época dorada', desde: 'temblor_mina5', precio: { cobre: 12, cuarzo: 6 }, efecto: { taladro: 1 },
         texto: 'Lo limpia, le cambia la broca y lo engrasa: rompe la roca maciza (la azul).', necesita: 'taladro_viejo' },
     ],
   },
@@ -707,7 +707,7 @@ window.DATOS = {
     //   abreCon: bandera con la que se abre · abierta: cómo queda (nombre, dueño, tipo y, si es de un vecino, cuál).
     //   Al abrirse, en la plaza se dibuja la casa abierta (la de la imagen verde).
     { id: 'museo',    nombre: 'Museo de minería', dueno: 'Cerrado',      tipo: 'cerrada', texto: 'El viejo museo de minería. Las puertas están clavadas con tablas y el letrero, comido por el polvo.',
-      abreCon: 'museo_abierto', abierta: { dueno: 'Tu colección', tipo: 'museo' } },
+      abreCon: 'museo_abierto', abierta: { dueno: 'Tu colección', tipo: 'museo' } },   // la cadena del museo empieza tras el temblor de la mina 5
     { id: 'paja1',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Las ventanas están tapadas con tablas. Hace años que aquí no vive nadie.',
       abreCon: 'respiradero_3', abierta: { nombre: 'Casa del castor', dueno: 'El castor', tipo: 'vecino', vecino: 'castor' } },
     { id: 'paja2',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Una casita de paja con la puerta clavada. Alguien dejó unas macetas secas en la ventana.',

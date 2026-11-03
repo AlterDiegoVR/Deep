@@ -262,9 +262,10 @@ window.Conversaciones = (()=>{
     d('contento', 'A partir de hoy, el museo se queda abierto. Lo que vaya encontrando en las minas vendrá aquí, con ellos.'),
   ];
   // ---------- El tejón y el taladro ----------
+  // (después del temblor de la mina 5, cuando las minas se han vuelto a cerrar: es el momento de volver a las viejas)
   const TEJON_PISTA_TALADRO = [
-    t('pensativo', 'Oye, chaval. ¿Has visto allá abajo una roca azulada, dura como el demonio, que no hay pico que la arañe?'),
-    d('sorprendido', '¡Sí! Hay en el Pozo viejo y en la cantera. No hay forma de romperla.'),
+    t('pensativo', 'Menudo temblor, ¿eh? Se me cayeron todas las llaves inglesas. Oye, chaval: en tus bajadas, ¿no has visto una roca azulada, dura como el demonio, que no hay pico que la arañe?'),
+    d('sorprendido', '¡Sí! Desde el Pozo viejo. Siempre he querido saber qué hay detrás.'),
     t('contento', 'Roca maciza. En la época dorada la rompían con taladros. Había uno en la vitrina del viejo museo, lo sé porque yo mismo le cambié la broca.'),
     d('decidido', '¿Y dónde está el museo?'),
     t('pensativo', 'En la plaza, tapiado. La llave la tiene el alcalde… y el alcalde no suelta una llave ni aunque le pagues. Tú inténtalo.'),
@@ -363,16 +364,16 @@ window.Conversaciones = (()=>{
   function alEntrar(casa){
     if(casa === 'alcaldia'){
       if(!Pa.bandera('alcalde_intro')) return {lineas: ALCALDE_INTRO, fin: () => Pa.ponerBandera('alcalde_intro')};
-      if(Pa.bandera('pista_taladro') && !Pa.bandera('llave_museo')){
+      if(Pa.bandera('temblor_mina5') && Pa.bandera('pista_taladro') && !Pa.bandera('llave_museo')){
         if(!Pa.bandera('alcalde_niega')) return {lineas: ALCALDE_NIEGA, fin: () => Pa.ponerBandera('alcalde_niega')};
         return {lineas: ALCALDE_CEDE, fin: () => { Pa.ponerBandera('llave_museo'); Pa.sumarProsperidad(1); }};
       }
       return {lineas: azar(Pa.bandera('museo_abierto') ? ALCALDE_MUSEO : ALCALDE_DESPUES), fin: null};
     }
     if(casa === 'museo'){
-      if(Pa.bandera('llave_museo') && !Pa.bandera('museo_abierto')) return {lineas: MUSEO_ENTRAR, fin: () => {
+      if(Pa.bandera('temblor_mina5') && Pa.bandera('llave_museo') && !Pa.bandera('museo_abierto')) return {lineas: MUSEO_ENTRAR, fin: () => {
         Pa.ponerBandera('museo_abierto'); Pa.guardarEnColeccion('taladro_viejo', 1); Pa.sumarProsperidad(2); Pa.guardar(); }};
-      if(!Pa.bandera('museo_abierto')) return {lineas: Pa.bandera('pista_taladro') ? MUSEO_CERRADO_PISTA : MUSEO_CERRADO, fin: null};
+      if(!Pa.bandera('museo_abierto')) return {lineas: Pa.bandera('temblor_mina5') && Pa.bandera('pista_taladro') ? MUSEO_CERRADO_PISTA : MUSEO_CERRADO, fin: null};
       return null;
     }
     if(casa === 'casa') return null;
@@ -387,8 +388,8 @@ window.Conversaciones = (()=>{
       }
       if(Pa.bandera('mina_3_abierta') && !Pa.bandera('tejon_mochila')) return {lineas: TEJON_MOCHILA, fin: () => Pa.ponerBandera('tejon_mochila')};
       // el taladro: primero la pista (hay roca maciza desde el primer pozo) y, con el taladro viejo del museo, el arreglo
-      if(Pa.bandera('mina_2_abierta') && !Pa.bandera('pista_taladro')) return {lineas: TEJON_PISTA_TALADRO, fin: () => Pa.ponerBandera('pista_taladro')};
-      if(Pa.bandera('museo_abierto') && !Pa.bandera('tejon_taladro')) return {lineas: TEJON_TALADRO(), fin: () => Pa.ponerBandera('tejon_taladro')};
+      if(Pa.bandera('temblor_mina5') && !Pa.bandera('pista_taladro')) return {lineas: TEJON_PISTA_TALADRO, fin: () => Pa.ponerBandera('pista_taladro')};
+      if(Pa.bandera('temblor_mina5') && Pa.bandera('museo_abierto') && !Pa.bandera('tejon_taladro')) return {lineas: TEJON_TALADRO(), fin: () => Pa.ponerBandera('tejon_taladro')};
       if(Pa.bandera('mina_4_abierta') && (Pa.coleccion.pico_padre || Pa.bandera('viejo_pico')) && !Pa.bandera('tejon_pico')) return {lineas: TEJON_PICO(), fin: () => Pa.ponerBandera('tejon_pico')};
       return {lineas: azar(Pa.bandera('ascensor_pozo1_fino') ? TEJON_DESPUES : TEJON_NADA), fin: null};
     }

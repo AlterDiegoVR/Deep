@@ -777,7 +777,7 @@ let prisa = 0, luzTotal = 0, fuego = 0, subida = null, comboTag = null;   // arc
 function stepTime(){ return JU.tiempoPaso*(prisa > 0 ? 0.5 : 1); }
 // mejoras del taller del tejón (para siempre)
 function mejora(ef){ let v = ef === 'mochila' ? 1 : 0; if(ARC) return v; const MJ = (D.taller && D.taller.mejoras) || [], H = (Pa.pueblo && Pa.pueblo.mejoras) || {};
-  for(const m of MJ) if(H[m.id] && m.efecto && m.efecto[ef] !== undefined) v = ef === 'mochila' ? v * m.efecto[ef] : v + m.efecto[ef]; return v; }
+  for(const m of MJ) if(H[m.id] && (!m.desde || Pa.bandera(m.desde)) && m.efecto && m.efecto[ef] !== undefined) v = ef === 'mochila' ? v * m.efecto[ef] : v + m.efecto[ef]; return v; }
 let descansado = false;   // has dormido en casa antes de esta bajada
 function capacity(){ if(ARC) return 1e9; return Math.round(cfg.cap * mejora('mochila') * (descansado ? ((D.casaDeep && D.casaDeep.dormir.carga) || 1.25) : 1) * (has('mochila_cuero') ? cv_('mochila_cuero', 1.5) : 1)); }
 const inMud = (r, c) => tAt(r, c) === MUD;
