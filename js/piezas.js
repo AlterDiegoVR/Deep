@@ -33,7 +33,7 @@
 //    b  brasas (queman la lámpara al pisarlas; el agua las apaga)   X  puerta de la cuadrilla (atrancada)
 //    Q  casco de la cuadrilla (coleccionable)
 //    j  hongo luminoso   R  lámpara de carburo   F  foto de una cuadrilla   w  polilla
-//    *  gas              &  barro         i  hierro         s  estaño        y  nenúfar (flotando en agua)
+//    *  gas              &  barro         i  hierro         s  estaño        y  nenúfar (flotando en agua)   z  hielo
 //    T  cartel de tutorial (título, texto y, si quieres, un gif)   D  frase de Deep (con su cara)
 //       (los textos van en «textos»: { 'fila,columna': { titulo, texto, gif } } o { texto, cara })
 //
@@ -274,6 +274,57 @@ window.PIEZAS = [
       'ppd_________dpp',
       'pd__N_____Q_Mdp',
       'pdddddddddddddp',
+    ],
+  },
+  // ===================== Pozo 4: la Mina de los cuervos (el pozo del hielo) =====================
+  {
+    // La cascada congelada: una caverna con una columna de hielo (z) que baja de un techo de hielo; encima, un lago (~).
+    // Derretir la columna con cuidado deja cornisas para llegar al cofre del otro lado; si derrites el techo, el lago te cae encima.
+    // Se entra picando la piedra de la derecha (p). Se refleja al azar.
+    id: 'cascada_pozo4',
+    pozo: 'cuatro',
+    tiro: 'principal',
+    colocar: { fila: 70 },
+    reflejar: true,
+    filas: [
+      'xxxxxxxxxxxx...',
+      'xx~~~~~~~~~x...',
+      'xxzzzzzzzzzx...',
+      'x____zzz___p...',
+      'xB___zzz___p...',
+      'xps__zzz_____..',
+      'xpp__zzz__ppp..',
+      'x____zzz_____..',
+      'xf_s_zzz_____..',
+      'xxxxxzzzxxxxx..',
+    ],
+  },
+  {
+    // Fondo de la Mina de los cuervos: el ascensor, el respiradero helado, un cofre y una flor.
+    id: 'fondo_pozo4',
+    pozo: 'cuatro',
+    tiro: 'principal',
+    colocar: { fondo: true },
+    filas: [
+      '...............',
+      'xz___________zx',
+      'xA__f__B__V__ox',
+    ],
+  },
+  {
+    // El campamento helado (ramal): restos del campamento de la cuadrilla, con la nota que habla del socavón del viejo (mina 5).
+    id: 'campamento_pozo4',
+    pozo: 'cuatro',
+    tiro: 'hielo_campamento',
+    colocar: { fondo: true },
+    reflejar: true,
+    nota: 'nota_4',
+    filas: [
+      'xxxxxxzzzxxxxxx',
+      'xx___________xx',
+      'xxM_I__N_IB_oxx',
+      'xxxxx===xxxxxxx',
+      'xxxxxxxxxxxxxxx',
     ],
   },
 ];

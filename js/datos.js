@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.219',
+  version: '0.220',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -181,6 +181,20 @@ window.DATOS = {
     polillaVista: 1.6,         // te ven si estás a menos de (radio de tu luz x esto) y en línea recta, sin nada en medio
   },
 
+  // ---------- Hielo y murciélagos (mina 4) ----------
+  hielo: {
+    derriteAlta: 2.2,          // segundos que tarda en derretirse una casilla de hielo pegada a ti con la mecha alta
+    derriteBaja: 30,           // ...y con la mecha baja (casi nada)
+    radio: 1.6,                // casillas alrededor de la lámpara que se derriten (la de debajo de tus pies también)
+    lamina: 0.3,               // agua que deja cada casilla derretida (de 0 a 1)
+  },
+  murcielago: {
+    luz: 15,                   // % de lámpara que quita al tocarte
+    despierta: 4.5,            // con la mecha baja, se despiertan si pasas a menos de estas casillas
+    velocidad: 3,              // casillas por segundo volando
+    despierto: 9,              // segundos que vuelan antes de volver a colgarse
+  },
+
   // ---------- Aire ----------
   // Bajo la superficie del agua o del barro (tu casilla llena y la de encima también) empieza la cuenta atrás.
   aire: {
@@ -296,8 +310,8 @@ window.DATOS = {
       texto: 'Prototipo del segundo pozo: más largo que el primero, con dos ramales, algo de agua y de barro al final, puertas con llave, cuarzo y hongos luminosos. Está cerrada: se abre con carbón y cobre del Pozo viejo.' },
     { id: 3, boca: [248, 245], nombre: 'Galería del río',     abierta: false, pozo: 'tres', desbloqueo: { carbon: 40, cobre: 30, cuarzo: 3 },
       texto: 'El pozo del agua: galerías inundadas, pozas hondas y aire que hay que vigilar. Tiene una noria vieja y una galería de la cuadrilla. Está cerrada: se abre con materiales de la Cantera del molino.' },
-    { id: 4, boca: [150, 475], nombre: 'Mina de los cuervos', abierta: false, desbloqueo: { hierro: 30, cobre: 10 }, proximamente: true,
-      texto: 'La mina del hielo: galerías heladas, una cascada congelada y el nido de los cuervos. Se abre con hierro de la Galería del río.' },
+    { id: 4, boca: [150, 475], nombre: 'Mina de los cuervos', abierta: false, pozo: 'cuatro', desbloqueo: { hierro: 30, cobre: 10 },
+      texto: 'La mina del hielo: galerías heladas, una cascada congelada y el nido de los murciélagos. Estaño entre el hielo. Se abre con hierro de la Galería del río.' },
     { id: 5, boca: [267, 150], nombre: 'El socavón del viejo', abierta: false, texto: 'Junto a la casa del viejo topo. Próximamente.' },
     { id: 6, boca: [22, 407], nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
     { id: 7, boca: [30, 250], nombre: 'Pozo del gas',        abierta: false, texto: 'Próximamente.' },
@@ -475,6 +489,52 @@ window.DATOS = {
       contenido: { salaSellada: false, grisu: false, barro: false },
       desdeTramo: { carbon: 0, cobre: 1, cuarzo: 2, cuevas: 0, agua: 0, polillas: 2 },
     },
+    // Pozo 4 (mina 4, la Mina de los cuervos): el pozo del hielo. El hielo resbala y se derrite con la lámpara
+    // (deprisa con la mecha alta, casi nada con la baja) y deja una lámina de agua. El estaño sale a menudo dentro del hielo.
+    // Murciélagos colgados en las cuevas: con la mecha baja se despiertan y vuelan como locos; si te tocan, te quitan luz.
+    // Piezas propias (js/piezas.js): la cascada congelada, el campamento abandonado de la cuadrilla (ramal) y el fondo.
+    cuatro: {
+      nombre: 'Mina de los cuervos',
+      real: true,
+      guardado: 'deep-pozo4',
+      columnas: 15,
+      tramos: [
+        { nombre: 'Boca nevada',            largo: 16 },
+        { nombre: 'Galerías heladas',       largo: 22 },
+        { nombre: 'La cascada congelada',   largo: 26 },
+        { nombre: 'Hielo viejo',            largo: 28 },
+        { nombre: 'El nido de los cuervos', largo: 30 },
+        { nombre: 'Galerías de escarcha',   largo: 32 },
+        { nombre: 'El fondo helado',        largo: 34 },
+      ],
+      conFondo: true,
+      altoSala: 4,
+      escasez: 0.03,
+      escasezVieja: 0.05,          // el carbón y el cobre, aún menos
+      arenaUmbral: 0.9,
+      aguaUmbral: 0.75,            // poca agua suelta: la mayoría está helada
+      cuevasUmbral: 0.68,
+      montacargasCada: 2,
+      // hielo: umbral en su primer tramo y en el último (más bajo = más hielo) · escala (tamaño de las placas)
+      hielo: { umbral: 0.72, umbralFinal: 0.6, escala: 3.2, desde: 0 },
+      // estaño: poco en la roca y mucho dentro del hielo («hielo»: umbral dentro del hielo)
+      vetas: { estano: { umbral: 0.87, umbralFinal: 0.83, hielo: 0.72, escala: 2.2, desde: 1 } },
+      // murciélagos colgados del techo de las cuevas (probabilidad por hueco con techo); en el nido, muchos más
+      murcielagos: { prob: 0.05, desde: 1, tramos: { 4: 0.3 } },
+      sueltos: { flor_mina: { cada: 30, desdeFila: 14 }, campanilla: { cada: 24, desdeFila: 8 } },
+      sueltosRamal: { campanilla: { cada: 9, desdeFila: 4 }, flor_mina: { cada: 16, desdeFila: 6 } },
+      cofreEspecial: [
+        { texto: '6 de estaño', material: { estano: 6 } },
+        { texto: '5 de hierro y 3 de estaño', material: { hierro: 5, estano: 3 } },
+        { texto: '4 de cuarzo y 4 de estaño', material: { cuarzo: 4, estano: 4 } },
+        { texto: 'Dos campanillas de nieve y 3 de estaño', objeto: 'campanilla', cantidadObjeto: 2, material: { estano: 3 } },
+      ],
+      ramales: [
+        { id: 'hielo_campamento', nombre: 'El campamento helado', fila: 70, lado: 'derecha', largo: 30 },
+      ],
+      contenido: { salaSellada: false, grisu: false, barro: false },
+      desdeTramo: { carbon: 1, cobre: 2, cuarzo: 3, cuevas: 0, agua: 2, polillas: 9 },
+    },
   },
 
   // roca maciza con el taladro del tejón: golpes que hacen falta
@@ -508,6 +568,8 @@ window.DATOS = {
                       texto: '«Hemos encontrado un paso entre las minas. Las galerías de los antiguos llegan mucho más lejos de lo que nadie sabía.»' },
     nota_3:         { nombre: 'Nota de la cuadrilla (3)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
                       texto: '«Si alguien encuentra esto: no estamos perdidos. Estamos donde tenemos que estar. Cuidad del pueblo.»' },
+    nota_4:         { nombre: 'Nota de la cuadrilla (4)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
+                      texto: '«Acampamos en el hielo, esperando a que pase la tormenta de dentro. El viejo dice que el socavón junto a su casa baja hasta el corazón de la montaña. Mañana entramos por ahí. Si no volvemos…»' },
     casco_cuadrilla: { nombre: 'Casco abollado', categoria: 'mineria', icono: '⛑️', dibujo: 'reliquia', brilla: true,
                       texto: 'Un casco de minero con el símbolo de la cuadrilla. Tiene una abolladura enorme, pero aguantó.' },
     nenufar:        { nombre: 'Nenúfar', plural: 'nenúfares', categoria: 'herbario', icono: '🪷', dibujo: 'nenufar', brilla: true, mina: 3,

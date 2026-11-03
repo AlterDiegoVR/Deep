@@ -277,6 +277,13 @@ window.Conversaciones = (()=>{
     t('alegre', 'Tráeme ' + TJ() + ' y te lo dejo como nuevo. Con él podrás romper la roca maciza.'),
     d('decidido', '¡Bajo a por ello!'),
   ];
+  const TP_ = () => { const m = ((D.taller && D.taller.mejoras) || []).find(x => x.id === 'pico_padre'); return m ? listaMat(m.precio) : 'hierro y estaño'; };
+  const TEJON_PICO = () => [
+    t('pensativo', 'Chaval, ¿sigues llevando el pico de tu padre a todas partes? Déjamelo ver.'),
+    t('sorprendido', 'Buen acero, el de antes. El mango está podrido y la punta, roma, pero el alma está intacta.'),
+    t('alegre', 'Con hierro de la Galería del río y estaño de la Mina de los cuervos te lo dejo como el primer día: ' + TP_() + '. Picarás un golpe menos con todo.'),
+    d('decidido', 'El pico de papá… ¡Voy a por ello!'),
+  ];
   // ---------- Vecinos nuevos ----------
   const VECINOS = {
     castor: { casa: 'paja1', habla: ca, caras: {c: 'contento', a: 'alegre', p: 'pensativo', s: 'sorprendido'},
@@ -382,6 +389,7 @@ window.Conversaciones = (()=>{
       // el taladro: primero la pista (hay roca maciza desde el primer pozo) y, con el taladro viejo del museo, el arreglo
       if(Pa.bandera('mina_2_abierta') && !Pa.bandera('pista_taladro')) return {lineas: TEJON_PISTA_TALADRO, fin: () => Pa.ponerBandera('pista_taladro')};
       if(Pa.bandera('museo_abierto') && !Pa.bandera('tejon_taladro')) return {lineas: TEJON_TALADRO(), fin: () => Pa.ponerBandera('tejon_taladro')};
+      if(Pa.bandera('mina_4_abierta') && (Pa.coleccion.pico_padre || Pa.bandera('viejo_pico')) && !Pa.bandera('tejon_pico')) return {lineas: TEJON_PICO(), fin: () => Pa.ponerBandera('tejon_pico')};
       return {lineas: azar(Pa.bandera('ascensor_pozo1_fino') ? TEJON_DESPUES : TEJON_NADA), fin: null};
     }
     if(casa === 'mina5') return {lineas: VIEJO_MINA5, fin: () => Pa.ponerBandera('viejo_mina5')};

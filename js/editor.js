@@ -13,7 +13,7 @@ window.Editor = (()=>{
   const PAL = [
     {g:'Terreno', items:[
       ['.', 'Libre (lo pone el generador)'], ['_', 'Aire'], ['t', 'Tierra'], ['p', 'Piedra'], ['d', 'Roca dura (fija)'], ['m', 'Roca maciza (taladro)'], ['x', 'Roca madre (irrompible)'],
-      ['a', 'Arena'], ['g', 'Arena arcillosa (barro)'], ['~', 'Agua'], ['&', 'Barro'], ['*', 'Gas'], ['e', 'Escombro']]},
+      ['a', 'Arena'], ['g', 'Arena arcillosa (barro)'], ['~', 'Agua'], ['&', 'Barro'], ['*', 'Gas'], ['e', 'Escombro'], ['z', 'Hielo']]},
     {g:'Minerales', items:[['r', 'Arcilla'], ['c', 'Carbón'], ['u', 'Cobre'], ['q', 'Cuarzo'], ['i', 'Hierro'], ['s', 'Estaño']]},
     {g:'Objetos', items:[['o', 'Bidón de aceite'], ['k', 'Llave'], ['h', 'Escalera suelta'], ['H', 'Puntal suelto'], ['B', 'Cofre con premio'],
       ['f', 'Flor de mina'], ['j', 'Hongo luminoso'], ['y', 'Nenúfar (en agua)'], ['R', 'Lámpara de carburo'], ['F', 'Foto de una cuadrilla'], ['N', 'Nota de la cuadrilla'], ['Q', 'Casco de la cuadrilla'],
@@ -25,7 +25,7 @@ window.Editor = (()=>{
   ];
   const NOMBRE = {}; PAL.forEach(g => g.items.forEach(([c, n]) => NOMBRE[c] = n));
   const COLOR = {'.':null, '_':'#1b1426', t:'#8f563b', p:'#696a6a', d:'#4b3f4f', m:'#2b4a8a', x:'#221c28', a:'#d9a066', g:'#c46a3a', '~':'#306082', '&':'#5a3a26', '*':'#2d4a2a', e:'#847e87',
-    r:MAT.arcilla.color, c:MAT.carbon.color, u:MAT.cobre.color, q:MAT.cuarzo.color, i:MAT.hierro.color, s:MAT.estano.color, P:'#3f3f74', G:'#3f3f74'};
+    r:MAT.arcilla.color, c:MAT.carbon.color, u:MAT.cobre.color, q:MAT.cuarzo.color, z:'#9ee6f2', i:MAT.hierro.color, s:MAT.estano.color, P:'#3f3f74', G:'#3f3f74'};
   const ICONO = {o:'🛢️', k:'🔑', h:'🪜', H:'🪵', B:'📦', f:'🌸', j:'🍄', y:'🪷', R:'🏮', F:'🖼️', N:'📜', Q:'⛑️', K:'⛏️', Z:'⚙️', w:'🦋', M:'🛗', A:'🚡', V:'♨️', W:'🎡', b:'🔥', X:'🚪', P:'🔒', T:'💬', D:'🗨️', '*':'☁️'};
   // contador: qué se cuenta en cada sector
   const CUENTA = [['Arcilla', 'r'], ['Carbón', 'c'], ['Cobre', 'u'], ['Cuarzo', 'q'], ['Hierro', 'i'], ['Estaño', 's'], ['Agua', '~'], ['Arena', 'ag'], ['Gas', '*'], ['Aceite', 'o'], ['Flores', 'f'], ['Hongos', 'j'], ['Nenúfares', 'y'],

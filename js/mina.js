@@ -9,7 +9,7 @@ const ON = k => !P1.contenido || P1.contenido[k] !== false;
 const T = 24, COLS = 15, SURF = 3, ROOM_H = 4;
 // ---------- tipos ----------
 // BEDROCK = roca madre (límite del mundo: no la rompe nada) · PLANK = tablón (puntal puesto como puente) · CSAND = arena arcillosa (con agua, barro)
-const AIR=0, DIRT=1, STONE=2, HARD=3, CLAY=4, COAL=5, COPPER=6, QUARTZ=7, SAND=8, WATER=9, GAS=10, ROCK=11, BEAM=12, PROP=13, LADDER=14, RUBBLE=15, DOOR=16, MUD=17, PASS=18, BEDROCK=19, PLANK=20, CSAND=21, IRON=22, TIN=23;
+const AIR=0, DIRT=1, STONE=2, HARD=3, CLAY=4, COAL=5, COPPER=6, QUARTZ=7, SAND=8, WATER=9, GAS=10, ROCK=11, BEAM=12, PROP=13, LADDER=14, RUBBLE=15, DOOR=16, MUD=17, PASS=18, BEDROCK=19, PLANK=20, CSAND=21, IRON=22, TIN=23, ICE=24;
 const M = D.materiales;
 const mat = (key, extra) => Object.assign({hp:M[key].golpes, val:M[key].valor, n:M[key].nombre, dot:M[key].color, key}, extra);
 const INFO = {
@@ -19,10 +19,11 @@ const INFO = {
   [BEAM]:{hp:1}, [PROP]:{}, [LADDER]:{}, [RUBBLE]:mat('escombro', {tile:'escombro'}), [DOOR]:{hp:999, tile:'maciza'}, [MUD]:{}, [PASS]:{hp:999, tile:'maciza'},
   [BEDROCK]:{hp:9999, tile:'maciza', madre:true}, [PLANK]:{}, [CSAND]:mat('arenaArcillosa', {tile:'arena'}),
   [IRON]:mat('hierro', {tile:'piedra', veta:'hierro'}), [TIN]:mat('estano', {tile:'piedra', veta:'estano'}),
+  [ICE]:{hp:2, n:'Hielo', tile:'piedra', hielo:true},
 };
 const KEY2T = {}; for(const [tt, I] of Object.entries(INFO)) if(I.val) KEY2T[I.key] = +tt;
 const isSolid = t => !(t===AIR || t===WATER || t===GAS || t===PROP || t===LADDER || t===MUD || t===PLANK);
-const isStruct = t => t===DIRT||t===STONE||t===HARD||t===CLAY||t===COAL||t===COPPER||t===QUARTZ||t===IRON||t===TIN||t===BEAM||t===ROCK||t===DOOR||t===PASS||t===BEDROCK;
+const isStruct = t => t===DIRT||t===STONE||t===HARD||t===CLAY||t===COAL||t===COPPER||t===QUARTZ||t===IRON||t===TIN||t===ICE||t===BEAM||t===ROCK||t===DOOR||t===PASS||t===BEDROCK;
 const isAnchor = t => t===HARD||t===BEAM||t===ROCK||t===DOOR||t===PASS||t===BEDROCK;
 const isLoose = t => t===SAND||t===RUBBLE||t===CSAND;
 const isSand = t => t===SAND||t===CSAND;
@@ -55,7 +56,7 @@ function tiroCfg(id){
 }
 // tramos temáticos (pozo de pruebas): desde «temasDesde» se van turnando los temas
 function temaDe(seg){ if(!P1.temas || seg < (P1.temasDesde ?? 3)) return null; return P1.temas[(seg - (P1.temasDesde ?? 3)) % P1.temas.length]; }
-function setTiro(id){ TC = tiroCfg(id); TRAMOS = TC.tramos; ROOM_ROW = TC.rooms; PLACED = placePieces(); }
+function setTiro(id){ TC = tiroCfg(id); TRAMOS = TC.tramos; ROOM_ROW = TC.rooms; PLACED = placePieces(); deshielo.clear(); }
 const hashStr = s => { let h = 7; for(const ch of String(s)) h = (h*31 + ch.charCodeAt(0)) | 0; return Math.abs(h); };
 function layout(r){
   if(r < SURF) return TC.principal ? {surface:true} : {seg:0, d:0, techo:true};
@@ -149,7 +150,7 @@ function natFromSeed(w){
   finally{ W = keep; lastOil = keepOil; }
 }
 // ---------- piezas hechas a mano (js/piezas.js) ----------
-const PZ_TILE = {'_':AIR, t:DIRT, p:STONE, d:HARD, m:ROCK, x:BEDROCK, g:CSAND, a:SAND, '~':WATER, e:RUBBLE, r:CLAY, c:COAL, u:COPPER, q:QUARTZ, i:IRON, s:TIN, P:DOOR, '*':GAS, '&':MUD};
+const PZ_TILE = {'_':AIR, t:DIRT, p:STONE, d:HARD, m:ROCK, x:BEDROCK, g:CSAND, a:SAND, '~':WATER, e:RUBBLE, r:CLAY, c:COAL, u:COPPER, q:QUARTZ, i:IRON, s:TIN, z:ICE, P:DOOR, '*':GAS, '&':MUD};
 function tramoRows(i){ let r = SURF; for(let k=0;k<i;k++){ r += TRAMOS[k].len + (k < ROOM_ROW.length ? ROOM_H : 0); } return [r, r + (TRAMOS[i] ? Math.min(TRAMOS[i].len, 60) : 0)]; }
 function placePieces(){
   const out = [], seed = W ? W.seed : 0;
@@ -171,7 +172,7 @@ function placePieces(){
     const rows = pz.filas.map(l => { l = (l + '.'.repeat(COLS)).slice(0, COLS); return mir ? [...l].reverse().join('') : l; });
     // textos de carteles y frases de Deep: clave «fila,columna» de la pieza (dada la vuelta si se refleja)
     const textos = {}; for(const [k, v] of Object.entries(pz.textos || {})){ const [f, c] = k.split(',').map(Number); textos[f + ',' + (mir ? COLS-1-c : c)] = v; }
-    out.push({id:pz.id, r0, rows, textos});
+    out.push({id:pz.id, r0, rows, textos, nota: pz.nota});
   }
   return out;
 }
@@ -216,7 +217,7 @@ function applyPieces(r, Tt){
       else if(ch === 'Z'){ if(!Pa.bandera('ascensor_pozo1_roto')) W.items.push({k:'obj', id:'pieza_ascensor', r, c, alive:true}); }   // la pieza y el pico salen una sola vez
       else if(ch === 'K'){ if(!Pa.bandera('pico_encontrado') && !Pa.coleccion.pico_padre && !(bag && bag['o:pico_padre'])) W.items.push({k:'obj', id:'pico_padre', r, c, alive:true}); }
       else if(ch === 'V') W.items.push({k:'vent', r, c, alive:true});
-      else if(ch === 'N'){ const id = notaSiguiente(); if(id) W.items.push({k:'obj', id, r, c, alive:true}); }
+      else if(ch === 'N'){ const id = P.nota ? (unicoLibre(P.nota) ? P.nota : null) : notaSiguiente(); if(id) W.items.push({k:'obj', id, r, c, alive:true}); }
       else if(ch === 'Q'){ if(unicoLibre('casco_cuadrilla')) W.items.push({k:'obj', id:'casco_cuadrilla', r, c, alive:true}); }
       else if(ch === 'W') W.items.push({k:'noria', r, c, alive:true, activa:false});
       else if(ch === 'b') W.items.push({k:'brasa', r, c, alive:true, apagada:false});
@@ -275,8 +276,13 @@ function genRow(r){
     const vieja = P1.escasezVieja || 0;   // en las minas nuevas, los minerales antiguos salen menos
     if(sg >= DT.carbon && !isSand(v) && vn(c/2.2, r/2.2, S+4) > 0.74 + esc + vieja) v = COAL;
     if(sg >= DT.cobre && !isSand(v) && vn(c/2, r/2, S+5) > 0.75 + esc + vieja) v = COPPER;
+    // hielo (mina 4): placas que van a más según bajas
+    const nTr = TRAMOS.length - 1;
+    if(P1.hielo && sg >= (P1.hielo.desde || 0) && !isSand(v) && v !== CLAY){ const Hh = P1.hielo, f = nTr > 0 ? Math.min(1, sg/nTr) : 1, e = Hh.escala || 3.2;
+      if(vn(c/e, r/(e*0.8), S+40) > Hh.umbral + ((Hh.umbralFinal ?? Hh.umbral) - Hh.umbral)*f) v = ICE; }
     // el mineral propio de la mina (hierro en la 3, estaño en la 4…): datos en «vetas» del pozo
     if(P1.vetas) for(const k in P1.vetas){ const V = P1.vetas[k], tt = KEY2T[k]; if(tt === undefined || sg < (V.desde || 0) || isSand(v)) continue;
+      if(v === ICE){ if(V.hielo !== undefined && vn(c/2, r/2, S + 60 + hashStr(k) % 50) > V.hielo) v = tt; continue; }   // dentro del hielo
       // va a más según bajas: «umbral» en su primer tramo y «umbralFinal» en el último (más bajo = más mineral)
       const nT = TRAMOS.length - 1, de = V.desde || 0, f = nT > de ? Math.min(1, (sg - de)/(nT - de)) : 1;
       const u = V.umbral + ((V.umbralFinal ?? V.umbral) - V.umbral)*f;
@@ -291,6 +297,8 @@ function genRow(r){
       if(ON('agua') && !ultima && sg >= DT.agua && vn(c/(P1.aguaEscala || 5), r/(P1.aguaEscala || 5), S+8) > (TM.agua ?? P1.aguaUmbral ?? 0.58)) v = WATER;
       else if(ON('grisu') && sg >= DT.gas && vn(c/4, r/4, S+9) > (TM.gas ?? 0.6)) v = GAS;
       else if(ON('polillas') && sg >= DT.polillas && h2(c, r, S+13) < (TM.polillas ?? 0.025)) W.items.push({k:'moth', x:c+0.5, y:r+0.5, alive:true});
+      else if(P1.murcielagos && sg >= (P1.murcielagos.desde || 0) && W.rows[r-1] && isSolid(W.rows[r-1].t[c]) && W.rows[r-1].t[c] !== ICE
+        && h2(c, r, S+19) < ((P1.murcielagos.tramos || {})[sg] ?? P1.murcielagos.prob)) W.items.push({k:'moth', bat:true, dormido:true, x:c+0.5, y:r+0.35, hx:c+0.5, hy:r+0.35, alive:true});
     }
     if(r === SURF) v = DIRT;
     Tt[c] = v;
@@ -876,6 +884,7 @@ function updatePlayer(dt){
       p.fallN = 0;
       if(p.onPlat && want('D') && bajadaBloqueada()){ tapped.D = 0; if(lockMsgT <= 0){ decir('triste', 'No puedo bajar… Sin el ascensor no tendría forma de volver a subir.'); lockMsgT = 4; SND('clin'); } }
       else if(p.onPlat && want('D')){ tapped.D = 0; p.onPlat = false; platOpen = 1; SND('trampilla'); floats.push({x:p.c+0.5, y:p.r-0.3, txt:'¡Allá voy!', life:0.9, col:'#fbf236'}); }
+      else if(moveT <= 0 && p.slide && deslizar()){}
       else if(moveT <= 0 && digT <= 0 && p.stun <= 0 && !looking){
         const ax = (want('R')?1:0) - (want('L')?1:0);
         if(ax){ tapped.L = tapped.R = 0; }
@@ -885,7 +894,7 @@ function updatePlayer(dt){
           p.face = ax;
           const tc = p.c + ax, v = tAt(p.r, tc);
           if(tc >= 0 && tc < COLS){
-            if(passable(p.r, tc)){ p.c = tc; moveT = stepTime()*(inMud(p.r, tc) || mudHere ? BA.pasoMult : 1); SND('paso', 0.6); }
+            if(passable(p.r, tc)){ p.c = tc; moveT = stepTime()*(inMud(p.r, tc) || mudHere ? BA.pasoMult : 1); SND('paso', 0.6); p.slide = tAt(p.r+1, tc) === ICE ? ax : 0; }
             else if(v === DOOR) tryDoor(p.r, tc);
             else if(v === PASS) enterPass(p.r, tc);
             else if(isSolid(v)) hit(p.r, tc, {x:ax, y:0});
@@ -1166,6 +1175,27 @@ function los(x0,y0,x1,y1,tr,tc){
   for(let i=1;i<n;i++){ const x = x0+dx*i/n, y = y0+dy*i/n, r = Math.floor(y), c = Math.floor(x); if(r===tr && c===tc) return true; if(isSolid(tAt(r,c))) return false; }
   return true;
 }
+// ---------- hielo (mina 4) ----------
+// sobre el hielo resbalas: sigues una casilla más cada vez mientras haya hielo debajo y sitio delante
+function deslizar(){
+  const tc = p.c + p.slide;
+  if(tAt(p.r+1, p.c) === ICE && tc >= 0 && tc < COLS && passable(p.r, tc)){ p.c = tc; p.face = p.slide; moveT = stepTime()*0.6; if(Math.random() < 0.5) burst(p.r+0.95, p.c+0.5, '#cbdbfc', 2); return true; }
+  p.slide = 0; return false;
+}
+// la lámpara derrite el hielo de alrededor (deprisa con la mecha alta, casi nada con la baja) y deja una lámina de agua
+const HI = D.hielo || {derriteAlta: 2.2, derriteBaja: 30, radio: 1.6, lamina: 0.3};
+let deshielo = new Map();
+function derretir(dt){
+  if(lamp <= 0 || dead || !p) return;
+  const vel = 1/(wick ? HI.derriteAlta : HI.derriteBaja), R = HI.radio, cx = p.x + 0.5, cy = p.y + 0.5;
+  for(let r = Math.floor(cy - R) - 1; r <= Math.ceil(cy + R); r++) for(let c = Math.max(0, Math.floor(cx - R) - 1); c <= Math.min(COLS-1, Math.ceil(cx + R)); c++){
+    if(tAt(r, c) !== ICE) continue;
+    const d = Math.hypot(c + 0.5 - cx, r + 0.5 - cy); if(d > R + 0.4) continue;
+    const k = r*16 + c, v = (deshielo.get(k) || 0) + dt*vel*(d < 1.2 ? 1 : 0.5);
+    if(v < 1){ deshielo.set(k, v); if(Math.random() < dt*3) particles.push({x:c + Math.random(), y:r + 1, vx:0, vy:1.5, life:0.4, col:'#5fcde4'}); continue; }
+    deshielo.delete(k); setT(r, c, WATER); const RR = W.rows[r]; RR.lv[c] = HI.lamina; RR.nat[c] = 1; SND('clin', 0.25);
+  }
+}
 function updateMoths(dt){
   const px = p.x + 0.5, py = p.y + 0.3, R = lightRadius();
   for(const m of W.items){
@@ -1173,6 +1203,7 @@ function updateMoths(dt){
     // metida en la roca (le cayó algo encima o se rellenó el hueco): muere
     if(isSolid(tAt(Math.floor(m.y), Math.floor(m.x)))){ m.alive = false; continue; }
     m.ph = (m.ph||0) + dt*22;
+    if(m.bat){ murcielago(m, dt, px, py); continue; }
     const dx = px - m.x, dy = py - m.y, d = Math.hypot(dx,dy) || 1;
     const vel = PE.polillaVelocidad * (wick ? 1 : (PE.polillaMechaBaja ?? 0.5));
     let tvx, tvy;
@@ -1190,6 +1221,29 @@ function updateMoths(dt){
   }
 }
 
+const MU = D.murcielago || {luz: 15, despierta: 4.5, velocidad: 3, despierto: 9};
+function murcielago(m, dt, px, py){
+  const d = Math.hypot(px - m.x, py - m.y);
+  if(m.dormido){
+    // la luz fuerte los mantiene dormidos; con la mecha baja (o la lámpara apagada) se despiertan si pasas cerca
+    if(!dead && (!wick || lamp <= 0) && d < MU.despierta && los(m.x, m.y, px, py, -1, -1)){ m.dormido = false; m.t = MU.despierto; m.ang = Math.random()*Math.PI*2; SND('polilla', 0.8); floats.push({x:m.x, y:m.y-0.4, txt:'¡Murciélago!', life:1, col:'#d77bba'}); }
+    return;
+  }
+  m.t -= dt; m.golpe = Math.max(0, (m.golpe || 0) - dt);
+  let tvx, tvy;
+  if(m.t > 0){ m.ang = (m.ang||0) + (Math.random()-0.5)*dt*14; tvx = Math.cos(m.ang)*MU.velocidad; tvy = Math.sin(m.ang)*MU.velocidad*0.8; }   // vuelo loco
+  else { const dx = m.hx - m.x, dy = m.hy - m.y, dd = Math.hypot(dx, dy);   // vuelve a su sitio y se cuelga
+    if(dd < 0.15){ m.x = m.hx; m.y = m.hy; m.dormido = true; m.vx = m.vy = 0; return; }
+    tvx = dx/dd*MU.velocidad*0.7; tvy = dy/dd*MU.velocidad*0.7; if(m.t < -6){ m.x = m.hx; m.y = m.hy; m.dormido = true; return; } }
+  m.vx = (m.vx||0) + (tvx - (m.vx||0))*Math.min(1, dt*5); m.vy = (m.vy||0) + (tvy - (m.vy||0))*Math.min(1, dt*5);
+  const rad = 0.28, nx = m.x + m.vx*dt, ny = m.y + m.vy*dt;
+  const freeAt = (x, y) => !isSolid(tAt(Math.floor(y - rad), Math.floor(x - rad))) && !isSolid(tAt(Math.floor(y - rad), Math.floor(x + rad))) && !isSolid(tAt(Math.floor(y + rad), Math.floor(x - rad))) && !isSolid(tAt(Math.floor(y + rad), Math.floor(x + rad)));
+  if(!freeAt(nx, m.y)){ m.vx *= -0.8; m.ang = Math.PI - (m.ang||0); } else m.x = nx;
+  if(!freeAt(m.x, ny)){ m.vy *= -0.8; m.ang = -(m.ang||0); } else m.y = ny;
+  if(!dead && !m.golpe && Math.abs(m.x - px) < 0.55 && Math.abs(m.y - (p.y+0.5)) < 0.6){
+    m.golpe = 1.5; lamp -= MU.luz; if(ARC && ARC.dano) ARC.dano('polilla'); SND('polilla'); floats.push({x:px, y:p.y-0.1, txt:'-' + MU.luz + '% luz', life:1.2, col:'#d95763'}); burst(p.y+0.3, p.x+0.5, '#d77bba', 8);
+  }
+}
 // ---------- mecanismos de las piezas (pozo del agua) ----------
 // Noria: cuando le llega agua, gira y abre su compuerta (la roca maciza marcada con G).
 // Brasas: queman la lámpara si pasas por encima, hasta que el agua las apaga.
@@ -1411,6 +1465,17 @@ function drawWater(r, c, X, Y, lv){
   else ctx.drawImage(TS.agua[0], X, Y);
   ctx.globalAlpha = 1;
 }
+// hielo: azul claro, con brillos y grietas; se ve agrietar mientras la lámpara lo derrite
+function drawIce(r, c, X, Y){
+  ctx.fillStyle = '#5fcde4'; ctx.fillRect(X, Y, T, T);
+  ctx.fillStyle = '#9ee6f2'; ctx.fillRect(X+1, Y+1, T-2, T-2);
+  ctx.fillStyle = '#cbdbfc'; const h = hsh(r, c); ctx.fillRect(X + 3 + (h % 6), Y + 3, 6, 2); ctx.fillRect(X + 3 + (h % 6), Y + 5, 2, 4); ctx.fillRect(X + 14 - (h % 5), Y + 15, 5, 2);
+  if(tAt(r-1, c) !== ICE){ ctx.fillStyle = '#ffffff'; ctx.fillRect(X, Y, T, 2); }
+  ctx.fillStyle = '#639bff'; ctx.fillRect(X + (h >> 4) % 18 + 2, Y + 9 + (h >> 8) % 8, 4, 1);
+  const k = deshielo.get(r*16 + c);
+  if(k){ ctx.fillStyle = `rgba(48,96,130,${0.25 + k*0.5})`; ctx.fillRect(X + 5, Y + 4, 1, Math.round(16*k)); ctx.fillRect(X + 12, Y + 2, 1, Math.round(12*k)); ctx.fillRect(X + 17, Y + 6, 1, Math.round(14*k));
+    ctx.fillStyle = '#5fcde4'; ctx.fillRect(X + 8, Y + T - 2, 2, 2); }
+}
 function drawTile(v, r, c, X, Y){
   const R = W.rows[r];
   if(v === WATER){ drawWater(r, c, X, Y, R ? R.lv[c] : 1); return; }
@@ -1435,6 +1500,7 @@ function drawTile(v, r, c, X, Y){
   if(v === BEDROCK){ drawBedrock(r, c, X, Y); return; }
   if(v === LADDER){ ctx.drawImage(PS.escalera, X, Y); if(R && R.lv[c] > 0.004) drawWater(r, c, X, Y, R.lv[c]); return; }
   if(v === BEAM){ ctx.drawImage(PS.viga, X, Y); return; }
+  if(v === ICE){ drawIce(r, c, X, Y); return; }
   const I = INFO[v];
   let jx = 0; if(R && R.sh[c] > 0) jx = Math.round(Math.sin(t*60 + c*3)*1.5);
   const vs = TS[I.tile]; ctx.drawImage(vs[hsh(r,c) % vs.length], X + jx, Y);
@@ -1805,7 +1871,21 @@ function drawItem(it){
     if(Math.floor(t*2 + it.c) % 3 === 0){ ctx.fillStyle = '#fff'; ctx.fillRect(X + 17, Y + 5 + bob, 2, 2); }
   }
 }
+function drawBat(m){
+  const x = Math.round(m.x*T), y = Math.round((m.y-cam)*T);
+  if(m.dormido){   // colgado boca abajo, con las alas plegadas
+    ctx.fillStyle = '#000'; ctx.fillRect(x-4, y-9, 9, 13); ctx.fillStyle = '#45283c'; ctx.fillRect(x-3, y-8, 7, 11);
+    ctx.fillStyle = '#76428a'; ctx.fillRect(x-3, y-8, 2, 9); ctx.fillRect(x+2, y-8, 2, 9); ctx.fillStyle = '#d95763'; ctx.fillRect(x-2, y+1, 1, 1); ctx.fillRect(x+1, y+1, 1, 1);
+    ctx.fillStyle = '#000'; ctx.fillRect(x-1, y-11, 1, 2); ctx.fillRect(x+1, y-11, 1, 2); return;
+  }
+  const fl = Math.round(Math.sin(m.ph||0)*4);
+  ctx.fillStyle = '#000'; ctx.fillRect(x-3, y-3, 7, 7);
+  ctx.fillStyle = '#76428a'; ctx.fillRect(x-10, y-2 - fl, 8, 3); ctx.fillRect(x+3, y-2 - fl, 8, 3); ctx.fillStyle = '#45283c'; ctx.fillRect(x-8, y+1 - fl, 5, 2); ctx.fillRect(x+4, y+1 - fl, 5, 2);
+  ctx.fillStyle = '#45283c'; ctx.fillRect(x-2, y-2, 5, 5); ctx.fillStyle = '#fbf236'; ctx.fillRect(x-1, y-1, 1, 1); ctx.fillRect(x+1, y-1, 1, 1);
+  ctx.fillStyle = '#000'; ctx.fillRect(x-2, y-4, 1, 2); ctx.fillRect(x+2, y-4, 1, 2);
+}
 function drawMoth(m){
+  if(m.bat) return drawBat(m);
   const x = Math.round(m.x*T), y = Math.round((m.y-cam)*T), fl = Math.round(Math.abs(Math.sin(m.ph||0))*5) + 1;
   ctx.fillStyle = '#000'; ctx.fillRect(x-1, y-3, 3, 7);
   ctx.fillStyle = m.hunt ? '#eec39a' : '#9badb7';
@@ -2492,7 +2572,7 @@ function salirPrueba(){
 }
 // genera un trozo de un pozo con las reglas del juego (sin piezas) y lo devuelve en el formato de las piezas
 const T2CH = {[AIR]:'_', [DIRT]:'t', [STONE]:'p', [HARD]:'d', [ROCK]:'m', [BEDROCK]:'x', [CSAND]:'g', [SAND]:'a', [WATER]:'~', [RUBBLE]:'e', [CLAY]:'r', [COAL]:'c',
-  [COPPER]:'u', [QUARTZ]:'q', [IRON]:'i', [TIN]:'s', [DOOR]:'P', [GAS]:'*', [MUD]:'&', [PASS]:'.', [BEAM]:'.', [LADDER]:'L', [PROP]:'I', [PLANK]:'='};
+  [COPPER]:'u', [QUARTZ]:'q', [IRON]:'i', [TIN]:'s', [ICE]:'z', [DOOR]:'P', [GAS]:'*', [MUD]:'&', [PASS]:'.', [BEAM]:'.', [LADDER]:'L', [PROP]:'I', [PLANK]:'='};
 const OBJ2CH = {flor_mina:'f', hongo_azul:'j', nenufar:'y', lampara_vieja:'R', foto_cuadrilla:'F', nota_1:'N', nota_2:'N', nota_3:'N', casco_cuadrilla:'Q', pico_padre:'K', pieza_ascensor:'Z'};
 function item2ch(it){
   return it.k === 'oil' ? 'o' : it.k === 'llave' ? 'k' : it.k === 'herr' ? (it.tipo === 'puntal' ? 'H' : 'h') : it.k === 'obj' ? (OBJ2CH[it.id] || 'f') :
@@ -2777,6 +2857,7 @@ function frame(now){
       if(foco){ for(const k in input) input[k] = false; }
       updatePlayer(dt);
       updateMoths(dt);
+      if(P1.hielo) derretir(dt);
       if(lamp <= 0){ lamp = 0; die('lamp'); }
     } else {
       deadT += dt;
