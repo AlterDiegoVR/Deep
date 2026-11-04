@@ -103,3 +103,10 @@ body.arcade{background-attachment:fixed}
 .lsFila.nuevo{border-color:#fbf236;box-shadow:0 0 0 2px #df7126}
 .lsFila.nuevo .nuevoTag{position:static;margin-left:auto;font-size:13px;transform:rotate(4deg)}
 .lsFila.cerrada{height:38px;box-sizing:border-box;background:transparent;border:2px dashed #d9a066;font-family:'Lilita One',sans-serif;font-size:18px;letter-spacing:6px;color:#d9a066}
+
+/* 0.222: pausa y tarjetas de cómo se juega */
+#arcPausaBtn{flex:none}
+.arcCard.tuto{align-items:stretch;text-align:left}
+.arcCard.tuto h2{font-size:26px}
+.arcCard.tuto img{width:100%;aspect-ratio:1/1;object-fit:cover;image-rendering:pixelated;border:3px solid var(--madera-oo);border-radius:10px;background:#222034}
+.arcCard.tuto p{font-size:17px;line-height:1.4;margin:0}

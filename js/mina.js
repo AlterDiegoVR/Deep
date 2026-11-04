@@ -1353,13 +1353,23 @@ function burst(y,x,col,n){ for(let i=0;i<n;i++) particles.push({x:x-0.2+Math.ran
 
 // ---------- dibujo ----------
 const PAL = DATA.pal;
+// cada sprite se apunta con su receta: si el móvil vacía los lienzos con la pestaña en segundo plano, se repintan al volver
+const SPRITES_HECHOS = [];
 function sprite(rows, pal, swap){
   const c = document.createElement('canvas'); c.width = rows[0].length; c.height = rows.length;
+  SPRITES_HECHOS.push([c, rows, pal, swap]); pintarSprite(c, rows, pal, swap); return c;
+}
+function pintarSprite(c, rows, pal, swap){
   const x = c.getContext('2d'), im = x.createImageData(c.width, c.height);
   rows.forEach((r,y)=>{ for(let i=0;i<r.length;i++){ const ch = r[i]; if(ch === '.') continue; let h = (swap && swap[ch]) || pal[ch]; if(h[0] !== '#') h = '#'+h; const o = (y*c.width+i)*4;
     im.data[o]=parseInt(h.slice(1,3),16); im.data[o+1]=parseInt(h.slice(3,5),16); im.data[o+2]=parseInt(h.slice(5,7),16); im.data[o+3]=255; } });
-  x.putImageData(im,0,0); return c;
+  x.putImageData(im,0,0);
 }
+document.addEventListener('visibilitychange', () => {
+  if(document.hidden){ for(const k in input){ input[k] = false; tapped[k] = 0; } document.querySelectorAll('#pad button.on').forEach(b => b.classList.remove('on')); return; }
+  for(const [c, rows, pal, swap] of SPRITES_HECHOS) pintarSprite(c, rows, pal, swap);
+  lastT = performance.now();
+});
 const DBPAL = Object.fromEntries(Object.entries(PAL).map(([k,v])=>[k, v[0]==='#'?v:'#'+v]));
 const TS = {}; for(const [k, vs] of Object.entries(DATA.tiles)) TS[k] = vs.map(v => sprite(v, DBPAL));
 const VS = {}; for(const [k, vs] of Object.entries(DATA.vetas)) VS[k] = vs.map(v => sprite(v, DBPAL));
@@ -3000,7 +3010,7 @@ return {
     for(const k in bag){ if(!String(k).startsWith('o:') && INFO[k] && INFO[k].val && bag[k] > 0) mins[INFO[k].key] = bag[k]; }
     return {inRoom: L.part !== undefined && L.part > 0 && L.part < ROOM_H-1, sala: L.room, superficie: !!L.surface, dead: !!dead, started,
       profundidad: Math.max(0, p.r - SURF + 1), maxima: maxDepth, bag: mins, lamp, salas: ROOM_ROW.length,
-      seg: L.seg, wick: !!wick, bajoAgua: !!submerged, props, ladders, enJaula: !!p.onPlat, prisa, luzTotal};
+      seg: L.seg, wick: !!wick, bajoAgua: !!submerged, props, ladders, enJaula: !!p.onPlat, prisa, luzTotal, cayendo: rocks.some(k => Math.abs(k.y - p.y) < 8)};
   },
   arcadeQuitar(pedido){ for(const [k, n] of Object.entries(pedido)){ const tt = KEY2T[k]; if(tt === undefined) continue; bag[tt] = Math.max(0, (bag[tt]||0) - n); if(!bag[tt]) delete bag[tt]; } renderInv(); },
   arcadeVaciar(){ for(const k in bag) if(!String(k).startsWith('o:')) delete bag[k]; renderInv(); },
@@ -3024,6 +3034,7 @@ return {
   filaSala(i){ return ROOM_ROW[i] !== undefined ? ROOM_ROW[i] - SURF + 1 : null; },
   fuego(k){ fuego = Math.max(0, Math.min(1, k || 0)); },
   combo(o){ comboTag = o || null; },
+  get quieto(){ return !!p && p.x === p.c && p.y === p.r && !p.falling && digT <= 0 && moveT <= 0; },
   arcadeDar(o){ props += o.puntales || 0; ladders += o.escaleras || 0; renderInv(); },
   arcadeSubir(cb){ subida = {t: 0, cb}; started = true; for(const k in input){ input[k] = false; tapped[k] = 0; } SND('chirrido'); },
   pausa(v){ if(v){ started = false; for(const k in input){ input[k] = false; tapped[k] = 0; } } else { started = true; lastT = performance.now(); } },

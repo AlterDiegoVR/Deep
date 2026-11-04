@@ -12,7 +12,7 @@ window.Arcade = (()=>{
   // ---------- progreso guardado (solo el del arcade) ----------
   const GUARDA = 'deep-arcade';
   const nuevoProg = () => ({desbloq: {}, records: {}, completos: {}, aspectos: {}, nuevos: {}, aspecto: 'clasico',
-    stats: {arcilla: 0, carbon: 0, cobre: 0, cuarzo: 0, cofres: 0, herr: 0, plantas: 0, muertes: 0, muertesArcade: 0}});
+    stats: {arcilla: 0, carbon: 0, cobre: 0, cuarzo: 0, cofres: 0, herr: 0, plantas: 0, muertes: 0, muertesArcade: 0}, tuto: {}});
   const cargar = () => { const n = nuevoProg(); try{ const o = JSON.parse(localStorage.getItem(GUARDA) || '{}'); for(const k in n) if(o[k] !== undefined) n[k] = typeof n[k] === 'object' ? Object.assign(n[k], o[k]) : o[k]; }catch(e){} return n; };
   const guardar = () => { try{ localStorage.setItem(GUARDA, JSON.stringify(prog)); }catch(e){} };
   let prog = cargar();
@@ -103,6 +103,7 @@ window.Arcade = (()=>{
     if(!MODOS[S.modo].puntos) return;   // contrarreloj: sin puntos ni combos
     const C = S.combo;
     if(esMineral){
+      tuto('combo');
       const antes = C.mult;
       C.mult = C.n === 0 ? 1 : Math.min(CB.tope, C.mult + 1);
       if(C.n && key !== C.ultimo) C.puro = false;
@@ -125,6 +126,7 @@ window.Arcade = (()=>{
     const puro = C.puro && C.n >= (CB.puroDesde || 3), EN = CB.enlace, enlace = EN && Object.keys(C.tipos).length >= EN.tipos;
     if(puro) C.pot *= (CB.puroMult || 2);
     S.puntos += C.pot; S.ptsFase += C.pot;
+    if(C.n >= 2) tuto('cobrar');
     if(C.n >= 2){ Mi.flotar((puro ? '¡PURO! ' : '') + 'Combo ×' + C.mult + ': +' + numero(C.pot), puro ? '#ff7bd5' : '#fbf236', 0.6); Mi.sonar('cobrar', 0.8); pulso('arcPuntos'); }
     if(enlace){ Mi.arcadeDar({puntales: EN.puntales || 0, escaleras: EN.escaleras || 0}); Mi.flotar('¡ENLACE! +' + (EN.puntales || 0) + ' puntales y +' + (EN.escaleras || 0) + ' escaleras', '#5fcde4', 1.3); Mi.sonar('desbloqueo', 0.7); }
     S.combo = comboNuevo(); pintar();
@@ -134,9 +136,9 @@ window.Arcade = (()=>{
     if(C.n >= 2 || C.pot > 0){ Mi.flotar('Combo perdido: −' + numero(C.pot), '#d95763', 0.6); Mi.sonar('cristales'); }
     S.combo = comboNuevo(); pintar();
   }
-  function dano(){ if(S && !S.fin) perder(); }
+  function dano(causa){ if(S && !S.fin){ perder(); if(causa === 'polilla') tuto('polilla'); } }
   function cofre(){ prog.stats.cofres++; if(prog.stats.cofres >= 50) desbloquear('asp_coneja'); guardar(); }
-  function objeto(){ prog.stats.plantas++; if(prog.stats.plantas >= 25) desbloquear('asp_ardilla'); guardar(); }
+  function objeto(id){ tuto(id === 'hongo_azul' ? 'hongo' : 'flor'); prog.stats.plantas++; if(prog.stats.plantas >= 25) desbloquear('asp_ardilla'); guardar(); }
   function logrosMinerales(){
     const st = prog.stats;
     if(st.arcilla >= 300) desbloquear('asp_alfarero'); if(st.carbon >= 500) desbloquear('asp_carbonero');
@@ -156,6 +158,7 @@ window.Arcade = (()=>{
   function sala(i){
     if(!S || S.fin) return;
     cobrar();   // entrar en una sala segura cobra el combo
+    if((i + 1) % CADA !== 0) tuto('sala');
     if((i + 1) % CADA !== 0) return;
     const f = Math.floor(i / CADA), MO = MODOS[S.modo];
     if(!MO.cajones || f >= LF.length) return;
@@ -253,11 +256,12 @@ window.Arcade = (()=>{
     const dt = Math.min(0.1, (now - tUlt)/1000); tUlt = now;
     if(S && !S.fin){
       const est = Mi.arcadeEstado();
+      if(est) tutoMirar(est);
       if(est && est.started && !est.dead && !est.superficie){
         if(MODOS[S.modo].siempre || S.metros || !est.inRoom){ S.tiempo += dt; S.tFase += dt; }
         if(S.metros && est.profundidad >= S.metros) finRecorrido();
         // el combo se cobra solo si pasa un rato sin picar otro mineral
-        if(S.combo.n){ S.combo.t -= dt; if(S.combo.t <= 0) cobrar(); }
+        if(S.combo.n){ S.combo.t -= dt*(Mi.quieto ? (CB.quieto || 3) : 1); if(S.combo.t <= 0) cobrar(); }
         // logros que se miran sobre la marcha
         if(est.bajoAgua){ S.agua += dt; if(S.agua >= 30) desbloquear('asp_buzo'); } else S.agua = 0;
         if(!est.inRoom && est.wick) S.mecha = false;
@@ -314,6 +318,38 @@ window.Arcade = (()=>{
   function pulso(id){ const e = $(id); e.classList.remove('pulso'); void e.offsetWidth; e.classList.add('pulso'); }
 
   // ---------- pantallas ----------
+  // ---------- tarjetas de cómo se juega: cada una sale la primera vez que aparece esa cosa (con su gif) ----------
+  const TUT = Object.fromEntries((A.tutorial || []).map(x => [x.id, x]));
+  let tutoAbierta = null, colaTuto = [];
+  function tuto(id){
+    if(!S || S.fin || !TUT[id] || prog.tuto[id] || colaTuto.includes(id) || (tutoAbierta && tutoAbierta.id === id)) return;
+    colaTuto.push(id); if(!tutoAbierta) siguienteTuto();
+  }
+  function siguienteTuto(){
+    const id = colaTuto.shift(); if(!id){ tutoAbierta = null; return; }
+    const T = TUT[id]; tutoAbierta = T; prog.tuto[id] = true; guardar();
+    Mi.pausa(true);
+    $('tuTitulo').textContent = T.titulo; $('tuTexto').innerHTML = T.texto;
+    const g = (window.TUTO_GIFS || {})[T.gif || id]; $('tuGif').hidden = !g; if(g) $('tuGif').src = g;
+    $('arcTuto').hidden = false; Mi.sonar('carta');
+  }
+  function cerrarTuto(){
+    $('arcTuto').hidden = true; tutoAbierta = null;
+    if(colaTuto.length) return siguienteTuto();
+    // sigue el juego si no hay otra ventana del arcade encima (recuento, fin, menú, pausa…)
+    const otra = ['arcRecuento', 'arcFin', 'arcMenu', 'arcLista', 'arcElige', 'arcPausa'].some(id => !$(id).hidden);
+    if(!otra && S && !S.fin) Mi.pausa(false);
+  }
+  // lo que se mira en cada fotograma: al empezar, al bajar, la lámpara, el agua, los derrumbes
+  function tutoMirar(est){
+    if(tutoAbierta || !S || S.fin) return;
+    const MO = MODOS[S.modo];
+    if(!prog.tuto.picar){ tuto('picar'); tuto(MO.cajones ? 'cajon' : 'recorrido'); return; }
+    if(est.profundidad >= 5) tuto('escaleras');
+    if(est.lamp < 70) tuto('lampara');
+    if(est.bajoAgua) tuto('agua');
+    if(est.cayendo) tuto('derrumbe');
+  }
   function cerrarTodo(){ ['arcRecuento', 'arcFin', 'arcMenu', 'arcLista', 'arcElige', 'arcCorre'].forEach(id => $(id).hidden = true); }
   function chipsSobra(o){ const ks = Object.keys(o).filter(k => o[k] > 0); return ks.length ? ks.map(k => `<span class="chip"><i style="background:${M[k].color}"></i>${nombreMat(k)} <b>${o[k]}</b></span>`).join('') : '<span class="chip muted">Nada</span>'; }
   function recuento(r){
@@ -345,7 +381,7 @@ window.Arcade = (()=>{
   function finPartida(causa){
     if(!S || S.fin === true) return;
     if(S.combo.n) cobrar();
-    S.fin = true; Mi.fuego(0); pintar(true); $('arcJaula').hidden = true;
+    S.fin = true; Mi.fuego(0); pintar(true); $('arcJaula').hidden = true; $('arcTuto').hidden = true; $('arcPausa').hidden = true; tutoAbierta = null; colaTuto = [];
     const modo = S.modo, MO = MODOS[modo], gana = causa === 'fondo' || causa === 'meta';
     // bonus final del arcade: lo que te queda de lámpara y de herramientas
     let bonus = null;
@@ -452,6 +488,11 @@ window.Arcade = (()=>{
   // al abrir la página: sin menú hasta que haya algo desbloqueado
   $('arcMenuBtn').hidden = !hayMenu();
   if(hayMenu()) setTimeout(menu, 0); else setTimeout(() => empezar('arcade'), 0);
+  // ---------- pausa ----------
+  $('arcPausaBtn').onclick = () => { if(!S || S.fin || tutoAbierta) return; Mi.pausa(true); $('arcPausa').hidden = false; Mi.sonar('clic'); };
+  $('psSeguir').onclick = () => { $('arcPausa').hidden = true; if(S && !S.fin) Mi.pausa(false); };
+  $('psMenu').onclick = () => { $('arcPausa').hidden = true; menu(); };
+  $('tuBtn').onclick = cerrarTuto;
   return { empezar, menu, lista, get estado(){ return S; }, get progreso(){ return prog; },
     _desbloquearTodo(){ DESB.forEach(d => desbloquear(d.id)); },
     _borrar(){ prog = nuevoProg(); guardar(); } };

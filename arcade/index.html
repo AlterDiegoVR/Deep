@@ -6,8 +6,8 @@
 <title>Deep Arcade</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
-<link rel="stylesheet" href="../css/estilo.css?v=0.221b">
-<link rel="stylesheet" href="../css/arcade.css?v=0.221b">
+<link rel="stylesheet" href="../css/estilo.css?v=0.222">
+<link rel="stylesheet" href="../css/arcade.css?v=0.222">
 </head>
 <body class="arcade">
 <!-- Deep Arcade: la misma mina que el juego, sin pueblo ni historia. Esta página copia la pantalla de la mina de
@@ -32,11 +32,15 @@
       <div class="arcCaja"><span class="lbl">Tiempo</span><b id="arcTiempo">0:00</b></div>
       <div id="arcComboCaja" hidden><b id="arcCombo"></b><span id="arcPot"></span><i class="cobrarBarra"><u id="arcCobrar"></u></i></div>
       <div id="arcObjetivo"></div>
+      <button class="iconbtn" id="arcPausaBtn" aria-label="Pausa"><svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
       <button class="iconbtn" id="arcMenuBtn" aria-label="Menú de modos" hidden>☰</button>
     </div>
     <main id="stage">
       <canvas id="cv"></canvas>
       <div id="toastHost"></div>
+      <!-- pausa y tarjetas de cómo se juega -->
+      <div class="sheet" id="arcPausa" hidden><div class="card arcCard"><h2>Pausa</h2><div class="fila"><button class="btn" id="psSeguir">Seguir</button><button class="btn ghost" id="psMenu">Salir al menú</button></div></div></div>
+      <div class="sheet" id="arcTuto" hidden><div class="card arcCard tuto"><h2 id="tuTitulo"></h2><img id="tuGif" alt=""><p id="tuTexto"></p><button class="btn" id="tuBtn">¡Entendido!</button></div></div>
       <button id="cashBtn" hidden>Volver al pueblo</button>
       <button id="dropBtn" hidden>Soltar material</button>
       <!-- mandos encima del juego: un pulgar a cada lado -->
@@ -270,13 +274,14 @@
   </div>
 </div>
 
-<script src="../js/datos.js?v=0.221b"></script>
-<script src="../js/piezas.js?v=0.221b"></script>
-<script src="../js/sprites.js?v=0.221b"></script>
-<script src="../js/retratos.js?v=0.221b"></script>
-<script src="../js/sonido.js?v=0.221b"></script>
-<script src="../js/partida.js?v=0.221b"></script>
-<script src="../js/mina.js?v=0.221b"></script>
-<script src="../js/arcade.js?v=0.221b"></script>
+<script src="../js/datos.js?v=0.222"></script>
+<script src="../js/piezas.js?v=0.222"></script>
+<script src="../js/sprites.js?v=0.222"></script>
+<script src="../js/retratos.js?v=0.222"></script>
+<script src="../js/sonido.js?v=0.222"></script>
+<script src="../js/partida.js?v=0.222"></script>
+<script src="../js/mina.js?v=0.222"></script>
+<script src="../js/tutorial-gifs.js?v=0.222"></script>
+<script src="../js/arcade.js?v=0.222"></script>
 </body>
 </html>

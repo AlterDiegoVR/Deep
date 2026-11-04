@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.221b',
+  version: '0.222',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -743,7 +743,24 @@ window.DATOS = {
     // entrar en una sala segura. Se pierde si rompes algo que no sea mineral, te hace daño una caída o te toca una polilla.
     // Dos maneras de jugarlo: «puro» (todo el combo del mismo mineral, desde «puroDesde» minerales) vale «puroMult» veces más
     // al cobrarlo; «enlace» (los «tipos» minerales distintos en el mismo combo) da un regalo de puntales y escaleras.
-    combo: { tope: 9, cobrar: 3, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, puntales: 2, escaleras: 2 } },
+    //   quieto: si te quedas quieto, el tiempo para cobrar corre estas veces más deprisa (andar sin picar no lo acelera)
+    combo: { tope: 9, cobrar: 3, quieto: 3, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, puntales: 2, escaleras: 2 } },
+    // tarjetas de cómo se juega: cada una sale una sola vez, la primera vez que aparece esa cosa (gif: js/tutorial-gifs.js)
+    tutorial: [
+      { id: 'picar',     titulo: 'Pica hacia abajo',      texto: 'Toca abajo o a los lados para picar. Cada golpe gasta un poco de lámpara. La tierra cae de un golpe; la piedra y la roca dura cuestan más.' },
+      { id: 'cajon',     titulo: 'El cajón de cada fase', texto: 'Al final de cada fase hay un cajón que pide minerales. Llega con ellos en la mochila y pasas de fase. Si no los llevas, se acaba la partida.' },
+      { id: 'recorrido', titulo: 'Baja todo lo que puedas', texto: 'Aquí no hay cajones: llega a la meta de metros lo antes posible. Las franjas de roca maciza solo tienen hueco por un lado.' },
+      { id: 'combo',     titulo: 'Combo',                 texto: 'Cada mineral que picas seguido sube el multiplicador. Los puntos del combo no son tuyos hasta cobrarlo: si rompes algo que no sea mineral, te caes o te toca una polilla, lo pierdes.' },
+      { id: 'cobrar',    titulo: 'Cobrar, puro y enlace', texto: 'El combo se cobra solo si dejas de picar mineral un momento (quieto, más rápido). Todo del mismo mineral: <b>¡PURO!</b>, vale el doble. Los cuatro minerales en un combo: <b>¡ENLACE!</b>, te da puntales y escaleras.' },
+      { id: 'escaleras', titulo: 'Escaleras',             texto: 'Picando hacia abajo no puedes volver a subir. Pon una escalera (botón Escalera) donde estés para poder trepar después.' },
+      { id: 'derrumbe',  titulo: 'Derrumbes y puntales',  texto: 'Lo que queda sin apoyo cruje y cae. Si cae desde muy alto se rompe en escombro y el mineral se pierde. Un puntal (botón Puntal) sujeta el techo; la roca dura nunca cae.' },
+      { id: 'lampara',   titulo: 'La lámpara',            texto: 'Si se apaga, se acabó. Recárgala en la llama de las salas seguras y con los bidones de aceite. Con la mecha baja gasta la mitad, pero ves menos.' },
+      { id: 'agua',      titulo: 'Bajo el agua',          texto: 'Bajo el agua se gasta el aire: sal antes de que se acabe. El agua también gasta más lámpara.' },
+      { id: 'sala',      titulo: 'Sala segura',           texto: 'Aquí no cae nada y la llama recarga la lámpara. Abre el cofre: trae puntales o escaleras. Entrar cobra tu combo.' },
+      { id: 'flor',      titulo: 'Flor de mina',          texto: 'Durante unos segundos no hay oscuridad: lo ves todo.' },
+      { id: 'hongo',     titulo: 'Hongo luminoso',        texto: 'Durante unos segundos andas y picas el doble de rápido.' },
+      { id: 'polilla',   titulo: 'Polillas',              texto: 'Persiguen tu luz y te la roban. Con la mecha baja te ven menos y van más despacio; un derrumbe encima las aplasta.' },
+    ],
     efectos: { hongo: 10, flor: 10 },  // segundos: el hongo te hace el doble de rápido; la flor de mina quita la oscuridad
     plantas: { flor_mina: { cada: 26, desdeFila: 6 }, hongo_azul: { cada: 38, desdeFila: 12 } },   // flores y hongos sueltos
     // colores de cada fase: el fondo de la página (degradado vivo) y el tinte de la roca (multiplica)

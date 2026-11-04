@@ -37,16 +37,15 @@ window.Pueblo = (()=>{
   const R = (x, c, X, Y, w, h) => { x.fillStyle = c; x.fillRect(X|0, Y|0, w|0, h|0); };
 
   // ---------- sprite del topo (reposo) ----------
-  const topoCv = (()=>{
-    const f = S.topo.anims.reposo[0], c = document.createElement('canvas'); c.width = 32; c.height = 31;
-    const x = c.getContext('2d');
-    f.forEach((row, y) => { for(let i=0;i<row.length;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = S.topo.pal[ch]; x.fillRect(i, y, 1, 1); } });
-    return c;
-  })();
+  // el móvil puede vaciar los lienzos guardados cuando la pestaña pasa a segundo plano: cada uno guarda cómo se pinta
+  // para volver a pintarlo al volver (ver «al volver a la pestaña», más abajo)
+  const LIENZOS = [];
+  const lienzo = (w, h, pintar) => { const c = document.createElement('canvas'); c.width = w; c.height = h; pintar(c.getContext('2d')); LIENZOS.push([c, pintar]); return c; };
+  const topoCv = lienzo(32, 31, x => { const f = S.topo.anims.reposo[0];
+    f.forEach((row, y) => { for(let i=0;i<row.length;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = S.topo.pal[ch]; x.fillRect(i, y, 1, 1); } }); });
 
   // topo andando (para la plaza): fotogramas de andar y de reposo
-  const frameCv = f => { const c = document.createElement('canvas'); c.width = 32; c.height = 31; const x = c.getContext('2d');
-    f.forEach((row, y) => { for(let i=0;i<row.length;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = S.topo.pal[ch]; x.fillRect(i, y, 1, 1); } }); return c; };
+  const frameCv = f => lienzo(32, 31, x => { f.forEach((row, y) => { for(let i=0;i<row.length;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = S.topo.pal[ch]; x.fillRect(i, y, 1, 1); } }); });
   const TOPO_ANDAR = (S.topo.anims.andar || S.topo.anims.reposo).map(frameCv);
   const TOPO_REPOSO = S.topo.anims.reposo.map(frameCv);
 
@@ -118,8 +117,7 @@ window.Pueblo = (()=>{
     ['..0000..', '.0bbbb0.', '0abbbbb0', '0aaaaaa0', '0kiikik0', '0kkkkkk0', '.022220.', '0hhhhhh0', '.0hhhh0.', '..0..0..'],
   ];
   const MINI_PAL = {'0': C.neg, b: C.amarillo, a: '#959025', k: C.tostado, i: '#131313', '2': '#d95763', h: C.marron};
-  const miniCv = MINI.map(f => { const c = document.createElement('canvas'); c.width = 8; c.height = 10; const x = c.getContext('2d');
-    f.forEach((row, j) => { for(let i=0;i<8;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = MINI_PAL[ch]; x.fillRect(i, j, 1, 1); } }); return c; });
+  const miniCv = MINI.map(f => lienzo(8, 10, x => { f.forEach((row, j) => { for(let i=0;i<8;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = MINI_PAL[ch]; x.fillRect(i, j, 1, 1); } }); }));
   // caminos del mapa: grafo de puntos (datos: mapa.nodos y mapa.tramos)
   const NOD = D.mapa.nodos, ADJ = {}, OCULTO = D.mapa.oculto || [];
   const unir = (a, b) => { (ADJ[a] || (ADJ[a] = [])).push(b); (ADJ[b] || (ADJ[b] = [])).push(a); };
@@ -478,9 +476,10 @@ window.Pueblo = (()=>{
     } else if(casaTab === 'dormir'){
       const E = Pa.estad(), ult = Pa.pueblo.siesta ?? -99, faltan = (CD.dormir.cada || 3) - (E.bajadas - ult);
       const pc = Math.round(((CD.dormir.carga || 1.25) - 1)*100);
-      if(Pa.pueblo.descansado) h += `<p>😴 Descansado: +${pc} % de mochila en la próxima bajada.</p>`;
-      else if(faltan > 0) h += `<p>Te ${faltan === 1 ? 'falta 1 bajada' : 'faltan ' + faltan + ' bajadas'} para poder dormir.</p>`;
-      else h += `<div class="fila"><button class="btn" id="dormirBtn">Dormir (+${pc} % de mochila)</button></div>`;
+      const cuenta = n => `<p class="cuenta">🕒 Podrás volver a dormir dentro de <b>${n} ${n === 1 ? 'bajada' : 'bajadas'}</b>.</p>`;
+      if(Pa.pueblo.descansado) h += `<p>Has dormido como un tronco. En la próxima bajada te cabe un ${pc} % más en la mochila.</p>` + cuenta(Math.max(1, faltan));
+      else if(faltan > 0) h += `<p>Aún no tienes sueño.</p>` + cuenta(faltan);
+      else h += `<p>Estás molido de tanto bajar. Una buena siesta y en la próxima bajada te cabe un ${pc} % más en la mochila.</p><div class="fila"><button class="btn" id="dormirBtn">Dormir</button></div>`;
     } else {
       const E = Pa.estad(), mins = Object.entries(E.minerales || {}).filter(([, n]) => n > 0);
       const abiertas = D.minas.filter(m => typeof m.id === 'number' && (m.abierta || Pa.bandera('mina_' + m.id + '_abierta'))).length;
@@ -507,7 +506,8 @@ window.Pueblo = (()=>{
     const apunte = txt => { $('plazaPanel').classList.remove('completa'); cuerpo.innerHTML = `<p>${txt}</p>`; };
     $('ppEyebrow').textContent = c.dueno; $('ppTitulo').textContent = c.nombre;
     if(c.tipo === 'tienda'){
-      cuerpo.innerHTML = '<div class="shop">' + D.tienda.map((it, j) =>
+      $('plazaPanel').classList.remove('completa');
+      cuerpo.innerHTML = `<div class="list">${chip('arcilla', Pa.almacen.arcilla || 0)}</div>` + '<div class="shop">' + D.tienda.map((it, j) =>
         `<div class="row"><span>${it.nombre}<small>${precioTxt(it.precio)}</small></span><button data-j="${j}" ${Pa.puedePagar(it.precio) ? '' : 'disabled'}>Comprar</button></div>`).join('') + '</div>';
       cuerpo.querySelectorAll('button[data-j]').forEach(b => b.onclick = () => { Pa.comprar(D.tienda[+b.dataset.j]); panelCasa(); });
     } else if(c.tipo === 'almacen'){
@@ -625,6 +625,13 @@ window.Pueblo = (()=>{
     requestAnimationFrame(bucle);
   }
   requestAnimationFrame(bucle);
+  // al volver a la pestaña (el móvil puede haber vaciado los lienzos): se repintan y se recolocan los botones
+  document.addEventListener('visibilitychange', () => {
+    if(document.hidden) return;
+    for(const [c, pintar] of LIENZOS){ const x = c.getContext('2d'); x.clearRect(0, 0, c.width, c.height); pintar(x); }
+    MAPA.firma = ''; PLZ.firma = ''; for(const k in SILUETA) delete SILUETA[k];
+    requestAnimationFrame(recolocar);
+  });
   function recolocar(){
     if(activa === 'mapa'){ mapaGeo = ajustar(mapaCv, $('mapaLienzo'), MW, MH, panMapa); montarPuntosMapa(); }
     if(activa === 'plaza'){ plazaGeo = ajustar(plazaCv, $('plazaLienzo'), PW, PH, panPlaza); montarPuntosPlaza(); panelCasa(); }
