@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.222',
+  version: '0.222b',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -744,7 +744,9 @@ window.DATOS = {
     // Dos maneras de jugarlo: «puro» (todo el combo del mismo mineral, desde «puroDesde» minerales) vale «puroMult» veces más
     // al cobrarlo; «enlace» (los «tipos» minerales distintos en el mismo combo) da un regalo de puntales y escaleras.
     //   quieto: si te quedas quieto, el tiempo para cobrar corre estas veces más deprisa (andar sin picar no lo acelera)
-    combo: { tope: 9, cobrar: 3, quieto: 3, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, puntales: 2, escaleras: 2 } },
+    //   quietoMargen: segundos sin hacer nada (ni moverte, ni picar, ni pulsar) antes de que empiece a correr más deprisa
+    //   golpeMargen: tras golpear un mineral (aunque no se rompa), la cuenta no corre durante estos segundos
+    combo: { tope: 9, cobrar: 3, quieto: 3, quietoMargen: 0.7, golpeMargen: 0.6, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, puntales: 2, escaleras: 2 } },
     // tarjetas de cómo se juega: cada una sale una sola vez, la primera vez que aparece esa cosa (gif: js/tutorial-gifs.js)
     tutorial: [
       { id: 'picar',     titulo: 'Pica hacia abajo',      texto: 'Toca abajo o a los lados para picar. Cada golpe gasta un poco de lámpara. La tierra cae de un golpe; la piedra y la roca dura cuestan más.' },

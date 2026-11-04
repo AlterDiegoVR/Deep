@@ -261,7 +261,9 @@ window.Arcade = (()=>{
         if(MODOS[S.modo].siempre || S.metros || !est.inRoom){ S.tiempo += dt; S.tFase += dt; }
         if(S.metros && est.profundidad >= S.metros) finRecorrido();
         // el combo se cobra solo si pasa un rato sin picar otro mineral
-        if(S.combo.n){ S.combo.t -= dt*(Mi.quieto ? (CB.quieto || 3) : 1); if(S.combo.t <= 0) cobrar(); }
+        // la cuenta no corre mientras golpeas un mineral; si te quedas quieto de verdad un rato, corre más deprisa
+        if(S.combo.n && Mi.golpeMineralHace() > (CB.golpeMargen ?? 0.6)){
+          S.combo.t -= dt*(Mi.quietoDesde() > (CB.quietoMargen ?? 0.7) ? (CB.quieto || 3) : 1); if(S.combo.t <= 0) cobrar(); }
         // logros que se miran sobre la marcha
         if(est.bajoAgua){ S.agua += dt; if(S.agua >= 30) desbloquear('asp_buzo'); } else S.agua = 0;
         if(!est.inRoom && est.wick) S.mecha = false;
@@ -342,7 +344,7 @@ window.Arcade = (()=>{
   }
   // lo que se mira en cada fotograma: al empezar, al bajar, la lámpara, el agua, los derrumbes
   function tutoMirar(est){
-    if(tutoAbierta || !S || S.fin) return;
+    if(tutoAbierta || !S || S.fin || !$('arcPausa').hidden || !est.started) return;
     const MO = MODOS[S.modo];
     if(!prog.tuto.picar){ tuto('picar'); tuto(MO.cajones ? 'cajon' : 'recorrido'); return; }
     if(est.profundidad >= 5) tuto('escaleras');
@@ -489,9 +491,15 @@ window.Arcade = (()=>{
   $('arcMenuBtn').hidden = !hayMenu();
   if(hayMenu()) setTimeout(menu, 0); else setTimeout(() => empezar('arcade'), 0);
   // ---------- pausa ----------
-  $('arcPausaBtn').onclick = () => { if(!S || S.fin || tutoAbierta) return; Mi.pausa(true); $('arcPausa').hidden = false; Mi.sonar('clic'); };
+  $('arcPausaBtn').onclick = () => { if(tutoAbierta) return; if(S && !S.fin) Mi.pausa(true); abrirPausa(); $('psSeguir').hidden = !S || S.fin; $('arcPausa').hidden = false; Mi.sonar('clic'); };
   $('psSeguir').onclick = () => { $('arcPausa').hidden = true; if(S && !S.fin) Mi.pausa(false); };
   $('psMenu').onclick = () => { $('arcPausa').hidden = true; menu(); };
+  $('psTuto').onclick = () => { prog.tuto = {}; guardar(); $('psTuto').textContent = '✔ Las tarjetas volverán a salir'; Mi.sonar('clic'); };
+  let borrarArmado = false;
+  $('psBorrar').onclick = () => {
+    if(!borrarArmado){ borrarArmado = true; $('psBorrar').textContent = 'Pulsa otra vez para borrarlo todo'; return; }
+    borrarArmado = false; prog = nuevoProg(); guardar(); $('arcPausa').hidden = true; Mi.sonar('clic'); location.reload(); };
+  const abrirPausa = () => { $('psTuto').textContent = 'Ver las tarjetas otra vez'; $('psBorrar').textContent = 'Borrar todos los datos del arcade'; borrarArmado = false; };
   $('tuBtn').onclick = cerrarTuto;
   return { empezar, menu, lista, get estado(){ return S; }, get progreso(){ return prog; },
     _desbloquearTodo(){ DESB.forEach(d => desbloquear(d.id)); },

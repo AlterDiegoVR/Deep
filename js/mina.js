@@ -785,6 +785,7 @@ function canStand(r, c){ if(p.onPlat && r === SURF-2 && c === 7) return true; co
 function passable(r, c){ const v = tAt(r, c); return !isSolid(v) && !rocks.some(k => k.c === c && Math.abs(k.y - r) < 1); }
 function hit(r, c, dir){
   const R = W.rows[r], v = R.t[c];
+  ultAccion = t; if(INFO[v] && INFO[v].val) ultGolpeMin = t;   // arcade: picar no es estar quieto; golpear un mineral para la cuenta del combo
   p.act = dir.y > 0 ? 'picar_abajo' : 'picar_lado'; p.actT = 0;
   // con el taladro del tejón, la roca maciza (azul) se rompe a golpes; las compuertas de la noria no
   if(v === ROCK && mejora('taladro') > 0 && !(W.compuertas || []).includes(r*16 + c)){
@@ -837,7 +838,10 @@ function clearRubble(r0, c0){
   }
   if(cells.length > 3) floats.push({x:c0+0.5, y:r0, txt:'¡Fuera escombro! ('+cells.length+')', life:1, col:'#9badb7'});
 }
+// arcade: cuándo fue lo último que hiciste (moverte, picar, pulsar) y el último golpe a un mineral
+let ultAccion = 0, ultGolpeMin = -9;
 function updatePlayer(dt){
+  if(input.L || input.R || input.U || input.D || p.falling || p.x !== p.c || p.y !== p.r) ultAccion = t;
   digT -= dt; moveT -= dt; p.actT += dt; driftT -= dt; prisa = Math.max(0, prisa - dt); luzTotal = Math.max(0, luzTotal - dt);
   for(const k in tapped) tapped[k] = Math.max(0, tapped[k] - dt);
   if(p.stun > 0){ p.stun -= dt; if(p.stun > 0){ moveT = Math.max(moveT, 0.01); } }
@@ -3034,7 +3038,9 @@ return {
   filaSala(i){ return ROOM_ROW[i] !== undefined ? ROOM_ROW[i] - SURF + 1 : null; },
   fuego(k){ fuego = Math.max(0, Math.min(1, k || 0)); },
   combo(o){ comboTag = o || null; },
-  get quieto(){ return !!p && p.x === p.c && p.y === p.r && !p.falling && digT <= 0 && moveT <= 0; },
+  // quieto de verdad: un rato sin moverte, ni picar, ni pulsar nada
+  quietoDesde(){ return p ? t - ultAccion : 0; },
+  golpeMineralHace(){ return t - ultGolpeMin; },
   arcadeDar(o){ props += o.puntales || 0; ladders += o.escaleras || 0; renderInv(); },
   arcadeSubir(cb){ subida = {t: 0, cb}; started = true; for(const k in input){ input[k] = false; tapped[k] = 0; } SND('chirrido'); },
   pausa(v){ if(v){ started = false; for(const k in input){ input[k] = false; tapped[k] = 0; } } else { started = true; lastT = performance.now(); } },
