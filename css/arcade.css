@@ -110,3 +110,6 @@ body.arcade{background-attachment:fixed}
 .arcCard.tuto h2{font-size:26px}
 .arcCard.tuto img{width:100%;aspect-ratio:1/1;object-fit:cover;image-rendering:pixelated;border:3px solid var(--madera-oo);border-radius:10px;background:#222034}
 .arcCard.tuto p{font-size:17px;line-height:1.4;margin:0}
+/* 0.222d: opciones del menú principal */
+.mnOpciones{position:relative;z-index:1;display:flex;flex-wrap:nowrap;justify-content:center;gap:6px;margin-top:12px}
+.mnOpciones button{font-family:Nunito,sans-serif;font-weight:800;font-size:12px;white-space:nowrap;color:#45283c;background:#fbe8cf;border:2px solid #45283c;border-radius:12px;padding:6px 12px;cursor:pointer;box-shadow:0 3px 0 #45283c}

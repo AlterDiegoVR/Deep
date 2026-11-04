@@ -6,8 +6,8 @@
 <title>Deep Arcade</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800;900&display=swap">
-<link rel="stylesheet" href="../css/estilo.css?v=0.222c">
-<link rel="stylesheet" href="../css/arcade.css?v=0.222c">
+<link rel="stylesheet" href="../css/estilo.css?v=0.222d">
+<link rel="stylesheet" href="../css/arcade.css?v=0.222d">
 </head>
 <body class="arcade">
 <!-- Deep Arcade: la misma mina que el juego, sin pueblo ni historia. Esta página copia la pantalla de la mina de
@@ -39,8 +39,7 @@
       <canvas id="cv"></canvas>
       <div id="toastHost"></div>
       <!-- pausa y tarjetas de cómo se juega -->
-      <div class="sheet" id="arcPausa" hidden><div class="card arcCard"><h2>Pausa</h2><div class="fila"><button class="btn" id="psSeguir">Seguir</button><button class="btn ghost" id="psMenu">Salir al menú</button></div>
-        <button class="btn ghost" id="psTuto">Ver las tarjetas otra vez</button><button class="btn ghost" id="psBorrar">Borrar todos los datos del arcade</button></div></div>
+      <div class="sheet" id="arcPausa" hidden><div class="card arcCard"><h2>Pausa</h2><div class="fila"><button class="btn" id="psSeguir">Seguir</button><button class="btn ghost" id="psMenu">Salir al menú</button></div></div></div>
       <div class="sheet" id="arcTuto" hidden><div class="card arcCard tuto"><h2 id="tuTitulo"></h2><img id="tuGif" alt=""><p id="tuTexto"></p><button class="btn" id="tuBtn">¡Entendido!</button></div></div>
       <button id="cashBtn" hidden>Volver al pueblo</button>
       <button id="dropBtn" hidden>Soltar material</button>
@@ -264,6 +263,7 @@
     <button class="mnEstrella" id="mnEstrella" aria-label="Desbloqueos"><svg width="26" height="26" viewBox="0 0 24 24" fill="#df7126" stroke="#45283c" stroke-width="2" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"/></svg><span class="excl">!</span></button>
     <div class="letrero"><b>DEEP</b><span>ARCADE</span></div>
     <div id="mnLista"></div>
+    <div class="mnOpciones"><button id="mnTuto">Ver las tarjetas otra vez</button><button id="mnBorrar">Borrar todos los datos</button></div>
   </div>
 </div>
 <div id="arcLista" class="arcPantalla" hidden>
@@ -275,14 +275,14 @@
   </div>
 </div>
 
-<script src="../js/datos.js?v=0.222c"></script>
-<script src="../js/piezas.js?v=0.222c"></script>
-<script src="../js/sprites.js?v=0.222c"></script>
-<script src="../js/retratos.js?v=0.222c"></script>
-<script src="../js/sonido.js?v=0.222c"></script>
-<script src="../js/partida.js?v=0.222c"></script>
-<script src="../js/mina.js?v=0.222c"></script>
-<script src="../js/tutorial-gifs.js?v=0.222c"></script>
-<script src="../js/arcade.js?v=0.222c"></script>
+<script src="../js/datos.js?v=0.222d"></script>
+<script src="../js/piezas.js?v=0.222d"></script>
+<script src="../js/sprites.js?v=0.222d"></script>
+<script src="../js/retratos.js?v=0.222d"></script>
+<script src="../js/sonido.js?v=0.222d"></script>
+<script src="../js/partida.js?v=0.222d"></script>
+<script src="../js/mina.js?v=0.222d"></script>
+<script src="../js/tutorial-gifs.js?v=0.222d"></script>
+<script src="../js/arcade.js?v=0.222d"></script>
 </body>
 </html>

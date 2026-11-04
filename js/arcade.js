@@ -30,7 +30,7 @@ window.Arcade = (()=>{
   };
   const ORDEN = ['arcade', 'ta', 'vidas', 'r100', 'r300', 'r500', 'sinfin', 'mrdeep'];
   const abierto = m => m === 'arcade' || !!prog.desbloq[m];
-  const hayMenu = () => ORDEN.some(m => m !== 'arcade' && prog.desbloq[m]);
+  const hayMenu = () => true;   // el arcade abre siempre en el menú principal, aunque solo tengas un modo
   // todo lo que se puede desbloquear (para la lista de la estrella)
   const DESB = [
     {id: 'ta', tipo: 'modo', nombre: 'Contrarreloj', como: 'Pasar la fase 1'},
@@ -461,6 +461,7 @@ window.Arcade = (()=>{
       if(m === 'sinfin'){ $('arcElige').hidden = false; return; }
       empezar(m); });
     marcarEstrella();
+    $('mnTuto').textContent = 'Ver las tarjetas otra vez'; $('mnBorrar').textContent = 'Borrar todos los datos'; borrarArmado = false;
     $('arcMenu').hidden = false;
   }
   function lista(){
@@ -489,17 +490,17 @@ window.Arcade = (()=>{
 
   // al abrir la página: sin menú hasta que haya algo desbloqueado
   $('arcMenuBtn').hidden = !hayMenu();
-  if(hayMenu()) setTimeout(menu, 0); else setTimeout(() => empezar('arcade'), 0);
+  setTimeout(menu, 0);
   // ---------- pausa ----------
-  $('arcPausaBtn').onclick = () => { if(tutoAbierta) return; if(S && !S.fin) Mi.pausa(true); abrirPausa(); $('psSeguir').hidden = !S || S.fin; $('arcPausa').hidden = false; Mi.sonar('clic'); };
+  $('arcPausaBtn').onclick = () => { if(tutoAbierta || !S || S.fin) return; Mi.pausa(true); $('arcPausa').hidden = false; Mi.sonar('clic'); };
   $('psSeguir').onclick = () => { $('arcPausa').hidden = true; if(S && !S.fin) Mi.pausa(false); };
   $('psMenu').onclick = () => { $('arcPausa').hidden = true; menu(); };
-  $('psTuto').onclick = () => { prog.tuto = {}; guardar(); $('psTuto').textContent = '✔ Las tarjetas volverán a salir'; Mi.sonar('clic'); };
+  // menú principal: ver las tarjetas otra vez y borrar todos los datos (pulsando dos veces)
+  $('mnTuto').onclick = () => { prog.tuto = {}; guardar(); $('mnTuto').textContent = '✔ Las tarjetas volverán a salir'; Mi.sonar('clic'); };
   let borrarArmado = false;
-  $('psBorrar').onclick = () => {
-    if(!borrarArmado){ borrarArmado = true; $('psBorrar').textContent = 'Pulsa otra vez para borrarlo todo'; return; }
-    borrarArmado = false; prog = nuevoProg(); guardar(); $('arcPausa').hidden = true; Mi.sonar('clic'); location.reload(); };
-  const abrirPausa = () => { $('psTuto').textContent = 'Ver las tarjetas otra vez'; $('psBorrar').textContent = 'Borrar todos los datos del arcade'; borrarArmado = false; };
+  $('mnBorrar').onclick = () => {
+    if(!borrarArmado){ borrarArmado = true; $('mnBorrar').textContent = 'Pulsa otra vez para borrarlo todo'; return; }
+    borrarArmado = false; prog = nuevoProg(); guardar(); Mi.sonar('clic'); location.reload(); };
   $('tuBtn').onclick = cerrarTuto;
   return { empezar, menu, lista, get estado(){ return S; }, get progreso(){ return prog; },
     _desbloquearTodo(){ DESB.forEach(d => desbloquear(d.id)); },
