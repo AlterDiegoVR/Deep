@@ -334,6 +334,13 @@ window.Arcade = (()=>{
     $('tuTitulo').textContent = T.titulo; $('tuTexto').innerHTML = T.texto;
     const g = (window.TUTO_GIFS || {})[T.gif || id]; $('tuGif').hidden = !g; if(g) $('tuGif').src = g;
     $('arcTuto').hidden = false; Mi.sonar('carta');
+    // el botón empieza apagado: se enciende pasado un segundo y cuando sueltas el dedo que estaba en los mandos
+    const btn = $('tuBtn'), presos = new Set(dedos), t0 = performance.now(); btn.disabled = true;
+    const mirar = () => { if(!tutoAbierta || tutoAbierta !== T) return;
+      for(const d of presos) if(!dedos.has(d)) presos.delete(d);
+      if(performance.now() - t0 >= (A.tutoEspera ?? 1000) && !presos.size){ btn.disabled = false; return; }
+      requestAnimationFrame(mirar); };
+    requestAnimationFrame(mirar);
   }
   function cerrarTuto(){
     $('arcTuto').hidden = true; tutoAbierta = null;
@@ -501,7 +508,11 @@ window.Arcade = (()=>{
   $('mnBorrar').onclick = () => {
     if(!borrarArmado){ borrarArmado = true; $('mnBorrar').textContent = 'Pulsa otra vez para borrarlo todo'; return; }
     borrarArmado = false; prog = nuevoProg(); guardar(); Mi.sonar('clic'); location.reload(); };
-  $('tuBtn').onclick = cerrarTuto;
+  $('tuBtn').onclick = () => { if(!$('tuBtn').disabled) cerrarTuto(); };
+  // dedos que están tocando la pantalla ahora mismo (para no cerrar una tarjeta con el toque que ya estaba en los mandos)
+  const dedos = new Set();
+  document.addEventListener('pointerdown', e => dedos.add(e.pointerId), true);
+  for(const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, e => dedos.delete(e.pointerId), true);
   return { empezar, menu, lista, get estado(){ return S; }, get progreso(){ return prog; },
     _desbloquearTodo(){ DESB.forEach(d => desbloquear(d.id)); },
     _borrar(){ prog = nuevoProg(); guardar(); } };
