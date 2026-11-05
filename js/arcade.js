@@ -67,7 +67,7 @@ window.Arcade = (()=>{
   function pozoRecorrido(m, mr){
     const R = A.recorridos, nm = mr ? 'Mr. Deep' : 'Recorrido de ' + m + ' m';
     return { nombre: nm, guardado: 'deep-arcade-pozo', columnas: 15, tramos: [{nombre: nm, largo: 99999}], conFondo: false,
-      altoSala: 4, temas: [Object.assign({nombre: nm}, R.tema)], temasDesde: 0, franjas: R.franjas, aceiteFilas: mr ? (A.mrDeep || {}).aceiteFilas || 9 : R.aceiteFilas,
+      altoSala: 4, temas: [Object.assign({nombre: nm}, R.tema)], temasDesde: 0, franjas: mr ? null : R.franjas, aceiteFilas: mr ? (A.mrDeep || {}).aceiteFilas || 9 : R.aceiteFilas, aceiteAzar: mr ? 0 : R.aceiteAzar,
       contenido: CONTENIDO, desdeTramo: DESDE, sueltos: A.plantas };
   }
 

@@ -81,7 +81,7 @@ window.Conversaciones = (()=>{
   // ---------- Herboristería de la ardilla ----------
   const H = D.herboristeria || {encargos: [], unguentos: {}};
   const OBJ = D.objetos || {};
-  const listaObj = o => Object.entries(o).map(([k, n]) => n + ' ' + (OBJ[k] ? (n > 1 && OBJ[k].plural ? OBJ[k].plural : OBJ[k].nombre.toLowerCase()) : k)).join(', ').replace(/, ([^,]*)$/, ' y $1');
+  const listaObj = o => Object.entries(o).map(([k, n]) => OBJ[k] ? n + ' ' + (n > 1 && OBJ[k].plural ? OBJ[k].plural : OBJ[k].nombre.toLowerCase()) : n + ' de ' + (D.materiales[k] ? D.materiales[k].nombre.toLowerCase() : k)).join(', ').replace(/, ([^,]*)$/, ' y $1');
   // antes de que la coneja te mande, la ardilla está demasiado liada para atenderte
   const ARDILLA_OCUPADA = [
     [a('despistada', '¡Ahora no, ahora no! Estoy en mitad de una infusión y si se me pasa el punto… ¡Vuelve otro día, cielo!'), d('pensativo', 'Vale…')],
@@ -92,7 +92,7 @@ window.Conversaciones = (()=>{
     a('despistada', '¿Plantas? Sé un poco de todo y de nada en particular. ¿Dónde habré dejado las gafas…? Ah, las llevo puestas.'),
     d('decidido', 'Le traigo esto. Lo encontré en la Cantera del molino.'),
     a('sorprendida', '¿Eso es…? ¡Un hongo luminoso! ¡Uno de verdad! Déjame verlo, déjame verlo…'),
-    a('emocionada', '¡Míralo, cómo brilla! Con estos hongos se preparaba un ungüento que te deja aguantar la respiración el doble. Los mineros no bajaban sin él.'),
+    a('emocionada', '¡Míralo, cómo brilla! Con estos hongos se preparaba un tónico que te devuelve a la última sala segura en un suspiro. Los mineros no bajaban sin él.'),
     a('pensativa', 'Antes los topos me traían de todo: hongos, flores de mina, raíces que solo crecen a oscuras… Desde que dejaron de bajar, mis frascos están vacíos.'),
     d('contento', 'Yo puedo traerle más. Bajo a las minas.'),
     a('alegre', '¿Harías eso por una ardilla vieja? ¡Ay, qué alegría!'),
@@ -103,8 +103,8 @@ window.Conversaciones = (()=>{
     hongos_1: () => [
       d('alegre', '¡Le traigo los hongos!'),
       a('emocionada', '¡Cinco hongos luminosos! Mira cómo llenan el estante… Hacía años que esta tienda no brillaba así.'),
-      a('contenta', 'Toma: un ungüento de pulmones de topo, recién hecho. Úntatelo antes de bajar y el aire bajo el agua te durará el doble.'),
-      a('pensativa', 'Y ahora que me acuerdo de la receta, te puedo preparar más cuando quieras: dos hongos por tarro.'),
+      a('contenta', 'Toma: un tónico de vuelta, recién hecho. Allí abajo, cuando lo necesites, te lo bebes y apareces en la última sala segura, con tu mochila.'),
+      a('pensativa', 'Y ahora que me acuerdo de la receta, te puedo preparar más cuando quieras: dos hongos y una flor por frasco.'),
       a('despistada', 'Ah, y otra cosa… Las flores de mina. Necesito muchas, muchas, para unas pomadas. ¿Me traerías quince?'),
       d('decidido', '¡Quince flores! Haré lo que pueda.'),
     ],
@@ -130,6 +130,24 @@ window.Conversaciones = (()=>{
       d('contento', '¡Así podré bucear sin quedarme a oscuras!'),
       a('despistada', 'Bucear… Ay, no me lo digas, que me pongo nerviosa.'),
     ],
+    lavanda_1: () => [
+      d('alegre', '¡Le traigo flores y hongos!'),
+      a('emocionada', '¡Ay, qué olor! Machacadas con un hongo, estas flores huelen a lavanda de la de antes.'),
+      a('contenta', 'Es el bálsamo de lavanda: las polillas no soportan el olor y no se te acercan. Toma el primero. Los siguientes, dos flores y un hongo por tarro.'),
+      d('contento', '¡Adiós, polillas!'),
+    ],
+    nenufares_2: () => [
+      d('alegre', '¡Más nenúfares! Y hongos.'),
+      a('pensativa', 'Nenúfar y hongo luminoso… Es la receta de los pulmones de topo. Los mineros del río no bajaban sin ella.'),
+      a('contenta', 'Te lo untas en el pecho y el aire bajo el agua te dura el doble. Toma el primero. Los siguientes, un nenúfar y un hongo por tarro.'),
+      d('contento', '¡Podré bucear el doble!'),
+    ],
+    campanillas_2: () => [
+      d('alegre', '¡Campanillas y cuarzo!'),
+      a('sorprendida', '¿Cuarzo? Ah, sí, sí: el polvo de cuarzo hace de lente. Con la campanilla se prepara el ungüento de ojos de topo.'),
+      a('contenta', 'Te lo pones en los párpados y con la mecha baja ves casi como con la alta. Toma el primero. Los siguientes, una campanilla y dos de cuarzo.'),
+      d('contento', '¡Así no despertaré a los murciélagos!'),
+    ],
     campanillas_1: () => [
       d('alegre', '¡Campanillas de nieve! Asomaban entre el hielo de la Mina de los cuervos.'),
       a('emocionada', '¡Qué blancas! Parecen de porcelana. Con estas se hace el ungüento de rodillas de topo.'),
@@ -146,7 +164,7 @@ window.Conversaciones = (()=>{
   // encargos: los de siempre van uno detrás de otro; los de una mina («mina») se abren aparte al abrir esa mina
   const encargoActual = () => (Pa.encargosDisponibles ? Pa.encargosDisponibles()[0] : null) || null;
   const encargoListo = () => (Pa.encargosDisponibles ? Pa.encargosDisponibles() : []).find(e => tieneObj(e.pide)) || null;
-  const tieneObj = pide => Object.entries(pide).every(([k, n]) => (Pa.coleccion[k] || 0) >= n);
+  const tieneObj = pide => Pa.puedeDar ? Pa.puedeDar(pide) : Object.entries(pide).every(([k, n]) => (Pa.coleccion[k] || 0) >= n);   // plantas de la colección y minerales del almacén
 
   // ---------- Taller del tejón: el ascensor del Pozo viejo ----------
   const FINO = (D.ascensor && D.ascensor.fino) || {arcilla: 15, carbon: 12, cobre: 6};
@@ -214,14 +232,16 @@ window.Conversaciones = (()=>{
   ];
 
   // ---------- El alcalde ----------
-  const ALCALDE_INTRO = [
+  // si Deep aún no ha bajado a ninguna mina, no puede decir «yo he bajado»
+  const yaBajo = () => Pa.bandera('flor_entregada') || Pa.bandera('ascensor_pozo1_roto') || (Pa.estad && Pa.estad().bajadas > 0);
+  const ALCALDE_INTRO = () => [
     al('orgulloso', '¡Hombre, el pequeño Deep! Pasa, pasa. Mira qué despacho. Madera noble. Bueno, noble… de pino, pero noble.'),
     d('pensativo', 'Buenos días, señor alcalde. Quería preguntarle por las minas.'),
     al('contento', '¡Las minas! Ya está todo arreglado: unos señores de la ciudad nos las compran. Las sellan con hormigón, nos pagan y el pueblo tiene dinero para… para muchas cosas. Cosas importantes.'),
     d('triste', 'Pero son las minas del pueblo.'),
     al('serio', 'Eran, chaval. Hace muchos años que nadie baja. Los pozos se tapan, las galerías se caen… Nadie va a volver a picar ahí abajo.'),
-    d('decidido', 'Yo he bajado.'),
-    al('sorprendido', '¿Tú? …Bueno. Muy valiente. Muy valiente y muy peligroso.'),
+    ...(yaBajo() ? [d('decidido', 'Yo he bajado.'), al('sorprendido', '¿Tú? …Bueno. Muy valiente. Muy valiente y muy peligroso.')]
+      : [d('decidido', 'Pues yo voy a bajar.'), al('sorprendido', '¿Tú? …Bueno. Muy valiente. Muy valiente y muy peligroso. Ni se te ocurra.')]),
     al('triste', 'Mira, a mí también me da pena. Mi abuelo también ayudaba en las minas, ¿sabes? Les llevaba el pan a los topos. Pero las minas son parte del pasado. Ya no valen para nada.'),
     al('orgulloso', 'Hay que mirar hacia delante. ¡Progreso! Lo pone en mi banda. Bueno, no lo pone, pero lo pondría.'),
     d('pensativo', '…'),
@@ -362,7 +382,7 @@ window.Conversaciones = (()=>{
   // Devuelve la conversación que toca al entrar en una casa (o null) y lo que pasa al acabarla
   function alEntrar(casa){
     if(casa === 'alcaldia'){
-      if(!Pa.bandera('alcalde_intro')) return {lineas: ALCALDE_INTRO, fin: () => Pa.ponerBandera('alcalde_intro')};
+      if(!Pa.bandera('alcalde_intro')) return {lineas: ALCALDE_INTRO(), fin: () => Pa.ponerBandera('alcalde_intro')};
       if(Pa.bandera('temblor_mina5') && Pa.bandera('pista_taladro') && !Pa.bandera('llave_museo')){
         if(!Pa.bandera('alcalde_niega')) return {lineas: ALCALDE_NIEGA, fin: () => Pa.ponerBandera('alcalde_niega')};
         return {lineas: ALCALDE_CEDE, fin: () => { Pa.ponerBandera('llave_museo'); Pa.sumarProsperidad(1); }};
@@ -404,7 +424,7 @@ window.Conversaciones = (()=>{
       }
       const e = encargoListo() || encargoActual();
       if(e && tieneObj(e.pide) && ARDILLA_ENTREGA[e.id]) return {lineas: ARDILLA_ENTREGA[e.id](), fin: () => {
-        for(const [k, n] of Object.entries(e.pide)){ Pa.coleccion[k] -= n; if(Pa.coleccion[k] <= 0) delete Pa.coleccion[k]; }
+        Pa.cobrarCosas(e.pide);
         Pa.pueblo.encargos[e.id] = 'hecho';
         if(e.receta) Pa.ponerBandera('receta_' + e.receta);
         const U = Pa.kit.unguentos || (Pa.kit.unguentos = {}); for(const [k, n] of Object.entries(e.regalo || {})) U[k] = (U[k] || 0) + n;

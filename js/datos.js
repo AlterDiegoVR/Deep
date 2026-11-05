@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.222e',
+  version: '0.300',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -79,14 +79,16 @@ window.DATOS = {
 
   // ---------- Cartas de la ruleta ----------
   // Se acumulan durante la bajada y se pierden al volver al principio del pozo (cobrar o morir).
-  // peso = probabilidad relativa (0 = ya no sale en la ruleta: es un ungüento de la ardilla); unica = solo se puede tener una; las demás se acumulan (cargas).
+  // peso = probabilidad relativa; unica = solo se puede tener una; las demás se acumulan (cargas).
+  // Las cartas que también son ungüento de la ardilla no salen en la bajada en que llevas ese ungüento.
+  // requiere: solo sale en las minas que tienen eso (agua, polillas, murcielagos).
   cartas: [
     { id: 'mecha_cera',    icono: '🕯️', nombre: 'Mecha de cera',       texto: 'La lámpara gasta un 25 % menos.', valor: 0.75, peso: 1, unica: true },
     { id: 'bidon_grande',  icono: '🛢️', nombre: 'Bidón grande',        texto: 'El aceite da el doble de luz.', valor: 2, peso: 1, unica: true },
     { id: 'llama_fria',    icono: '🧊', nombre: 'Llama fría',          texto: 'La próxima explosión de gas no ocurre.', peso: 1 },
-    { id: 'segunda',       icono: '💖', nombre: 'Segunda oportunidad', texto: 'La próxima vez que mueras, vuelves a la última sala segura con tu mochila.', peso: 0 },
-    { id: 'casco',         icono: '⛑️', nombre: 'Casco reforzado',     texto: 'Aguantas una piedra encima, una vez.', peso: 0 },
-    { id: 'pulmones',      icono: '🫧', nombre: 'Pulmones de topo',    texto: 'El aire bajo el agua o el barro dura el doble.', peso: 0, unica: true },
+    { id: 'segunda',       icono: '💖', nombre: 'Segunda oportunidad', texto: 'La próxima vez que mueras, vuelves a la última sala segura con tu mochila.', peso: 0.5 },
+    { id: 'casco',         icono: '⛑️', nombre: 'Casco reforzado',     texto: 'Aguantas una piedra encima, una vez.', peso: 0.8 },
+    { id: 'pulmones',      icono: '🫧', nombre: 'Pulmones de topo',    texto: 'El aire bajo el agua o el barro dura el doble.', peso: 0.8, unica: true, requiere: 'agua' },
     { id: 'reflejos',      icono: '⚡', nombre: 'Reflejos',            texto: 'Al librarte por los pelos no te quedas tumbado.', peso: 0.8, unica: true },
     { id: 'pico_afilado',  icono: '⛏️', nombre: 'Pico afilado',        texto: 'Un golpe menos para romper cualquier cosa (mínimo uno).', peso: 1, unica: true },
     { id: 'recuperador',   icono: '♻️', nombre: 'Recuperador',         texto: 'Lo que cae y se rompe tiene un 50 % de conservar su material.', valor: 0.5, peso: 0.8, unica: true },
@@ -94,8 +96,22 @@ window.DATOS = {
     { id: 'mochila_cuero', icono: '🎒', nombre: 'Mochila de cuero',    texto: 'En la mochila cabe un 50 % más.', valor: 1.5, peso: 1, unica: true },
     { id: 'bolsillo',      icono: '👖', nombre: 'Bolsillo secreto',    texto: 'Si mueres, el material que más vale de tu mochila llega igualmente al almacén.', peso: 0.7, unica: true },
     { id: 'carpintero',    icono: '🪜', nombre: 'Carpintero',          texto: 'Cada 10 m que bajas te dan una escalera.', valor: 10, peso: 1, unica: true },
-    { id: 'cera_nenufar',  icono: '🪷', nombre: 'Cera de nenúfar',     texto: 'La lámpara no se moja.', peso: 0, unica: true },
-    { id: 'rodillas',      icono: '🦵', nombre: 'Rodillas de topo',    texto: 'Las caídas quitan la mitad de lámpara.', valor: 0.5, peso: 0, unica: true },
+    { id: 'cera_nenufar',  icono: '🪷', nombre: 'Cera de nenúfar',     texto: 'La lámpara no se moja.', peso: 0.8, unica: true, requiere: 'agua' },
+    { id: 'rodillas',      icono: '🦵', nombre: 'Rodillas de topo',    texto: 'Las caídas quitan la mitad de lámpara.', valor: 0.5, peso: 0.8, unica: true },
+    // 0.300: cartas de los ungüentos nuevos
+    { id: 'tonico',        icono: '🧉', nombre: 'Tónico de vuelta',    texto: 'Toca la carta arriba y vuelves a la última sala segura con tu mochila.', peso: 0.5, unica: true },
+    { id: 'lavanda',       icono: '💜', nombre: 'Bálsamo de lavanda',  texto: 'Las polillas no se te acercan.', peso: 0.7, unica: true, requiere: 'polillas' },
+    { id: 'ojos_topo',     icono: '👀', nombre: 'Ojos de topo',        texto: 'Con la mecha baja ves casi como con la alta.', valor: 0.75, peso: 0.7, unica: true },
+    // 0.300: cartas nuevas
+    { id: 'eco',           icono: '👂', nombre: 'Eco',                 texto: 'Las piedras avisan más tiempo antes de caer.', valor: 1.8, peso: 1, unica: true },
+    { id: 'sueno',         icono: '🦇', nombre: 'Sueño profundo',      texto: 'Los murciélagos tardan más en despertar.', valor: 1.5, peso: 1, unica: true, requiere: 'murcielagos' },
+    { id: 'bocanada',      icono: '💨', nombre: 'Bocanada',            texto: 'Al salir del agua, el aire se llena de golpe.', peso: 0.9, unica: true, requiere: 'agua' },
+    { id: 'cavar_arriba',  icono: '⬆️', nombre: 'Cavar hacia arriba',  texto: 'Pulsa arriba para picar lo que tienes encima. Cuidado con lo que te cae.', peso: 0.8, unica: true },
+    { id: 'entibador',     icono: '🪵', nombre: 'Entibador',           texto: 'Cada 10 m que bajas te dan un puntal.', valor: 10, peso: 1, unica: true },
+    { id: 'zahori_galerias', icono: '🗺️', nombre: 'Zahorí de galerías', texto: 'Una flecha te indica la sala secreta o la galería más cercana que aún no has encontrado.', peso: 0.8, unica: true },
+    { id: 'zahori_flores', icono: '🌼', nombre: 'Zahorí de flores',    texto: 'Una flecha te indica la flor, el hongo o la planta más cercana.', peso: 0.8, unica: true },
+    { id: 'escalera_ext',  icono: '📏', nombre: 'Escalera extensible', texto: 'Las escalas se despliegan dos casillas más.', valor: 2, peso: 1, unica: true },
+    { id: 'puntal_alto',   icono: '🏗️', nombre: 'Puntal alto',         texto: 'Los puntales ocupan dos casillas de alto (si hay hueco encima).', peso: 0.9, unica: true },
     { id: 'codicia',       icono: '💰', nombre: 'Codicia',             texto: 'Cada mineral que picas cuenta doble, pero la lámpara gasta un 25 % más.', valor: 1.25, peso: 0.6, unica: true },
   ],
 
@@ -589,21 +605,35 @@ window.DATOS = {
   herboristeria: {
     huecos: 2,                 // ungüentos que puedes llevar a la vez a una bajada (se eligen aquí antes de bajar)
     encargos: [
-      { id: 'hongos_1', nombre: 'Hongos luminosos', pide: { hongo_azul: 5 }, receta: 'pulmones', regalo: { pulmones: 1 },
+      { id: 'hongos_1', nombre: 'Hongos luminosos', pide: { hongo_azul: 5 }, receta: 'tonico', regalo: { tonico: 1 },
         texto: 'Cinco hongos luminosos de la Cantera del molino.' },
+      // mina 2: bálsamo de lavanda (flores de colores de la mina del cuarzo)
+      { id: 'lavanda_1', nombre: 'Flores para un bálsamo', pide: { flor_mina: 8, hongo_azul: 2 }, receta: 'lavanda', regalo: { lavanda: 1 }, mina: 2,
+        texto: 'Ocho flores de mina y dos hongos luminosos.' },
       { id: 'flores_1', nombre: 'Un ramo de flores de mina', pide: { flor_mina: 15 }, receta: 'piel', regalo: { piel: 1 },
         texto: 'Quince flores de mina.' },
       { id: 'flores_2', nombre: 'El gran ramo', pide: { flor_mina: 25 }, receta: 'segunda', regalo: { segunda: 1 },
         texto: 'Veinticinco flores de mina.' },
       { id: 'nenufares_1', nombre: 'Nenúfares del río', pide: { nenufar: 4 }, receta: 'cera', regalo: { cera: 1 }, mina: 3,
         texto: 'Cuatro nenúfares de la Galería del río.' },
+      { id: 'nenufares_2', nombre: 'Nenúfares y hongos', pide: { nenufar: 3, hongo_azul: 3 }, receta: 'pulmones', regalo: { pulmones: 1 }, mina: 3,
+        texto: 'Tres nenúfares y tres hongos luminosos.' },
       // mina 4 (preparado): rodillas de topo con campanillas de nieve
       { id: 'campanillas_1', nombre: 'Campanillas de nieve', pide: { campanilla: 5 }, receta: 'rodillas', regalo: { rodillas: 1 }, mina: 4,
         texto: 'Cinco campanillas de nieve de la Mina de los cuervos.' },
+      { id: 'campanillas_2', nombre: 'Campanillas y cuarzo', pide: { campanilla: 4, cuarzo: 6 }, receta: 'ojos', regalo: { ojos: 1 }, mina: 4,
+        texto: 'Cuatro campanillas de nieve y seis de cuarzo.' },
     ],
     // carta: el efecto que da en la mina (el mismo que la carta de la ruleta con ese id)
     unguentos: {
-      pulmones: { nombre: 'Ungüento de pulmones de topo', icono: '🫧', carta: 'pulmones', precio: { hongo_azul: 2 },
+      // precio: plantas de la colección y minerales del almacén
+      tonico:   { nombre: 'Tónico de vuelta', icono: '🧉', carta: 'tonico', precio: { hongo_azul: 2, flor_mina: 1 },
+                  texto: 'Vuelves a la última sala cuando quieras.' },
+      lavanda:  { nombre: 'Bálsamo de lavanda', icono: '💜', carta: 'lavanda', precio: { flor_mina: 2, hongo_azul: 1 },
+                  texto: 'Las polillas no se acercan.' },
+      ojos:     { nombre: 'Ungüento de ojos de topo', icono: '👀', carta: 'ojos_topo', precio: { campanilla: 1, cuarzo: 2 },
+                  texto: 'Ves con la mecha baja.' },
+      pulmones: { nombre: 'Ungüento de pulmones de topo', icono: '🫧', carta: 'pulmones', precio: { nenufar: 1, hongo_azul: 1 },
                   texto: 'Aire bajo el agua ×2.' },
       piel:     { nombre: 'Ungüento de piel dura',        icono: '🛡️', carta: 'casco',    precio: { flor_mina: 3 },
                   texto: 'Aguantas una piedra encima.' },
@@ -622,7 +652,7 @@ window.DATOS = {
   //   necesita: algo que tiene que estar en tu colección (el pico, el taladro viejo…)
   taller: {
     mejoras: [
-      { id: 'mochila_1', icono: '🎒', nombre: 'Mochila reforzada', desde: 'mina_3_abierta', precio: { hierro: 16, cobre: 8 }, efecto: { mochila: 1.4 },
+      { id: 'mochila_1', icono: '🎒', nombre: 'Mochila reforzada', desde: 'mina_3_abierta', precio: { hierro: 16, arcilla: 20 }, efecto: { mochila: 1.4 },
         texto: '+40 % de mochila.' },
       { id: 'pico_padre', icono: '⛏️', nombre: 'Pico del padre, restaurado', desde: 'mina_4_abierta', precio: { hierro: 20, estano: 15 }, efecto: { golpe: 1 },
         texto: 'Un golpe menos al picar.', necesita: 'pico_padre' },
@@ -634,19 +664,20 @@ window.DATOS = {
   // ---------- Vecinos nuevos de las casas de paja ----------
   // Llegan al pueblo cuando revive (al abrir el respiradero de una mina). Sus encargos van uno detrás de otro;
   // piden minerales (del almacén) o cosas de la colección, y pagan sobre todo con escaleras y puntales.
+  // La arcilla es la moneda común del pueblo: la piden el tejón y los vecinos (la coneja, sin cambios).
   vecinos: {
     castor: { encargos: [
       { pide: { hierro: 10 },            da: { escaleras: 4, puntales: 3 } },
       { pide: { nenufar: 3 },            da: { escaleras: 3, puntales: 4 } },
-      { pide: { carbon: 15, cobre: 8 },  da: { escaleras: 6, puntales: 6 } },
+      { pide: { arcilla: 25, cobre: 8 }, da: { escaleras: 6, puntales: 6 } },
     ] },
     marmota: { encargos: [
       { pide: { estano: 12 },            da: { escaleras: 4, puntales: 4 } },
       { pide: { campanilla: 3 },         da: { escaleras: 4, puntales: 4 } },
-      { pide: { hierro: 12, estano: 10 }, da: { escaleras: 7, puntales: 7 } },
+      { pide: { arcilla: 25, estano: 10 }, da: { escaleras: 7, puntales: 7 } },
     ] },
     gemelos: { encargos: [
-      { pide: { flor_mina: 5 },          da: { escaleras: 4, puntales: 4 } },
+      { pide: { flor_mina: 5, arcilla: 10 }, da: { escaleras: 4, puntales: 4 } },
       { pide: { plata: 10 },             da: { escaleras: 5, puntales: 5 } },
       { pide: { cuarzo: 6, plata: 8 },   da: { escaleras: 8, puntales: 8 } },
     ] },
@@ -669,7 +700,7 @@ window.DATOS = {
       { si: 'pico_encontrado', texto: 'En el fondo del Pozo viejo había un pico con un símbolo grabado. Lo tengo encima de la mesa y no paro de mirarlo. No sé por qué, pero me da calor en las manos.' },
       { si: 'viejo_pico', texto: 'El viejo topo dice que es el pico de papá. Que aquel día no bajaron por el Pozo viejo. Entonces, ¿cómo llegó hasta allí? Esta noche no voy a dormir.' },
       { si: 'ascensor_pozo1_apanado', texto: 'El tejón ha arreglado el ascensor de los topos. Dice que lo construyó mi gente. Mi gente. Nunca había pensado que yo tuviera «gente».' },
-      { si: 'mina_2_abierta', texto: 'He abierto la Cantera del molino. Huele a harina vieja y a piedra. Hay hongos que brillan azul; la ardilla dice que con ellos se aguanta el aire bajo el agua. Me gusta la ardilla. Habla sola, como yo.' },
+      { si: 'mina_2_abierta', texto: 'He abierto la Cantera del molino. Huele a harina vieja y a piedra. Hay hongos que brillan azul; la ardilla dice que con ellos se hace un tónico para volver a la última sala. Me gusta la ardilla. Habla sola, como yo.' },
       { si: 'col:nota_1', texto: 'He encontrado una nota de la cuadrilla. «Somos seis.» Papá era uno de los seis. La he leído tantas veces que ya me la sé de memoria.' },
       { si: 'alcalde_intro', texto: 'El alcalde dice que lo mejor es vender las minas. Que son el pasado. Lo dice muy seguro, con el pecho hinchado, pero cuando habla de los mineros mira al suelo.' },
       { si: 'mina_3_abierta', texto: 'La Galería del río. Agua por todas partes. Hay un abismo tan hondo que no se ve el fondo. Algún día lo cruzaré. Algo me dice que al otro lado hay respuestas.' },
@@ -752,7 +783,7 @@ window.DATOS = {
     tutorial: [
       { id: 'picar',     titulo: 'Pica hacia abajo',      texto: 'Toca abajo o a los lados para picar. Cada golpe gasta un poco de lámpara. La tierra cae de un golpe; la piedra y la roca dura cuestan más.' },
       { id: 'cajon',     titulo: 'El cajón de cada fase', texto: 'Al final de cada fase hay un cajón que pide minerales. Llega con ellos en la mochila y pasas de fase. Si no los llevas, se acaba la partida.' },
-      { id: 'recorrido', titulo: 'Baja todo lo que puedas', texto: 'Aquí no hay cajones: llega a la meta de metros lo antes posible. Las franjas de roca maciza solo tienen hueco por un lado.' },
+      { id: 'recorrido', titulo: 'Baja todo lo que puedas', texto: 'Aquí no hay cajones: llega a la meta de metros lo antes posible. Las franjas de roca maciza solo dejan pasar por sus huecos.' },
       { id: 'combo',     titulo: 'Combo',                 texto: 'Cada mineral que picas seguido sube el multiplicador. Los puntos del combo no son tuyos hasta cobrarlo: si rompes algo que no sea mineral, te caes o te toca una polilla, lo pierdes.' },
       { id: 'cobrar',    titulo: 'Cobrar, puro y enlace', texto: 'El combo se cobra solo si dejas de picar mineral un momento (quieto, más rápido). Todo del mismo mineral: <b>¡PURO!</b>, vale el doble. Los cuatro minerales en un combo: <b>¡ENLACE!</b>, te da puntales y escaleras.' },
       { id: 'escaleras', titulo: 'Escaleras',             texto: 'Picando hacia abajo no puedes volver a subir. Pon una escalera (botón Escalera) donde estés para poder trepar después.' },
@@ -802,10 +833,10 @@ window.DATOS = {
       { id: 'ardilla',   nombre: 'La ardilla',  tipo: 'vecino', como: 'Encontrar 25 plantas (flores y hongos)', adorno: 'ardilla', pal: { a: '#df7126', b: '#d9a066', c: '#8f563b', d: '#d9a066', F: '#df7126', G: '#d9a066', K: '#eec39a', P: '#8f563b', L: '#eec39a', h: '#8f563b', e: '#663931', N: '#d77bba', '2': '#6abe30', '1': '#37946e' } },
       { id: 'viejo',     nombre: 'El viejo topo', tipo: 'vecino', como: 'Llegar al fondo en 500 m', pal: { a: '#696a6a', b: '#9badb7', c: '#595652', d: '#9badb7', F: '#696a6a', G: '#9badb7', K: '#cbdbfc', P: '#d9a066', L: '#cbdbfc', '2': '#ffffff', '1': '#cbdbfc', h: '#45283c', e: '#323232' } },
     ],
-    // recorridos de 100, 300 y 500 m: sin salas seguras, con franjas de roca maciza (hueco a un lado, cambiando cada vez)
+    // recorridos de 100, 300 y 500 m: sin salas seguras, con franjas de roca maciza (con huecos al azar; en Mr. Deep no hay)
     // y más aceite. Cuenta el tiempo y los minerales
     recorridos: {
-      franjas: { cada: 22, hueco: 2 }, aceiteFilas: 11,
+      franjas: { cada: 22 }, aceiteAzar: 0.125,   // franjas: cada tantas filas (huecos al azar); aceiteAzar: probabilidad de bidón por fila (de media, uno cada 8)
       tema: { min: { arcilla: 0.76, carbon: 0.75, cobre: 0.77, cuarzo: 0.015 }, arena: 0.85, cuevas: 0.7, agua: 0.66, polillas: 0.015 },
     },
   },

@@ -437,8 +437,8 @@ window.Pueblo = (()=>{
     const L = D.herramientas.llevarPorBajada || {puntales: 12, escaleras: 8}; return {p: c.llevP ?? L.puntales, l: c.llevL ?? L.escaleras}; };
   function kitTxt(){ const L = LLEVAR(); return 'En el almacén: ' + (Pa.kit.puntales||0) + ' puntales y ' + (Pa.kit.escaleras||0) + ' escaleras. En cada bajada te llevas ' + L.p + ' y ' + L.l + ' (si los tienes)'; }
   const OBJ = D.objetos || {}, HB = D.herboristeria || {encargos: [], unguentos: {}};
-  const objTxt = o => Object.entries(o).map(([k, n]) => n + ' ' + (OBJ[k] ? (n > 1 && OBJ[k].plural ? OBJ[k].plural : OBJ[k].nombre.toLowerCase()) : k)).join(', ');
-  const puedeObj = o => Object.entries(o).every(([k, n]) => (Pa.coleccion[k] || 0) >= n);
+  const objTxt = o => Object.entries(o).map(([k, n]) => OBJ[k] ? n + ' ' + (n > 1 && OBJ[k].plural ? OBJ[k].plural : OBJ[k].nombre.toLowerCase()) : n + ' de ' + (D.materiales[k] ? D.materiales[k].nombre.toLowerCase() : k)).join(', ');
+  const puedeObj = o => Pa.puedeDar(o);   // plantas de la colección y minerales del almacén
   const objChip = (k, tiene, n) => `<span class="chip${tiene >= n ? '' : ' muted'}">${OBJ[k] ? OBJ[k].icono : ''} ${OBJ[k] ? OBJ[k].nombre : k} <b>${Math.min(tiene, n)}/${n}</b></span>`;
   // kit del tejón: 1,5 veces lo que pide ese montacargas abajo (redondeando hacia arriba)
   const kitPrecio = c => Object.fromEntries(Object.entries(c).map(([k, n]) => [k, Math.ceil(n * ((D.montacargas && D.montacargas.kit) || 1.5))]));
@@ -501,9 +501,10 @@ window.Pueblo = (()=>{
     $('plazaKit').textContent = kitTxt();
     const cuerpo = $('ppCuerpo');
     if(plazaSel === null){ $('plazaPanel').hidden = true; return; }
-    $('plazaPanel').hidden = false; $('plazaPanel').classList.add('completa');
+    // la ventana crece solo hasta lo que necesita; a pantalla completa, solo la casa de Deep (diario, armario) y el almacén
+    $('plazaPanel').hidden = false; $('plazaPanel').classList.remove('completa'); $('plazaPanel').classList.add('crece');
     const c = casaVer(D.casas[plazaSel]);
-    const apunte = txt => { $('plazaPanel').classList.remove('completa'); cuerpo.innerHTML = `<p>${txt}</p>`; };
+    const apunte = txt => { $('plazaPanel').classList.remove('completa', 'crece'); cuerpo.innerHTML = `<p>${txt}</p>`; };
     $('ppEyebrow').textContent = c.dueno; $('ppTitulo').textContent = c.nombre;
     if(c.tipo === 'tienda'){
       $('plazaPanel').classList.remove('completa');
@@ -511,11 +512,13 @@ window.Pueblo = (()=>{
         `<div class="row"><span>${it.nombre}<small>${precioTxt(it.precio)}</small></span><button data-j="${j}" ${Pa.puedePagar(it.precio) ? '' : 'disabled'}>Comprar</button></div>`).join('') + '</div>';
       cuerpo.querySelectorAll('button[data-j]').forEach(b => b.onclick = () => { Pa.comprar(D.tienda[+b.dataset.j]); panelCasa(); });
     } else if(c.tipo === 'almacen'){
+      $('plazaPanel').classList.add('completa');
       // preparar la bajada: lo que te llevas (puntales, escaleras y ungüentos), los minerales con lo que falta y las mejoras
       const ks = Object.keys(Pa.almacen).filter(k => Pa.almacen[k] > 0);
       const obj = Pa.objetivo(), U = Pa.kit.unguentos || {}, ELEG = Pa.ungElegidos(), HUECOS = HB.huecos || 2;
       const Mi = window.Mina, L = Mi && Mi.llevo ? Mi.llevo : LLEVAR(), lp = L.p ?? L.llevP, ll = L.l ?? L.llevL;
-      const paso = (id, txt, v, max) => `<div class="row"><span>${txt}<small>En el almacén: ${max}</small></span><button data-p="${id}" data-d="-1">−</button><b class="num">${v}</b><button data-p="${id}" data-d="1">+</button></div>`;
+      const tope = k => Mi && Mi.topeLlevar ? Mi.topeLlevar(k) : 40;
+      const paso = (id, txt, v, max) => `<div class="row"><span>${txt}<small>En el almacén: ${max} · máximo ${tope(id)}</small></span><button data-p="${id}" data-d="-1">−</button><b class="num">${Math.min(v, max)}</b><button data-p="${id}" data-d="1">+</button></div>`;
       let h = '<p class="lbl">Para la próxima bajada</p><div class="shop">' + paso('p', '🪵 Puntales', lp, Pa.kit.puntales || 0) + paso('l', '🪜 Escaleras', ll, Pa.kit.escaleras || 0) + '</div>';
       const misU = Object.keys(HB.unguentos).filter(id => U[id]);
       if(misU.length) h += `<div class="list">${misU.map(id => `<label class="chip llevar"><input type="checkbox" data-l="${id}" ${ELEG.includes(id) ? 'checked' : ''}> ${HB.unguentos[id].icono} ${HB.unguentos[id].nombre} <b>${U[id]}</b></label>`).join('')}</div>
@@ -530,7 +533,8 @@ window.Pueblo = (()=>{
       h += '<div class="fila"><button class="btn ghost" id="borrarTodo">Empezar de cero (borra mina, almacén, colección y herramientas)</button></div>';
       cuerpo.innerHTML = h;
       cuerpo.querySelectorAll('button[data-p]').forEach(b => b.onclick = () => {
-        const k = b.dataset.p, cur = k === 'p' ? lp : ll, v = Math.max(0, Math.min(40, cur + +b.dataset.d));
+        const k = b.dataset.p, guard = k === 'p' ? (Pa.kit.puntales || 0) : (Pa.kit.escaleras || 0),
+          cur = Math.min(k === 'p' ? lp : ll, guard), v = Math.max(0, Math.min(tope(k), guard, cur + +b.dataset.d));
         if(Mi && Mi.llevar) Mi.llevar(k, v); window.Sonido && window.Sonido.tocar('clic', 0.6); panelCasa(); });
       bindUng(cuerpo, HUECOS);
       let armado = false;
@@ -565,7 +569,7 @@ window.Pueblo = (()=>{
     } else if(c.tipo === 'herbolaria'){
       if(!Pa.bandera('ardilla_intro')){ apunte('La ardilla va de un lado a otro entre frascos y manojos de hierbas. No te hace ni caso.'); return; }
       const EE = Pa.encargosDisponibles();
-      let h = EE.length ? EE.map(e => `<p class="lbl">Encargo · ${e.nombre}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => objChip(k, Pa.coleccion[k] || 0, n)).join('')}</div>`).join('') : '';
+      let h = EE.length ? EE.map(e => `<p class="lbl">Encargo · ${e.nombre}</p><div class="list">${Object.entries(e.pide).map(([k, n]) => D.materiales[k] ? chipFalta(k, Pa.almacen[k] || 0, n) : objChip(k, Pa.coleccion[k] || 0, n)).join('')}</div>`).join('') : '';
       const U = Pa.kit.unguentos || {}, ELEG = Pa.ungElegidos(), HUECOS = HB.huecos || 2;
       const recetas = Object.entries(HB.unguentos).filter(([id]) => Pa.bandera('receta_' + id) || U[id]);
       if(recetas.length){
@@ -576,12 +580,13 @@ window.Pueblo = (()=>{
       }
       cuerpo.innerHTML = h;
       cuerpo.querySelectorAll('button[data-u]').forEach(b => b.onclick = () => { const u = HB.unguentos[b.dataset.u]; if(!puedeObj(u.precio)) return;
-        for(const [k, n] of Object.entries(u.precio)){ Pa.coleccion[k] -= n; if(Pa.coleccion[k] <= 0) delete Pa.coleccion[k]; }
+        Pa.cobrarCosas(u.precio);
         const UU = Pa.kit.unguentos || (Pa.kit.unguentos = {}); UU[b.dataset.u] = (UU[b.dataset.u] || 0) + 1; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
       bindUng(cuerpo, HUECOS);
     } else if(c.tipo === 'alcaldia'){
       apunte(Pa.bandera('museo_abierto') ? 'El alcalde mira por la ventana hacia el museo. Hace como que no.' : 'El alcalde firma papeles con mucha ceremonia. En la pared, un mapa de las minas con una cruz roja encima.');
     } else if(c.tipo === 'casa'){
+      $('plazaPanel').classList.add('completa');
       panelCasaDeep(cuerpo);
     } else if(c.tipo === 'museo'){
       // el museo guarda la colección, por secciones

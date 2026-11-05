@@ -186,6 +186,8 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 .carta.vacia{opacity:.4;cursor:default}
 @keyframes cartaSale{0%{transform:scale(.85)}60%{transform:scale(1.07)}100%{transform:scale(1)}}
 .chip.cartaChip{background:#fff3c4;border-color:#d9a066}
+.chip.cartaChip.usar{cursor:pointer;pointer-events:auto;border-style:dashed;animation:latido 1.6s ease-in-out infinite}
+@keyframes latido{50%{transform:scale(1.06)}}
 
 /* capa de textos nítidos encima de la mina */
 #cvTxt{position:absolute;top:0;left:50%;transform:translateX(-50%);pointer-events:none;z-index:2;image-rendering:auto}
@@ -350,5 +352,7 @@ label.chip.llevar{margin:0;cursor:pointer}
 #plazaPanel .armario .asp img{width:68px;height:70px}
 #plazaPanel .datos p{font-size:17px;padding:4px 0;border-bottom:1px dashed var(--perg)}
 #plazaPanel:not(.completa) p{font-size:16px}
+/* 0.300: las demás casas crecen hasta lo que necesitan, con tope */
+#plazaPanel.crece:not(.completa){max-height:80%}
 .burbujaAsp{position:relative;margin-top:4px;background:#fff6e8;border:2px solid var(--madera-oo);border-radius:12px;padding:8px 12px;font-weight:800;font-size:16px}
 .burbujaAsp::before{content:'';position:absolute;top:-9px;left:24px;border:8px solid transparent;border-top:0;border-bottom-color:var(--madera-oo)}

@@ -12,13 +12,15 @@ window.Partida = (()=>{
   //   encargos     estado de cada encargo: { id: 'activo' | 'hecho' }
   //   banderas     marcas sueltas de la historia: { 'pico_padre': true, ... }
   const puebloNuevo = () => ({ dia: 1, prosperidad: 0, casas: D.casas.map(c => c.id), encargos: {}, banderas: {} });
+  // 0.300: el primer encargo de la ardilla ahora enseña el tónico de vuelta (los pulmones de topo pasan a la mina 3)
+  const migrar = Pu => { if(Pu.encargos && Pu.encargos.hongos_1 === 'hecho' && Pu.banderas && !Pu.banderas.receta_tonico) Pu.banderas.receta_tonico = true; return Pu; };
   const P = {
     almacen: load('pozoviejo-almacen', {}),
     kit: load('pozoviejo-kit', {...D.herramientas.inicial}),
     // colección: objetos encontrados que ya llegaron al pueblo { id: cantidad }; visto: todo lo que has llegado a tener (minerales y objetos)
     coleccion: load('pozoviejo-coleccion', {}),
     visto: load('pozoviejo-visto', {}),
-    pueblo: Object.assign(puebloNuevo(), load('pozoviejo-pueblo', {})),
+    pueblo: migrar(Object.assign(puebloNuevo(), load('pozoviejo-pueblo', {}))),
     guardar(){ save('pozoviejo-almacen', P.almacen); save('pozoviejo-kit', P.kit); save('pozoviejo-coleccion', P.coleccion); save('pozoviejo-visto', P.visto); save('pozoviejo-pueblo', P.pueblo); },
     borrarTodo(){ P.almacen = {}; P.kit = {...D.herramientas.inicial}; P.coleccion = {}; P.visto = {}; P.pueblo = puebloNuevo(); P.guardar(); window.Mina && window.Mina.borrar(); },
     // ---- ayudas para la historia ----
