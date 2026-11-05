@@ -125,11 +125,11 @@ function statsText(){
 function newWorld(){ return newTiroWorld('principal', (Math.random()*1e9)|0); }
 function packWorld(W){
   return {id:W.id, lastRun:W.lastRun, seed:W.seed, rows:W.rows.map(R => String.fromCharCode(...Array.from(R.t, v => 65+v))), nat:W.rows.map(R => String.fromCharCode(...Array.from(R.nat, v => 48+v))), lvx:W.rows.reduce((o, R, i) => { if(R.lv.some(v => v > 0)) o[i] = Array.from(R.lv, v => +v.toFixed(4)); return o; }, {}),
-    items:W.items.filter(i=>i.alive || i.k === 'herr'), bag:W.bag, rewarded:W.rewarded, runs:W.runs, herr:true, ver:W.ver, record:W.record, doors:W.doors, cargaOk:W.cargaOk||[], ascUsado:!!W.ascUsado, escalas:W.escalas||[], fijos:W.fijos||[], compuertas:W.compuertas||[]};
+    items:W.items.filter(i=>i.alive || i.k === 'herr'), bag:W.bag, rewarded:W.rewarded, runs:W.runs, herr:true, ver:W.ver, record:W.record, doors:W.doors, cargaOk:W.cargaOk||[], ascUsado:!!W.ascUsado, escalas:W.escalas||[], fijos:W.fijos||[], compuertas:W.compuertas||[], derrumbe:W.derrumbe||[]};
 }
 function unpackWorld(o){
   if(o.ver !== WV) return null;   // pozo de una versión anterior: se empieza uno nuevo
-  const w = {id:o.id||'principal', lastRun:o.lastRun||0, ver:WV, seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||0, record:o.record||0, doors:o.doors||[], cargaOk:o.cargaOk||[], ascUsado:!!o.ascUsado, escalas:o.escalas||[], fijos:o.fijos||[], compuertas:o.compuertas||[]};
+  const w = {id:o.id||'principal', lastRun:o.lastRun||0, ver:WV, seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||0, record:o.record||0, doors:o.doors||[], cargaOk:o.cargaOk||[], ascUsado:!!o.ascUsado, escalas:o.escalas||[], fijos:o.fijos||[], compuertas:o.compuertas||[], derrumbe:o.derrumbe||[]};
   o.rows.forEach((s, i) => { const R = newRow(), n = o.nat && o.nat[i];
     const lvS = o.lv && o.lv[i], lvX = o.lvx && o.lvx[i];
     for(let c=0;c<COLS;c++){ R.t[c] = s.charCodeAt(c)-65; R.hp[c] = INFO[R.t[c]].hp||0; R.nat[c] = n ? n.charCodeAt(c)-48 : (isSolid(R.t[c]) ? 0 : 1);
@@ -172,7 +172,7 @@ function placePieces(){
     const rows = pz.filas.map(l => { l = (l + '.'.repeat(COLS)).slice(0, COLS); return mir ? [...l].reverse().join('') : l; });
     // textos de carteles y frases de Deep: clave «fila,columna» de la pieza (dada la vuelta si se refleja)
     const textos = {}; for(const [k, v] of Object.entries(pz.textos || {})){ const [f, c] = k.split(',').map(Number); textos[f + ',' + (mir ? COLS-1-c : c)] = v; }
-    out.push({id:pz.id, r0, rows, textos, nota: pz.nota});
+    out.push({id:pz.id, r0, rows, textos, nota: pz.nota, cofre: pz.cofre, medio: pz.medio});
   }
   return out;
 }
@@ -206,14 +206,18 @@ function applyPieces(r, Tt){
       if(ch === 'L' || ch === 'I' || ch === '='){ Tt[c] = ch === 'L' ? LADDER : ch === 'I' ? PROP : PLANK; marcarFijo(r, c); continue; }
       // compuerta: roca maciza que se abre cuando gira la noria
       if(ch === 'G'){ Tt[c] = ROCK; if(!W.compuertas) W.compuertas = []; if(!W.compuertas.includes(r*16 + c)) W.compuertas.push(r*16 + c); continue; }
+      // derrumbe de la mina 5: roca maciza hasta que estalla la dinamita
+      if(ch === '%'){ if(Pa.bandera('temblor_mina5')) { Tt[c] = AIR; continue; } Tt[c] = ROCK; if(!W.derrumbe) W.derrumbe = []; if(!W.derrumbe.includes(r*16 + c)) W.derrumbe.push(r*16 + c); continue; }
       Tt[c] = AIR;
       if(ch === 'o') W.items.push({k:'oil', r, c, alive:true});
       else if(ch === 'k') W.items.push({k:'llave', r, c, alive:true});
       else if(ch === 'h' || ch === 'H') W.items.push({k:'herr', tipo: ch === 'H' ? 'puntal' : 'escalera', r, c, alive:true});
-      else if(ch === 'B') W.items.push({k:'cofrePieza', r, c, alive:true, abierto:false});
+      else if(ch === 'B') W.items.push(Object.assign({k:'cofrePieza', r, c, alive:true, abierto:false}, P.cofre ? {premio: P.cofre} : {}));
       else if(ch === 'f') W.items.push({k:'obj', id:florDe(r, c), r, c, alive:true});
       else if(ch === 'M') W.items.push({k:'lift', r, c, alive:true});
-      else if(ch === 'A') W.items.push({k:'ascensor', r, c, alive:true});
+      else if(ch === 'A') W.items.push(Object.assign({k:'ascensor', r, c, alive:true}, P.medio ? {medio:true} : {}));
+      else if(ch === 'U') W.items.push({k:'tubo', r, c, alive:true});   // boca del tubo de voz (mina 5)
+      else if(ch === 'E') W.items.push({k:'dinamita', r, c, alive:true, puesta: Pa.bandera('dinamita_puesta')});
       else if(ch === 'Z'){ if(!Pa.bandera('ascensor_pozo1_roto')) W.items.push({k:'obj', id:'pieza_ascensor', r, c, alive:true}); }   // la pieza y el pico salen una sola vez
       else if(ch === 'K'){ if(!Pa.bandera('pico_encontrado') && !Pa.coleccion.pico_padre && !(bag && bag['o:pico_padre'])) W.items.push({k:'obj', id:'pico_padre', r, c, alive:true}); }
       else if(ch === 'V') W.items.push({k:'vent', r, c, alive:true});
@@ -527,7 +531,8 @@ function startRun(){
   }
   ungLlevo = {}; for(const id of (Pa.ungElegidos ? Pa.ungElegidos() : [])) if(UNG[id]) ungLlevo[UNG[id].carta] = id;   // como mucho 2 (los huecos de la herboristería)
   prevRecord = W.record||0; newGround = false;
-  cards = {}; for(const ca in ungLlevo) cards[ca] = 1;   // los ungüentos de la ardilla funcionan como cartas de un solo uso
+  cards = {}; for(const ca in ungLlevo) cards[ca] = 1;
+  faroles = mejora('faroles');   // los ungüentos de la ardilla funcionan como cartas de un solo uso
   spun = new Set(); carpDone = 0; entDone = 0; chestFx = null; air = airMax(); submerged = false; airWarn = false;
   ensureRoomItems(); tidyEscalas(); unroll = null;
   repartirDeposito();
@@ -549,7 +554,63 @@ function startRun(){
     if(as){ p.onPlat = false; platOpen = 1; p.r = p.y = as.r; p.c = p.x = p.sx = as.c; lastRoomFloor = ROOM_ROW.length ? ROOM_ROW[ROOM_ROW.length-1] + ROOM_H - 1 : SURF - 1; maxDepth = as.r - SURF + 1; segSeen = TRAMOS.length - 1; roomsSeen = new Set(ROOM_ROW.map((_, i) => i));
       cam = p.y - (VH/T)*0.35; camX = (p.x+0.5)*T; toast('El ascensor te baja al fondo', 'Suave como la seda. Para volver, súbete otra vez'); }
   }
+  // bajar en el ascensor de mitad de la mina (mina 4): empiezas en la sala que tiene al lado
+  if(startOpts && startOpts.medio && Pa.bandera('ascensor_medio_' + PK)){
+    for(let i=0;i<ROOM_ROW.length;i++) ensure(ROOM_ROW[i] + ROOM_H + 2);
+    const as = W.items.find(i => i.k === 'ascensor' && i.medio);
+    if(as){ const sala = ROOM_ROW.findIndex(rr => rr > as.r); p.onPlat = false; platOpen = 1; p.r = p.y = as.r; p.c = p.x = p.sx = as.c;
+      lastRoomFloor = sala > 0 ? ROOM_ROW[sala-1] + ROOM_H - 1 : SURF - 1; maxDepth = as.r - SURF + 1; segSeen = Math.max(0, sala - 1);
+      for(let i=0;i<sala;i++) roomsSeen.add(i); ensure(as.r + 40);
+      cam = p.y - (VH/T)*0.35; camX = (p.x+0.5)*T; toast('El ascensor te baja a mitad de la mina', 'Para volver, súbete otra vez'); }
+  }
   startOpts = null;
+  // mina 5: el viejo te da una bolsa antes de bajar (sin decirte qué lleva)
+  if(PK === 'cinco' && !Pa.bandera('dinamita_puesta') && !Pa.bandera('temblor_mina5') && !bag['o:bolsa_viejo']){
+    if(Pa.coleccion.bolsa_viejo){ delete Pa.coleccion.bolsa_viejo; Pa.guardar(); }
+    bag['o:bolsa_viejo'] = 1; renderInv(); }
+  vozHecha = new Set((P1.voces || []).map((v, i) => i).filter(i => Pa.bandera('voz_' + PK + '_' + i)));
+}
+
+// ---------- mina 5: el tubo de voz, la dinamita y el temblor ----------
+let vozHecha = new Set(), boom = null;
+function vocesTick(){
+  if(!P1.voces || !TC.principal) return;
+  P1.voces.forEach((v, i) => { if(!vozHecha.has(i) && maxDepth >= v.metro){ vozHecha.add(i); Pa.ponerBandera('voz_' + PK + '_' + i); decir(v.cara, v.texto, 'viejo'); } });
+}
+function tocarDinamita(it){
+  if(it.puesta || Pa.bandera('temblor_mina5')) return;
+  it.puesta = true; Pa.ponerBandera('dinamita_puesta'); delete bag['o:bolsa_viejo']; renderInv(); SND('poner');
+  decir('sorprendido', '¡Es dinamita! Cartuchos viejos, atados con cuerda…');
+  decir('pensativo', 'La guardaba desde aquel día. Ponla junto al derrumbe… Así. Ahora sube a la cornisa del tubo, a la izquierda, y avísame.', 'viejo');
+  persist();
+}
+function tocarTubo(it){
+  if(!Pa.bandera('dinamita_puesta') || Pa.bandera('temblor_mina5') || boom) return;
+  decir('decidido', '¡Listo! Estoy en la cornisa.');
+  decir('gruñon', 'Tápate los oídos, chaval. Tres… dos… uno…', 'viejo');
+  boom = {t: 3.2};
+}
+function boomTick(dt){
+  if(!boom) return;
+  boom.t -= dt; if(boom.t > 0) return;
+  boom = null;
+  // estalla: el derrumbe se abre y tiembla toda la montaña
+  const D5 = W.derrumbe || [];
+  for(const k of D5){ const r = Math.floor(k/16), c = k % 16; if(tAt(r, c) === ROCK){ setT(r, c, AIR); burst(r+0.5, c+0.5, Math.random() < 0.5 ? '#df7126' : '#fbf236', 5); } }
+  W.derrumbe = [];
+  for(const it of W.items) if(it.k === 'dinamita') it.alive = false;
+  SND('explosion'); flashT = 0.8; shakeKick = Math.max(shakeKick, 9);
+  Pa.ponerBandera('temblor_mina5'); Pa.ponerBandera('llega_castor');   // el temblor: las minas 1-4 se regeneran y llega el primer vecino nuevo
+  regenerarMinas();
+  setTimeout(() => { toast('¡Tiembla toda la montaña!', 'El derrumbe se ha abierto'); decir('asustado', '¡Estoy bien! ¡Se ha abierto un hueco!');
+    decir('cansado', '…Baja tú. Yo no puedo. Ve tú, Deep.', 'viejo'); }, 900);
+  persist();
+}
+// el temblor cierra y regenera las minas 1 a 4: sus pozos empiezan de cero (los objetos únicos ya encontrados no vuelven)
+function regenerarMinas(){
+  for(const m of D.minas){ if(typeof m.id !== 'number' || m.id >= 5 || !m.pozo || !POZOS[m.pozo]) continue;
+    try{ localStorage.removeItem(POZOS[m.pozo].guardado); }catch(e){} }
+  Pa.ponerBandera('minas_regeneradas');
 }
 
 // ---------- cartas ----------
@@ -786,6 +847,26 @@ function mejora(ef){ let v = ef === 'mochila' ? 1 : 0; if(ARC) return v; const M
   for(const m of MJ) if(H[m.id] && (!m.desde || Pa.bandera(m.desde)) && m.efecto && m.efecto[ef] !== undefined) v = ef === 'mochila' ? v * m.efecto[ef] : v + m.efecto[ef]; return v; }
 // tope de herramientas por bajada: la tanda del almacén (12 y 8) más lo que suma el cinturón del tejón (efecto tandaP / tandaL)
 function topeLlevar(k){ const L = D.herramientas.llevarPorBajada || {puntales:12, escaleras:8}; return k === 'p' ? (L.puntales ?? 12) + mejora('tandaP') : (L.escaleras ?? 8) + mejora('tandaL'); }
+// ---------- faroles del tejón: se cuelgan manteniendo pulsado Mecha; alumbran, ahorran lámpara cerca y atraen a las polillas ----------
+let faroles = 0;
+const farolCerca = (x, y, R) => { let best = null, bd = R; for(const it of W.items) if(it.alive && it.k === 'farol'){ const d = Math.hypot(it.c + 0.5 - x, it.r + 0.5 - y); if(d < bd){ bd = d; best = it; } } return best; };
+const junto_farol = () => !!farolCerca(p.x + 0.5, p.y + 0.5, 3);
+function placeFarol(){
+  if(!started || dead || cashed || !mejora('faroles')) return;
+  const aqui = W.items.find(i => i.alive && i.k === 'farol' && i.r === p.r && i.c === p.c);
+  if(aqui){ aqui.alive = false; faroles++; SND('poner'); renderInv(); floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Farol recogido', life:0.9, col:'#fbf236'}); return; }
+  if(faroles <= 0) return noTool('Sin faroles');
+  W.items.push({k:'farol', r:p.r, c:p.c, alive:true}); faroles--; SND('poner'); renderInv();
+  floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Farol colgado', life:0.9, col:'#fbf236'}); persist();
+}
+// ---------- brújula de vetas: flecha al mineral que se eligió en el almacén ----------
+let brujObj = null, brujT = 0;
+function brujulaTick(dt){
+  brujT -= dt; if(brujT > 0) return; brujT = 0.5; brujObj = null;
+  const k = Pa.pueblo.brujula; if(!k || !mejora('brujula') || KEY2T[k] === undefined) return;
+  const tt = KEY2T[k]; let bd = 1e9;
+  for(let r = Math.max(SURF, p.r - 40); r < Math.min(W.rows.length, p.r + 40); r++){ const R = W.rows[r]; for(let c=0;c<COLS;c++) if(R.t[c] === tt){ const d = Math.hypot(r - p.r, (c - p.c)*0.7); if(d < bd){ bd = d; brujObj = {r, c}; } } }
+}
 let descansado = false;   // has dormido en casa antes de esta bajada
 function capacity(){ if(ARC) return 1e9; return Math.round(cfg.cap * mejora('mochila') * (descansado ? ((D.casaDeep && D.casaDeep.dormir.carga) || 1.25) : 1) * (has('mochila_cuero') ? cv_('mochila_cuero', 1.5) : 1)); }
 const inMud = (r, c) => tAt(r, c) === MUD;
@@ -959,7 +1040,7 @@ function updatePlayer(dt){
   const inRoom = L.part !== undefined && L.part > 0 && L.part < ROOM_H-1;
   const atFlame = inRoom && LLAMAS.some(cl => Math.abs(p.x - cl) <= SA.radioLlama);
   if(atFlame){ if(lamp < 100 && Math.random() < dt*20) burst(p.y+0.2, p.x+0.5, '#fbf236', 1); lamp = Math.min(100, lamp + LA.recargaSala*dt); }
-  else if(!L.surface && !inRoom) lamp -= cfg.drain*dt*(wick ? 1 : LA.multMechaBaja)*wetMult*(has('mecha_cera') ? cv_('mecha_cera', 0.75) : 1)*(has('codicia') ? cv_('codicia', 1.25) : 1);
+  else if(!L.surface && !inRoom) lamp -= cfg.drain*dt*(junto_farol() ? 0.25 : 1)*(wick ? 1 : LA.multMechaBaja)*wetMult*(has('mecha_cera') ? cv_('mecha_cera', 0.75) : 1)*(has('codicia') ? cv_('codicia', 1.25) : 1);
   // lámpara baja: un latido que se acelera según se apaga, y los bordes de la pantalla se oscurecen a su ritmo
   latActivo = !dead && !inRoom && !L.surface && lamp > 0 && lamp < (LA.latidoDesde ?? 25);
   if(latActivo){ latT -= dt; if(latT <= 0){ const de = LA.latidoDesde ?? 25; latT = lamp < 10 ? 0.5 : 0.6 + (lamp - 10)/(de - 10)*0.5; latPulso = 1; SND('latido', 0.9); } }
@@ -989,6 +1070,8 @@ function updatePlayer(dt){
         // respiradero abierto: en el mapa, la zona de esta mina reverdece
         const mm = P1.real && D.minas.find(m => m.pozo === PK);
         if(mm && !Pa.bandera('respiradero_' + mm.id)){ Pa.ponerBandera('respiradero_' + mm.id); SND('abrir');
+          // 0.301: tras la explosión de la mina 5, cada mina que terminas trae un vecino nuevo (marmota, luego gemelos)
+          if(mm.id !== 5 && Pa.bandera('temblor_mina5')){ const sig = ['llega_marmota', 'llega_gemelos'].find(b => !Pa.bandera(b)); if(sig) Pa.ponerBandera(sig); }
           const ai = D.casaDeep && D.casaDeep.armario.minas[mm.id], ad = ai && ((D.arcade && D.arcade.aspectos) || []).find(a => a.id === ai);
           if(ad) setTimeout(() => toast('¡Aspecto nuevo: ' + ad.nombre + '!', 'Está en el armario de tu casa'), 2500); } }
       else if(it.k === 'ascensor'){ if(!it.avisado){ it.avisado = true; const st = ascState();
@@ -996,7 +1079,9 @@ function updatePlayer(dt){
       else if(it.k === 'carga'){ verMontacargas(it); if(!it.avisado){ it.avisado = true; toast('Montacargas', W.cargaOk.includes(it.room) ? 'Manda la carga al almacén y sigue bajando' : kitPara(it) ? 'Está roto, pero llevas el kit del tejón para arreglarlo' : 'Está roto: pide ' + costTxt(it.room) + ' (o un kit del tejón)'); } }
       else if(it.k === 'lift'){ if(!it.avisado){ it.avisado = true; toast('Montacargas viejo', 'Pulsa arriba para subir al tiro principal'); } }
       else if(it.k === 'texto'){ if(!it.avisado){ it.avisado = true;
-        if(it.tipo === 'deep'){ decir(it.cara || 'pensativo', it.texto || '…'); for(const k in input){ input[k] = false; tapped[k] = 0; } }   /* Deep se para a decirlo */ else cartel(it.titulo || '', it.texto || '', it.gif || ''); } }
+        if(it.tipo === 'deep'){ decir(it.cara || 'pensativo', it.texto || '…', it.quien); for(const k in input){ input[k] = false; tapped[k] = 0; } }   /* Deep se para a decirlo */ else cartel(it.titulo || '', it.texto || '', it.gif || ''); } }
+      else if(it.k === 'dinamita') tocarDinamita(it);
+      else if(it.k === 'tubo') tocarTubo(it);
       else if(it.k === 'portal'){ if(!it.avisado){ it.avisado = true; decir('pensativo', 'Una puerta de la cuadrilla… Está atrancada por dentro.'); } }
       else if(it.k === 'oil'){ const g = cfg.oilGain*(has('bidon_grande') ? cv_('bidon_grande', 2) : 1); it.alive = false; SND('aceite'); lamp = Math.min(100, lamp + g); burst(it.r+0.5, it.c+0.5, '#fbf236', 14); floats.push({x:it.c+0.5, y:it.r, txt:'+'+g+'% luz', life:1.2, col:'#fbf236'}); }
       else if(it.k === 'cofreSala' && !W.rewarded.includes(it.room)) openRoomChest(it);
@@ -1096,7 +1181,7 @@ function ladderTap(){
   let e = escalaAt(p.r, p.c);
   if(!e){ e = {r:p.r, c:p.c, len:1, abierta:false}; W.escalas.push(e); }   // escaleras de antes: cuentan como una sola
   // la escalera está anclada arriba: solo se despliega o se recoge desde esa casilla (más adelante, un invento del tejón quitará esta limitación)
-  if(p.r !== e.r && !Pa.bandera('escala_garfios')){ if(lockMsgT <= 0){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Solo se recoge desde arriba, donde la anclaste', life:1.4, col:'#d9a066'}); lockMsgT = 1.4; } return; }
+  if(p.r !== e.r && !Pa.bandera('escala_garfios') && !mejora('garfio')){ if(lockMsgT <= 0){ floats.push({x:p.c+0.5, y:p.r-0.2, txt:'Solo se recoge desde arriba, donde la anclaste', life:1.4, col:'#d9a066'}); lockMsgT = 1.4; } return; }
   if(!e.abierta && e.len === 1 && unrollFree(e.r + 1, e.c)){
     e.abierta = true; unroll = {e, left:escMax(), t:0};
     floats.push({x:e.c+0.5, y:e.r+0.6, txt:'¡Escala!', life:0.9, col:'#fbf236'}); return;
@@ -1228,7 +1313,9 @@ function updateMoths(dt){
     const dx = px - m.x, dy = py - m.y, d = Math.hypot(dx,dy) || 1;
     const vel = PE.polillaVelocidad * (wick ? 1 : (PE.polillaMechaBaja ?? 0.5));
     let tvx, tvy;
-    if(has('lavanda') && d < 3.5){ tvx = -dx/d*vel*0.8; tvy = -dy/d*vel*0.8; m.hunt = false; if(ungLlevo.lavanda) gastarUng('lavanda'); }   // bálsamo de lavanda: se apartan
+    const fa = farolCerca(m.x, m.y, 6);
+    if(fa){ const fx = fa.c + 0.5 - m.x, fy = fa.r + 0.5 - m.y, fd = Math.hypot(fx, fy) || 1; tvx = fx/fd*vel*0.6 + Math.cos(m.ph)*0.6; tvy = fy/fd*vel*0.6 + Math.sin(m.ph*0.7)*0.6; m.hunt = false; }   // los faroles atraen a las polillas
+    else if(has('lavanda') && d < 3.5){ tvx = -dx/d*vel*0.8; tvy = -dy/d*vel*0.8; m.hunt = false; if(ungLlevo.lavanda) gastarUng('lavanda'); }   // bálsamo de lavanda: se apartan
     else if(!has('lavanda') && !dead && lamp > 0 && d < R*(PE.polillaVista ?? 1.1) && los(m.x,m.y,px,py,-1,-1)){ tvx = dx/d*vel; tvy = dy/d*vel; m.hunt = true; }
     else { m.ang = (m.ang||0) + (Math.random()-0.5)*dt*6; tvx = Math.cos(m.ang)*0.7; tvy = Math.sin(m.ang)*0.5; m.hunt = false; }
     m.vx = (m.vx||0) + (tvx - (m.vx||0))*Math.min(1, dt*3); m.vy = (m.vy||0) + (tvy - (m.vy||0))*Math.min(1, dt*3);
@@ -1360,7 +1447,7 @@ function bankBag(soloMinerales){
     if(k.startsWith('o:')){ if(soloMinerales) continue;
       const o = OBJ[k.slice(2)];
       if(o && o.color){ Pa.guardarEnColeccion('flor_mina', bag[k]); const F = Pa.pueblo.flores || (Pa.pueblo.flores = {}); if(!F[o.color.id]) F[o.color.id] = 'nueva'; }
-      else Pa.guardarEnColeccion(k.slice(2), bag[k]);
+      else if(!(OBJ[k.slice(2)] || {}).noColeccion) Pa.guardarEnColeccion(k.slice(2), bag[k]);   // la bolsa del viejo no va a la colección
       delete bag[k]; continue; }
     if(!ARC && Pa.estad){ const E = Pa.estad(); E.minerales[INFO[k].key] = (E.minerales[INFO[k].key] || 0) + bag[k]; }
     Pa.almacen[INFO[k].key] = (Pa.almacen[INFO[k].key]||0) + bag[k]; Pa.marcarVisto(INFO[k].key); stat('ext', INFO[k].key, bag[k]); n += bag[k]; delete bag[k];
@@ -1876,6 +1963,12 @@ function drawItem(it){
   const X = it.c*T, Y = Math.round((it.r - (it.dy||0) - cam)*T);
   if(it.k === 'oil') ctx.drawImage(PS.aceite, X, Y);
   else if(it.k === 'chest') ctx.drawImage(PS.cofre, X, Y);
+  else if(it.k === 'farol'){   // farol colgado (provisional, dibujado a mano)
+    ctx.fillStyle = '#45283c'; ctx.fillRect(X+T/2-1, Y, 2, 6); ctx.fillRect(X+T/2-6, Y+6, 12, 3); ctx.fillRect(X+T/2-6, Y+T-8, 12, 3);
+    ctx.fillStyle = Math.floor(t*6) % 5 ? '#fbf236' : '#df7126'; ctx.fillRect(X+T/2-5, Y+9, 10, T-17); }
+  else if(it.k === 'tubo'){ ctx.fillStyle = '#847e87'; ctx.fillRect(X+T/2-3, Y-T*2, 6, T*2+6); ctx.fillStyle = '#595652'; ctx.beginPath(); ctx.arc(X+T/2, Y+10, 7, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#222034'; ctx.beginPath(); ctx.arc(X+T/2, Y+10, 4, 0, Math.PI*2); ctx.fill(); }
+  else if(it.k === 'dinamita'){ if(it.puesta || Pa.bandera('dinamita_puesta')){ ctx.fillStyle = '#ac3232'; for(let i=0;i<3;i++) ctx.fillRect(X+6+i*6, Y+T-16, 5, 16); ctx.fillStyle = '#eec39a'; ctx.fillRect(X+T/2, Y+T-22, 1, 6); if(Math.floor(t*4) % 2) { ctx.fillStyle = '#fbf236'; ctx.fillRect(X+T/2-1, Y+T-24, 3, 3); } }
+    else if(Math.floor(t*2) % 2){ ctx.strokeStyle = '#fbf236'; ctx.lineWidth = 2; ctx.strokeRect(X+3, Y+3, T-6, T-6); } }
   else if(it.k === 'bag') ctx.drawImage(PS.mochila_suelo, X, Y);
   else if(it.k === 'obj') drawObject(it, X, Y);
   else if(it.k === 'lift') drawLift(it, X, Y);
@@ -2067,7 +2160,7 @@ function render(){
       if(it.k === 'vent') addLight(r0, r1, it.c+0.5, it.r+0.8, 6.5 + Math.sin(t*1.7)*0.5, 0.95, true, true);
       else if(it.k === 'brasa' && !it.apagada) addLight(r0, r1, it.c+0.5, it.r+0.8, 2.2, 0.7, false, true);
     }
-    for(const it of W.items) if(it.alive && (it.k === 'oil' || it.k === 'chest' || it.k === 'bag' || it.k === 'herr' || it.k === 'llave' || it.k === 'cofreSala' || it.k === 'cofrePieza' || it.k === 'obj' || it.k === 'lift' || it.k === 'carga' || it.k === 'ascensor' || it.k === 'vent' || it.k === 'noria' || it.k === 'portal') && it.r >= r0-2 && it.r <= r1+2) { const B = it.k === 'oil' ? (LA.brilloAceite || {radio:1.6, intensidad:0.6}) : (LA.brilloObjetos || {radio:2.4, intensidad:0.6}); addLight(r0, r1, it.c+0.5, it.r+0.6, B.radio, B.intensidad, false, false); }
+    for(const it of W.items) if(it.alive && (it.k === 'oil' || it.k === 'chest' || it.k === 'bag' || it.k === 'herr' || it.k === 'llave' || it.k === 'cofreSala' || it.k === 'cofrePieza' || it.k === 'obj' || it.k === 'lift' || it.k === 'carga' || it.k === 'ascensor' || it.k === 'vent' || it.k === 'noria' || it.k === 'portal' || it.k === 'farol' || it.k === 'dinamita') && it.r >= r0-2 && it.r <= r1+2) { const B = it.k === 'oil' ? (LA.brilloAceite || {radio:1.6, intensidad:0.6}) : it.k === 'farol' ? {radio:3.6, intensidad:0.9} : (LA.brilloObjetos || {radio:2.4, intensidad:0.6}); addLight(r0, r1, it.c+0.5, it.r+0.6, B.radio, B.intensidad, false, false); }
     for(let r=Math.max(rTop,r0); r<=r1; r++) for(let c=0;c<COLS;c++){
       if(!isSolid(W.rows[r].t[c])) continue;
       const i = (r-r0)*COLS + c; let m = lbuf[i];
@@ -2180,6 +2273,7 @@ function drawMarkers(fx, fy){
   const M = [];
   if(has('zahori')){ const b = nearest(W.items.filter(it => it.alive && it.k === 'oil')); if(b) M.push([b, '🛢️', 'rgba(48,96,130,.9)']); }
   if(has('zahori_galerias')){ const b = nearest(galeriasPendientes()); if(b) M.push([b, '🗺️', 'rgba(94,60,110,.9)']); }
+  if(brujObj && mejora('brujula')) M.push([brujObj, '🧭', 'rgba(110,80,40,.9)']);
   if(has('zahori_flores')){ const b = nearest(W.items.filter(it => it.alive && it.k === 'obj' && esPlanta(it.id))); if(b) M.push([b, '🌼', 'rgba(60,110,60,.9)']); }
   const ctx = tctx; let n = 0;
   for(const [best, ico, col] of M){
@@ -2297,6 +2391,7 @@ function doSwap(to){
   MINA.actual = to.tiro;
   if(!MINA.tiros[to.tiro]) MINA.tiros[to.tiro] = newTiroWorld(to.tiro, (MINA.seed + hashStr(to.tiro)*7919) | 0);
   W = MINA.tiros[to.tiro]; setTiro(to.tiro); lastOil = SURF;
+  if(!TC.principal && P1.real) Pa.ponerBandera('ramal_' + PK + '_' + to.tiro);   // para los mapas del museo
   ensure(to.r + 40);
   const runNow = MINA.tiros.principal.runs;
   if(!TC.principal){ if(W.lastRun && W.lastRun < runNow) refillTunnels(); W.lastRun = runNow; }
@@ -2353,7 +2448,9 @@ function givePrize(pr){
 }
 function openPieceChest(it){
   it.abierto = true; chestFx = {it, t:0}; SND('cofre'); shakeKick = Math.max(shakeKick, 1.5);
-  const L = P1.cofreEspecial || SB.premios || [], pr = L.length ? L[Math.floor(Math.random()*L.length)] : {texto:'Nada… solo polvo'};
+  const L = P1.cofreEspecial || SB.premios || [];
+  let pr = it.premio ? Object.assign({}, it.premio) : L.length ? L[Math.floor(Math.random()*L.length)] : {texto:'Nada… solo polvo'};
+  if(pr.objeto && pr.unico && !unicoLibre(pr.objeto)){ delete pr.objeto; pr.texto = pr.texto.replace(/^[^,]*, /, ''); }   // el objeto único solo sale una vez
   givePrize(pr); burst(it.r+0.4, it.c+0.5, '#fbf236', 26);
   toast('¡Cofre escondido!', pr.texto); floats.push({x:it.c+0.5, y:it.r-0.3, txt:pr.texto, life:1.8, col:'#fbf236'});
   persist();
@@ -2489,6 +2586,7 @@ function ascState(){ if(PK !== 'uno') return 'apanado';   // en los demás pozos
 const bajadaBloqueada = () => PK === 'uno' && ascState() === 'roto';
 function useElevator(){
   const st = ascState();
+  { const as = itemHere('ascensor'); if(as && as.medio && P1.real) Pa.ponerBandera('ascensor_medio_' + PK); }   // ascensor de mitad de la mina: desde ahora se puede bajar en él
   let dejado = 0;
   if(st === 'pieza'){
     delete bag['o:pieza_ascensor']; W.ascUsado = true; Pa.ponerBandera('ascensor_pozo1_roto');
@@ -2804,6 +2902,8 @@ function renderInv(bump){
   if(!ARC){ const w = weight(), cp = Math.max(1, capacity()), f = Math.min(1, w/cp), col = f < 0.5 ? '#6abe30' : f < 0.85 ? '#df7126' : '#d95763';
     h += `<span class="chip carga" title="${w} de ${cp}">Carga <i class="cbar"><u style="width:${Math.round(f*100)}%;background:${col}"></u></i></span>`; }
   if(llaves) h += `<span class="chip warn">Llaves <b>${llaves}</b></span>`;
+  if(!ARC && mejora('faroles')) h += `<span class="chip" title="Mantén pulsado Mecha para colgar un farol">🏮 <b>${faroles}</b></span>`;
+  if(!ARC && mejora('brujula') && Pa.pueblo.brujula && M[Pa.pueblo.brujula]) h += `<span class="chip" title="Brújula de vetas">🧭 ${M[Pa.pueblo.brujula].nombre}</span>`;
   if(kitLlevo && Pa.pueblo.kitMc) h += `<span class="chip cartaChip" title="Kit de reparación del tejón">🧰 Kit: ${Pa.pueblo.kitMc.pozoNombre}, sala ${Pa.pueblo.kitMc.sala}</span>`;
   for(const id in cards){ const k = CARD[id]; if(k) h += `<span class="chip cartaChip${id === 'tonico' ? ' usar' : ''}" ${id === 'tonico' ? 'data-usar="tonico"' : ''} title="${k.texto}">${k.icono} ${k.nombre}${cards[id] > 1 ? ' <b>×'+cards[id]+'</b>' : ''}</span>`; }
   $('inv').innerHTML = h;
@@ -2844,8 +2944,9 @@ let aviso = null, colaAvisos = [];
 const minAviso = txt => Math.min(6, Math.max(2.2, 1 + txt.length*0.045));
 function pintarAviso(a){
   const host = $('toastHost');
-  if(a.cara){ const src = (window.RETRATOS && window.RETRATOS.deep && (window.RETRATOS.deep[a.cara] || window.RETRATOS.deep.contento)) || '';
-    host.innerHTML = `<div class="toast habla"><img src="${src}" alt=""><div><b>Deep</b><span>${a.sub}</span></div></div>`; }
+  if(a.cara){ const q = a.quien || 'deep', RT = window.RETRATOS && window.RETRATOS[q], src = (RT && (RT[a.cara] || Object.values(RT)[0])) || '';
+    const NOMBRE = {deep: 'Deep', viejo: 'El viejo topo (por el tubo)'};
+    host.innerHTML = `<div class="toast habla"><img src="${src}" alt=""><div><b>${NOMBRE[q] || q}</b><span>${a.sub}</span></div></div>`; }
   else if(a.gif) host.innerHTML = `<div class="toast cartel">${a.title ? `<b>${a.title}</b>` : ''}<img src="${a.gif}" alt=""><span>${a.sub}</span></div>`;
   else host.innerHTML = `<div class="toast"><b>${a.title}</b><span>${a.sub}</span></div>`;
   aviso = {t0:t, min:minAviso((a.title||'') + a.sub), listo:false};
@@ -2854,7 +2955,7 @@ function toast(title, sub){ const a = {title, sub}; if(aviso && !aviso.listo && 
 // Deep habla dentro de la mina: con su cara, en una esquina (se quita igual que los avisos)
 // cartel de tutorial: título, texto y, si lo tiene, un gif que enseña la acción
 function cartel(title, sub, gif){ const a = {title, sub, gif}; if(aviso && !aviso.listo && colaAvisos.length < 4) colaAvisos.push(a); else { colaAvisos = []; pintarAviso(a); } }
-function decir(cara, texto){ const a = {cara, sub:texto}; if(aviso && !aviso.listo && colaAvisos.length < 4) colaAvisos.push(a); else { colaAvisos = []; pintarAviso(a); } }
+function decir(cara, texto, quien){ const a = {cara, sub:texto, quien}; if(aviso && !aviso.listo && colaAvisos.length < 4) colaAvisos.push(a); else { colaAvisos = []; pintarAviso(a); } }
 function avisoTick(){
   if(!aviso || aviso.listo || t - aviso.t0 < aviso.min) return;
   if(colaAvisos.length){ pintarAviso(colaAvisos.shift()); return; }
@@ -2929,6 +3030,7 @@ function frame(now){
       updatePlayer(dt);
       updateMoths(dt);
       if(P1.hielo) derretir(dt);
+      if(!ARC){ vocesTick(); boomTick(dt); brujulaTick(dt); }
       if(lamp <= 0){ lamp = 0; die('lamp'); }
     } else {
       deadT += dt;
@@ -2979,6 +3081,7 @@ addEventListener('keydown', e => {
   else if(!e.repeat && (e.key === 'p' || e.key === 'P')) keyHoldStart('p', () => placeTool('prop'), () => placeTool('prop', 'puente'));
   else if(!e.repeat && (e.key === 'e' || e.key === 'E')) keyHoldStart('e', () => placeTool('lad'), () => placeTool('lad', 'lado'));
   else if(!e.repeat && (e.key === 'm' || e.key === 'M')) wick = wick ? 0 : 1;
+  else if(!e.repeat && (e.key === 'f' || e.key === 'F')) placeFarol();
 });
 function toggleLook(){
   if(!started || dead || cashed || bonusOpen || ruletaOpen) return;
@@ -3001,11 +3104,13 @@ document.querySelectorAll('#pad button').forEach(b => {
     else if(looking && (k in input)) toggleLook();            // al tocar una flecha se deja de mirar (sin moverse)
     else if(k === 'prop'){ b._held = false; clearTimeout(b._hold); b._down = true; b._hold = setTimeout(() => { if(b._down){ b._held = true; placeTool('prop', 'puente'); } }, 350); }
     else if(k === 'lad'){ b._held = false; clearTimeout(b._hold); b._down = true; b._hold = setTimeout(() => { if(b._down){ b._held = true; placeTool('lad', 'lado'); } }, 350); }
-    else if(k === 'wick') wick = wick ? 0 : 1; else press(k); };
+    else if(k === 'wick'){ if(mejora('faroles')){ b._held = false; clearTimeout(b._hold); b._down = true; b._hold = setTimeout(() => { if(b._down){ b._held = true; placeFarol(); } }, 350); } else wick = wick ? 0 : 1; }   // con faroles: mantener = colgar un farol
+    else press(k); };
   // Puntal: toque corto = puntal normal; mantener pulsado = puente
   const up = () => { b.classList.remove('on'); if(k in input) input[k] = false; if(k === 'ver') b.classList.toggle('activo', looking);
     if(k === 'prop' && b._down){ b._down = false; clearTimeout(b._hold); if(!b._held) placeTool('prop'); }
-    if(k === 'lad' && b._down){ b._down = false; clearTimeout(b._hold); if(!b._held) placeTool('lad'); } };
+    if(k === 'lad' && b._down){ b._down = false; clearTimeout(b._hold); if(!b._held) placeTool('lad'); }
+    if(k === 'wick' && b._down){ b._down = false; clearTimeout(b._hold); if(!b._held) wick = wick ? 0 : 1; } };
   b.addEventListener('pointerdown', down);
   ['pointerup','pointercancel','lostpointercapture'].forEach(ev => b.addEventListener(ev, up));
   b.addEventListener('contextmenu', e => e.preventDefault());

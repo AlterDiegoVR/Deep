@@ -198,7 +198,7 @@ window.Conversaciones = (()=>{
   const TEJON_MOCHILA = [
     t('sorprendido', '¡Vaya, vaya! ¿Has abierto la Galería del río? Allí abajo hay hierro, chaval. Buen hierro.'),
     d('pensativo', '¿Y para qué sirve?'),
-    t('alegre', 'Para todo. Mira esa mochila tuya: se te va a romper de tanto llenarla. Tráeme hierro y un poco de cobre y te la refuerzo: cuero doble y remaches. Te cabrá mucho más.'),
+    t('alegre', 'Para todo. Mira esa mochila tuya: se te va a romper de tanto llenarla. Tráeme hierro y arcilla, que aquí todo se paga con arcilla, y te la refuerzo: cuero doble y remaches. Te cabrá mucho más.'),
     d('alegre', '¡Trato hecho!'),
   ];
   const TEJON_DESPUES = [
@@ -310,7 +310,7 @@ window.Conversaciones = (()=>{
       intro: [
         ca('contento', '¡Hola, hola! Tú debes de ser Deep. Soy nuevo en el pueblo. He oído que esto vuelve a ser un buen sitio para vivir.'),
         d('sorprendido', '¿Un vecino nuevo? ¡Hacía años que no venía nadie!'),
-        ca('alegre', 'Vengo del río, más arriba. Allí ya no queda nada que roer. Dicen que en la Galería del río ha vuelto a correr el agua… y donde corre el agua, un castor es feliz.'),
+        ca('alegre', 'Vengo del río, más arriba. Con el temblor de la otra noche, el agua ha vuelto a bajar por el valle… y donde corre el agua, un castor es feliz.'),
         ca('pensativo', 'Voy a arreglar esta casita. Si me traes cosas de las minas, te pago con escaleras y puntales. Hago los mejores de la comarca. Bueno, los únicos.'),
         d('contento', '¡Trato hecho!'),
       ],
@@ -369,20 +369,66 @@ window.Conversaciones = (()=>{
     c('emocionada', 'Toma, llévate unas escaleras y unos puntales. Y esto… era de tu padre. Lo guardaba para cuando fueras mayor. Ve a casa a probártelo.'),
     d('contento', '¡Gracias!'),
   ];
-  // ---------- El viejo topo en la boca del socavón (mina 5) ----------
-  const VIEJO_MINA5 = [
-    v('gruñon', '¿Adónde vas?'),
-    d('sorprendido', '¡Señor! No le había visto. Quería entrar en el socavón.'),
-    v('pensativo', 'Este socavón no es como las otras minas, chaval. No hay mineral que sacar. Lo que hay ahí dentro… es otra cosa.'),
-    d('decidido', '¿Tiene que ver con mi padre?'),
-    v('triste', '…Todo tiene que ver con tu padre. Por eso no.'),
-    v('cansado', 'Todavía no estás preparado. Y yo tampoco. Vuelve más adelante.'),
+  // ---------- El viejo topo y el socavón (mina 5) ----------
+  // tras la mina 4: en su casa o en la boca del socavón (sale a tu paso), la misma conversación; luego te lleva a la mina
+  const VIEJO_MINA5 = enBoca => [
+    ...(enBoca ? [v('gruñon', '¿Adónde vas tan deprisa?'), d('sorprendido', '¡Señor! No le había visto.')]
+      : [v('pensativo', 'Pasa, chaval. Te estaba esperando.')]),
+    v('pensativo', 'Has bajado a la Mina de los cuervos. Hasta el fondo. Ya has demostrado ser un minero de verdad.'),
+    v('triste', 'Aquel día, la cuadrilla bajó por el socavón que hay junto a mi casa. A mí me tocaba ir con ellos. Iba el último.'),
+    v('cansado', 'Hubo una explosión. El techo se vino abajo entre ellos y yo. Ellos quedaron debajo… y yo, arriba. Sin poder hacer nada.'),
+    d('triste', 'Por eso no quería que entrara.'),
+    v('pensativo', 'Tengo algo guardado. Desde aquel día. Quizá podamos seguir el camino de la cuadrilla.'),
+    v('gruñon', 'Toma esta bolsa y no la abras hasta que llegues abajo. Yo te hablaré por el tubo de voz. Vamos.'),
+    d('decidido', 'Vamos.'),
+  ];
+  // al volver del socavón, tras la explosión
+  const VIEJO_VERDAD = [
+    v('pensativo', 'Ahora ya sabes la verdad, chaval. No los aplastó el derrumbe: siguieron adelante. Hacia el corazón.'),
+    d('pensativo', 'Las pisadas se metían en la roca. Como si la montaña les hubiera abierto paso.'),
+    v('triste', 'La montaña necesita a los topos para respirar. Llevamos años sin bajar… y mira el valle. Seco como un hueso.'),
+    v('pensativo', 'Toma. Ha sobrado un poco de dinamita. Puedes usarla para abrir una de las tres minas que están al oeste del pueblo.'),
+    d('decidido', 'La usaré bien.'),
+    v('cansado', 'Lo sé. Eres igual que él.'),
+  ];
+  const VIEJO_DESPUES_5 = [
+    [v('pensativo', 'Ese temblor ha removido toda la montaña. Las minas viejas estarán como nuevas: vuelve a ellas, que habrá mineral.'), d('decidido', 'Lo haré.')],
+    [v('triste', 'A veces me siento junto al tubo de voz. Por si alguien contesta.'), d('triste', '…')],
+  ];
+  // los vecinos comentan el temblor (una sola vez cada uno)
+  const TEMBLOR = {
+    coneja: [c('sorprendida', '¿Notaste el temblor? Se me cayeron todas las latas. Y luego… luego olía a tierra mojada, como cuando yo era joven.'), d('pensativo', 'Era la montaña. Creo que respiró.')],
+    ardilla: [a('emocionada', '¡El temblor! ¡Mis frascos bailaban! Y esta mañana, en el alféizar, ha brotado una hierba que no veía desde hace años.'), d('contento', '¡Qué bien!')],
+    alcalde: [al('nervioso', '¿Ese temblor fue cosa tuya? Los señores de la ciudad han llamado. Dicen que con las minas así… que ya no les interesa tanto.'), d('pensativo', '¿Y eso es malo?'), al('pensativo', '…Ya no lo sé, Deep. Ya no lo sé.')],
+  };
+  // el tejón: la brújula de la pirámide y, cuando el pueblo empieza a revivir, sus inventos nuevos
+  const TEJON_BRUJULA = [
+    d('alegre', 'Mire lo que encontré en la cima de una pirámide de hielo: una brújula de la cuadrilla.'),
+    t('sorprendido', '¡Una brújula de vetas! La aguja no busca el norte: busca mineral. Tiembla cuando hay cerca.'),
+    t('alegre', 'Tráeme un poco de estaño y de cuarzo y te la dejo fina. Antes de bajar, en el almacén, le dices qué mineral quieres y te lo señala.'),
+    d('decidido', '¡Trato hecho!'),
+  ];
+  const TEJON_COMERCIO = [
+    t('alegre', '¡Chaval! ¿Has visto la plaza? Vecinos nuevos, el museo abierto, gente que viene y va… Hacía años que no vendía ni un tornillo.'),
+    t('contento', 'Con la vida vuelve el comercio, y con el comercio me llegan materiales. He podido hacer cosas nuevas.'),
+    t('pensativo', 'Una mochila de lona encerada, un garfio para recoger las escalas desde cualquier peldaño, unos faroles para colgar en tus galerías y un cinturón para que bajes con más herramientas.'),
+    d('alegre', '¡Lo quiero todo!'),
+    t('sudando', 'Todo, todo… Eso sí: se paga con arcilla y mineral, como siempre.'),
   ];
 
+  const verdadFin = () => { Pa.ponerBandera('viejo_verdad'); Pa.ponerBandera('dinamita_oeste'); Pa.sumarProsperidad(2); };
   // Devuelve la conversación que toca al entrar en una casa (o null) y lo que pasa al acabarla
+  // al volver al mapa: lo que pasa sin entrar en ninguna casa (tras la explosión de la mina 5, el viejo te espera)
+  function alVolverMapa(){
+    if(Pa.bandera('temblor_mina5') && !Pa.bandera('viejo_verdad')) return {lineas: VIEJO_VERDAD, fin: verdadFin};
+    return null;
+  }
   function alEntrar(casa){
+    // el temblor de la mina 5: cada vecino lo comenta una vez
+    const tembl = q => Pa.bandera('temblor_mina5') && !Pa.bandera('temblor_' + q) ? {lineas: TEMBLOR[q], fin: () => Pa.ponerBandera('temblor_' + q)} : null;
     if(casa === 'alcaldia'){
       if(!Pa.bandera('alcalde_intro')) return {lineas: ALCALDE_INTRO(), fin: () => Pa.ponerBandera('alcalde_intro')};
+      if(tembl('alcalde')) return tembl('alcalde');
       if(Pa.bandera('temblor_mina5') && Pa.bandera('pista_taladro') && !Pa.bandera('llave_museo')){
         if(!Pa.bandera('alcalde_niega')) return {lineas: ALCALDE_NIEGA, fin: () => Pa.ponerBandera('alcalde_niega')};
         return {lineas: ALCALDE_CEDE, fin: () => { Pa.ponerBandera('llave_museo'); Pa.sumarProsperidad(1); }};
@@ -409,15 +455,21 @@ window.Conversaciones = (()=>{
       // el taladro: primero la pista (hay roca maciza desde el primer pozo) y, con el taladro viejo del museo, el arreglo
       if(Pa.bandera('temblor_mina5') && !Pa.bandera('pista_taladro')) return {lineas: TEJON_PISTA_TALADRO, fin: () => Pa.ponerBandera('pista_taladro')};
       if(Pa.bandera('temblor_mina5') && Pa.bandera('museo_abierto') && !Pa.bandera('tejon_taladro')) return {lineas: TEJON_TALADRO(), fin: () => Pa.ponerBandera('tejon_taladro')};
+      if(Pa.bandera('temblor_mina5') && Pa.bandera('museo_abierto') && Pa.bandera('llega_castor') && Pa.bandera('tejon_taladro') && !Pa.bandera('tejon_comercio')) return {lineas: TEJON_COMERCIO, fin: () => { Pa.ponerBandera('tejon_comercio'); Pa.sumarProsperidad(1); }};
+      if((Pa.coleccion.brujula_rota || 0) > 0 && !Pa.bandera('tejon_brujula')) return {lineas: TEJON_BRUJULA, fin: () => Pa.ponerBandera('tejon_brujula')};
       if(Pa.bandera('mina_4_abierta') && (Pa.coleccion.pico_padre || Pa.bandera('viejo_pico')) && !Pa.bandera('tejon_pico')) return {lineas: TEJON_PICO(), fin: () => Pa.ponerBandera('tejon_pico')};
       return {lineas: azar(Pa.bandera('ascensor_pozo1_fino') ? TEJON_DESPUES : TEJON_NADA), fin: null};
     }
-    if(casa === 'mina5') return {lineas: VIEJO_MINA5, fin: () => Pa.ponerBandera('viejo_mina5')};
+    if(casa === 'mina5') return {lineas: VIEJO_MINA5(true), fin: () => { Pa.ponerBandera('mina_5_abierta'); Pa.sumarProsperidad(1); }, irA: 'cinco'};
     if(casa === 'viejo'){
+      if(Pa.bandera('respiradero_4') && !Pa.bandera('mina_5_abierta')) return {lineas: VIEJO_MINA5(false), fin: () => { Pa.ponerBandera('mina_5_abierta'); Pa.sumarProsperidad(1); }, irA: 'cinco'};
+      if(Pa.bandera('temblor_mina5') && !Pa.bandera('viejo_verdad')) return {lineas: VIEJO_VERDAD, fin: verdadFin};
+      if(Pa.bandera('temblor_mina5')) return {lineas: azar(VIEJO_DESPUES_5), fin: null};
       if((Pa.coleccion.pico_padre || 0) > 0 && !Pa.bandera('viejo_pico')) return {lineas: VIEJO_PICO, fin: () => { Pa.ponerBandera('viejo_pico'); }};
       return {lineas: azar(Pa.bandera('viejo_pico') ? VIEJO_DESPUES : VIEJO_CERRADO), fin: null};
     }
     if(casa === 'herboristeria'){
+      if(Pa.bandera('ardilla_intro') && tembl('ardilla')) return tembl('ardilla');
       if(!Pa.bandera('ardilla_intro')){
         if(Pa.bandera('coneja_hongo')) return {lineas: ARDILLA_INTRO(), fin: () => { Pa.ponerBandera('ardilla_intro'); const e = encargoActual(); if(e) Pa.pueblo.encargos[e.id] = 'activo'; Pa.sumarProsperidad(1); }};
         return {lineas: azar(ARDILLA_OCUPADA), fin: null};
@@ -435,6 +487,7 @@ window.Conversaciones = (()=>{
     }
     if(casa !== 'tienda') return null;
     if(!Pa.bandera('coneja_intro')) return {lineas: CONEJA_ANTES, fin: () => Pa.ponerBandera('coneja_intro')};
+    if(tembl('coneja')) return tembl('coneja');
     if(!Pa.bandera('flor_entregada') && (Pa.coleccion.flor_mina || 0) > 0)
       return {lineas: coneja_flor(), fin: () => {
         Pa.coleccion.flor_mina--; if(!Pa.coleccion.flor_mina) delete Pa.coleccion.flor_mina;
@@ -448,5 +501,5 @@ window.Conversaciones = (()=>{
     if(!Pa.bandera('coneja_hongo') && (Pa.coleccion.hongo_azul || 0) > 0) return {lineas: CONEJA_HONGO, fin: () => Pa.ponerBandera('coneja_hongo')};
     return {lineas: azar(Pa.bandera('flor_entregada') ? CONEJA_DESPUES : CONEJA_ESPERA), fin: null};
   }
-  return { alEntrar };
+  return { alEntrar, alVolverMapa };
 })();

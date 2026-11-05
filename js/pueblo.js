@@ -249,10 +249,13 @@ window.Pueblo = (()=>{
       // Pozo viejo: el ascensor según la historia
       if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_roto') && !Pa.bandera('ascensor_pozo1_apanado')) $('mpTexto').innerHTML = '<p>El ascensor del fondo está estropeado.</p>';
       if(m.pozo === 'uno' && Pa.bandera('ascensor_pozo1_fino')){ $('mpBoton2').hidden = false; $('mpBoton2').textContent = 'Ascensor (al fondo)'; btn.textContent = 'Bajar por la boca'; }
+      if(m.pozo && m.pozo !== 'uno' && Pa.bandera('ascensor_medio_' + m.pozo)){ $('mpBoton2').hidden = false; $('mpBoton2').textContent = 'Ascensor (a mitad)'; btn.textContent = 'Bajar por la boca'; }
     } else if(m.id === 5 && Pa.bandera('respiradero_4')){
-      // el socavón del viejo: al acercarte, el viejo topo sale a cortarte el paso
-      $('mpTexto').innerHTML = Pa.bandera('viejo_mina5') ? '<p>El viejo topo no te deja pasar. 🚧 Próximamente.</p>' : '';
+      // el socavón del viejo: al acercarte, el viejo topo sale a tu paso y te lleva dentro
       btn.disabled = false; btn.textContent = 'Acercarse a la boca';
+    } else if(m.id >= 6 && m.id <= 8 && Pa.bandera('dinamita_oeste')){
+      $('mpTexto').innerHTML = '<p>🧨 Tienes la dinamita del viejo para abrir una de las tres minas del oeste.</p><p>🚧 Próximamente.</p>';
+      btn.disabled = true; btn.textContent = 'Próximamente';
     } else if(m.desbloqueo && !m.pozo){
       // ya se sabe lo que pedirá, pero la mina aún no está hecha
       $('mpTexto').innerHTML = costeChips(m.desbloqueo) + '<p>🚧 Próximamente.</p>';
@@ -268,18 +271,18 @@ window.Pueblo = (()=>{
   $('mapaObjetivo').onclick = e => { e.stopPropagation(); esperando = false; mapaSel = mapaSel === 'objetivo' ? null : 'objetivo'; marcar(); };
   // tocar la imagen fuera de un punto cierra el bocadillo
   $('mapaCv').addEventListener('click', () => { if(mapaSel !== null){ mapaSel = null; esperando = false; mini.alLlegar = null; marcar(); } });
-  $('mpBoton2').onclick = () => { if(mapaSel !== null && mapaSel !== 'viejo') window.Pantallas.mostrar('mina', D.minas[mapaSel].pozo || 'viejo', {fondo: true}); };
+  $('mpBoton2').onclick = () => { if(mapaSel !== null && mapaSel !== 'viejo'){ const pz = D.minas[mapaSel].pozo || 'viejo'; window.Pantallas.mostrar('mina', pz, pz === 'uno' ? {fondo: true} : {medio: true}); } };
   $('mpBoton').onclick = () => {
     if(mapaSel === null || esperando) return;
     if(mapaSel === 'viejo'){
       const conv = window.Conversaciones && window.Conversaciones.alEntrar('viejo');
-      if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); marcar(); });
+      if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); if(conv.irA) window.Pantallas.mostrar('mina', conv.irA); else marcar(); });
       return;
     }
     const m = D.minas[mapaSel];
     if(m.id === 5 && !abierta(m) && Pa.bandera('respiradero_4')){
       const conv = window.Conversaciones && window.Conversaciones.alEntrar('mina5');
-      if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); marcar(); });
+      if(conv && window.Dialogo) window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); if(conv.irA) window.Pantallas.mostrar('mina', conv.irA); else marcar(); });
       return;
     }
     if(abierta(m)){ window.Pantallas.mostrar('mina', m.pozo || 'viejo'); return; }
@@ -291,6 +294,19 @@ window.Pueblo = (()=>{
       $('mpEyebrow').textContent = '¡Mina abierta!';
     }
   };
+
+  // al volver al mapa: el aviso de que las minas se han regenerado (una vez) y lo que tenga que pasar (el viejo tras la mina 5)
+  function bannerMapa(txt){
+    let b = $('mapaBanner'); if(!b){ b = document.createElement('div'); b.id = 'mapaBanner'; b.className = 'banner'; $('pantalla-mapa').appendChild(b); }
+    b.textContent = txt; b.hidden = false; b.classList.remove('fuera'); clearTimeout(b._t); b._t = setTimeout(() => { b.classList.add('fuera'); setTimeout(() => b.hidden = true, 600); }, 5200);
+    b.onclick = () => { b.hidden = true; };
+  }
+  function eventosMapa(){
+    if(activa !== 'mapa') return;
+    if(Pa.bandera('minas_regeneradas') && !Pa.bandera('aviso_regeneradas')){ Pa.ponerBandera('aviso_regeneradas'); bannerMapa('⛰️ Con el temblor, las minas 1 a 4 se han vuelto a cerrar y se han regenerado. Hay mineral nuevo.'); }
+    const conv = window.Conversaciones && window.Conversaciones.alVolverMapa && window.Conversaciones.alVolverMapa();
+    if(conv && window.Dialogo) setTimeout(() => { if(activa === 'mapa') window.Dialogo.mostrar(conv.lineas, () => { if(conv.fin) conv.fin(); marcar(); }); }, 1200);
+  }
 
   // =================== PLAZA ===================
   // Imagen de la plaza (js/escenarios.js), seca y verde: revive según los respiraderos abiertos (provisional).
@@ -496,6 +512,24 @@ window.Pueblo = (()=>{
     cuerpo.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { Pa.pueblo.aspecto = b.dataset.a; armVisto = b.dataset.a; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir', 0.6); panelCasa(); });
     const db = $('dormirBtn'); if(db) db.onclick = () => { Pa.pueblo.descansado = true; Pa.pueblo.siesta = Pa.estad().bajadas; Pa.guardar(); window.Sonido && window.Sonido.tocar('sala', 0.6); panelCasa(); };
   }
+  // museo: mapas de las minas. Los de las minas 1 a 5 ya están al abrir el museo; los de la 6 en adelante se abren con
+  // la llave rota del fondo de cada mina, que arregla el tejón (preparado: aún no hay minas 6 en adelante).
+  // Dicen a cuántos metros sale cada galería, a qué lado y si ya la has investigado (lo de dentro, no).
+  function mapasMuseo(){
+    const MS = D.minas.filter(m => typeof m.id === 'number' && m.pozo && D.pozos[m.pozo] && (m.abierta || Pa.bandera('mina_' + m.id + '_abierta')));
+    if(!MS.length) return '';
+    let h = '<p class="lbl">🗺️ Mapas de las minas</p><div class="shop">';
+    for(const m of MS){
+      const P = D.pozos[m.pozo];
+      if(m.id > 5 && !Pa.bandera('mapa_' + m.id)){ h += `<div class="row"><span>Mina ${m.id} · ${m.nombre}<small>🔒 Un candado. La llave está rota, al fondo de la mina.</small></span></div>`; continue; }
+      let sv = null; try{ sv = JSON.parse(localStorage.getItem(P.guardado) || 'null'); }catch(e){}
+      const R = P.ramales || [];
+      const txt = R.length ? R.map(ra => { const hecha = Pa.bandera('ramal_' + m.pozo + '_' + ra.id) || !!(sv && sv.tiros && sv.tiros[ra.id]);
+          return `A ${ra.fila + 1} m, a la ${ra.lado}: ${hecha ? '✅ investigada' : '❔ sin investigar'}`; }).join('<br>') : 'Sin galerías.';
+      h += `<div class="row"><span>Mina ${m.id} · ${m.nombre}<small>${txt}</small></span></div>`;
+    }
+    return h + '</div>';
+  }
   function panelCasa(){
     document.querySelectorAll('#plazaPuntos .punto').forEach((b, j) => b.classList.toggle('sel', j === plazaSel));
     $('plazaKit').textContent = kitTxt();
@@ -529,6 +563,9 @@ window.Pueblo = (()=>{
       if(obj) h += `<p class="lbl">Para ${obj.nombre}</p><div class="list">${Object.entries(obj.coste).map(([k, n]) => chipFalta(k, Pa.almacen[k] || 0, n)).join('')}</div>`;
       const MJ = ((D.taller && D.taller.mejoras) || []).filter(m => (Pa.pueblo.mejoras || {})[m.id]);
       if(MJ.length) h += '<p class="lbl">Mejoras</p><div class="list">' + MJ.map(m => `<span class="chip">${m.icono} ${m.nombre}</span>`).join('') + '</div>';
+      // brújula de vetas: qué mineral busca en la próxima bajada
+      if((Pa.pueblo.mejoras || {}).brujula){ const ops = Object.entries(MAT).filter(([k, m]) => m.valor && !m.futuro);
+        h += `<p class="lbl">🧭 La brújula busca</p><div class="list">${ops.map(([k, m]) => `<button class="chip${Pa.pueblo.brujula === k ? ' sel' : ''}" data-bru="${k}"><i style="background:${m.color}"></i>${m.nombre}</button>`).join('')}</div>`; }
       if(!Pa.bandera('museo_abierto')) h += `<p class="lbl">Colección · ${colTxt()}</p><div class="list">${colChips()}</div>`;
       h += '<div class="fila"><button class="btn ghost" id="borrarTodo">Empezar de cero (borra mina, almacén, colección y herramientas)</button></div>';
       cuerpo.innerHTML = h;
@@ -537,6 +574,7 @@ window.Pueblo = (()=>{
           cur = Math.min(k === 'p' ? lp : ll, guard), v = Math.max(0, Math.min(tope(k), guard, cur + +b.dataset.d));
         if(Mi && Mi.llevar) Mi.llevar(k, v); window.Sonido && window.Sonido.tocar('clic', 0.6); panelCasa(); });
       bindUng(cuerpo, HUECOS);
+      cuerpo.querySelectorAll('[data-bru]').forEach(b => b.onclick = () => { Pa.pueblo.brujula = Pa.pueblo.brujula === b.dataset.bru ? null : b.dataset.bru; Pa.guardar(); panelCasa(); });
       let armado = false;
       $('borrarTodo').onclick = () => {
         if(!armado){ armado = true; $('borrarTodo').textContent = 'Pulsa otra vez para borrarlo todo'; return; }
@@ -546,7 +584,7 @@ window.Pueblo = (()=>{
       // kits de reparación: uno para cada montacargas roto que ya hayas visto; solo se puede tener uno a la vez
       const V = Object.values(Pa.pueblo.mcVistos || {}), K = Pa.pueblo.kitMc;
       // mejoras para siempre (cada una pide dos materiales distintos)
-      const MJ = ((D.taller && D.taller.mejoras) || []).filter(m => Pa.bandera(m.desde) && (!m.necesita || Pa.coleccion[m.necesita] || Pa.bandera('viejo_pico')));
+      const MJ = ((D.taller && D.taller.mejoras) || []).filter(m => Pa.bandera(m.desde) && (!m.necesita || Pa.coleccion[m.necesita] || (m.necesita === 'pico_padre' && Pa.bandera('viejo_pico'))));
       const HM = Pa.pueblo.mejoras || {};
       let h = '';
       if(MJ.length) h += '<p class="lbl">Mejoras</p><div class="shop">' + MJ.map(m => `<div class="row"><span>${m.icono} ${m.nombre}<small>${m.texto}${HM[m.id] ? '' : ' ' + precioTxt(m.precio)}</small></span>${HM[m.id] ? '<span class="chip">Hecha</span>' : `<button data-m="${m.id}" ${Pa.puedePagar(m.precio) ? '' : 'disabled'}>Fabricar</button>`}</div>`).join('') + '</div>';
@@ -560,6 +598,8 @@ window.Pueblo = (()=>{
         const m = MJ.find(x => x.id === b.dataset.m); if(!m || (Pa.pueblo.mejoras || {})[m.id] || !Pa.puedePagar(m.precio)) return;
         for(const [k, n] of Object.entries(m.precio)) Pa.almacen[k] -= n;
         (Pa.pueblo.mejoras || (Pa.pueblo.mejoras = {}))[m.id] = true; Pa.sumarProsperidad(1); Pa.guardar();
+        // el cinturón: la próxima bajada ya te llevas la tanda nueva entera
+        const Mi = window.Mina; if(m.efecto && Mi && Mi.llevar){ if(m.efecto.tandaP) Mi.llevar('p', Mi.topeLlevar('p')); if(m.efecto.tandaL) Mi.llevar('l', Mi.topeLlevar('l')); }
         window.Sonido && window.Sonido.tocar('abrir'); panelCasa(); });
       cuerpo.querySelectorAll('button[data-j]').forEach(b => b.onclick = () => {
         const v = V[+b.dataset.j], pr = kitPrecio(v.coste); if(Pa.pueblo.kitMc || !Pa.puedePagar(pr)) return;
@@ -593,12 +633,13 @@ window.Pueblo = (()=>{
       const SEC = {mineria: '⛏️ Minería', herbario: '🌿 Herbario', mineralogia: '💎 Mineralogía', bestiario: '🦇 Bestiario'};
       let h = `<p class="lbl">Colección · ${colTxt()}</p>`;
       for(const [cat, nom] of Object.entries(SEC)){
-        const ids = Object.keys(OBJ).filter(id => (OBJ[id].categoria || 'mineria') === cat && !OBJ[id].color);
+        const ids = Object.keys(OBJ).filter(id => (OBJ[id].categoria || 'mineria') === cat && !OBJ[id].color && !OBJ[id].noColeccion);
         if(!ids.length) continue;
         h += `<p class="lbl">${nom}</p><div class="list">` + ids.map(id => Pa.coleccion[id] || Pa.visto[id]
           ? `<span class="chip" title="${OBJ[id].texto}">${OBJ[id].icono} ${OBJ[id].nombre}${Pa.coleccion[id] ? ' <b>' + Pa.coleccion[id] + '</b>' : ''}</span>`
           : '<span class="chip muted">❔ ???</span>').join('') + '</div>';
       }
+      h += mapasMuseo();
       cuerpo.innerHTML = h;
     } else if(c.tipo === 'vecino'){
       const V = (D.vecinos || {})[c.vecino] || {encargos: []}, est = Pa.vecino(c.vecino), e = V.encargos[est.hechos || 0];
@@ -655,7 +696,7 @@ window.Pueblo = (()=>{
   const ro = new ResizeObserver(() => recolocar());
   ro.observe($('mapaLienzo')); ro.observe($('plazaLienzo'));
   return {
-    mapa(){ activa = 'mapa'; mapaSel = null; esperando = false; colocarMini(); $('mapaPanel').hidden = true; requestAnimationFrame(recolocar); },
+    mapa(){ activa = 'mapa'; mapaSel = null; esperando = false; colocarMini(); $('mapaPanel').hidden = true; requestAnimationFrame(recolocar); setTimeout(eventosMapa, 450); },
     plaza(){ activa = 'plaza'; mini.nodo = D.mapa.paradas.pueblo; plazaSel = null; topo.x = SALIDA.x; topo.y = SALIDA.y; topo.camino = []; topo.alLlegar = null; irA(PL.inicio, null); requestAnimationFrame(recolocar); },
     parar(){ activa = null; },
   };

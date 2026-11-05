@@ -34,7 +34,8 @@
 //    Q  casco de la cuadrilla (coleccionable)
 //    j  hongo luminoso   R  lámpara de carburo   F  foto de una cuadrilla   w  polilla
 //    *  gas              &  barro         i  hierro         s  estaño        y  nenúfar (flotando en agua)   z  hielo
-//    T  cartel de tutorial (título, texto y, si quieres, un gif)   D  frase de Deep (con su cara)
+//    U  boca del tubo de voz (mina 5)   E  sitio de la dinamita (mina 5)   %  derrumbe (roca maciza que abre la dinamita)
+//    T  cartel de tutorial (título, texto y, si quieres, un gif)   D  frase de Deep (con su cara; con «quien», de otro)
 //       (los textos van en «textos»: { 'fila,columna': { titulo, texto, gif } } o { texto, cara })
 //
 //  Las piezas que hagas en el editor de niveles se guardan en tu navegador y se suman a estas
@@ -328,6 +329,74 @@ window.PIEZAS = [
     ],
   },
 ];
+
+// ---------- 0.301 ----------
+window.PIEZAS.push(
+  {
+    // Mina de los cuervos: el ascensor de mitad de la mina, en un hueco junto a la sala 4. Al subir en él una vez,
+    // en el mapa se puede bajar directamente hasta aquí.
+    id: 'ascensor_medio_pozo4',
+    pozo: 'cuatro',
+    tiro: 'principal',
+    colocar: { sala: 3, donde: 'encima' },
+    reflejar: true,
+    medio: true,
+    filas: [
+      'xxxxx..........',
+      'xA__p..........',
+      'xxxxx..........',
+    ],
+  },
+  {
+    // La pirámide de hielo (ramal de la mina 4): escalones de hielo de dos casillas; hacen falta escaleras (o mecha baja
+    // y paciencia: el hielo se derrite). Arriba del todo, el cofre de la cuadrilla con la brújula rota y una nota.
+    id: 'piramide_pozo4',
+    pozo: 'cuatro',
+    tiro: 'hielo_piramide',
+    colocar: { fondo: true },
+    nota: 'nota_6',
+    cofre: { texto: 'La brújula rota de la cuadrilla, 8 de estaño, 6 de hierro y 6 de cuarzo', objeto: 'brujula_rota', unico: true, material: { estano: 8, hierro: 6, cuarzo: 6 } },
+    filas: [
+      'x___xxxxxxxxxxx',
+      'x_____________x',
+      'x______B______x',
+      'x_____zzz_____x',
+      'x_____zzz_____x',
+      'x____zzzzz____x',
+      'x____zzzzz____x',
+      'x___zzzzzzz___x',
+      'x___zzzzzzz___x',
+      'xMD_zzzzzzzzzNx',
+      'xxxxxxxxxxxxxxx',
+    ],
+    textos: { '9,2': { cara: 'sorprendido', texto: 'Una pirámide de hielo… y arriba del todo, un cofre. Tendré que subir escalón a escalón.' } },
+  },
+  {
+    // El fondo del socavón del viejo (mina 5). Arriba, la cornisa con la boca del tubo de voz (U) y el sitio de la dinamita (E)
+    // junto al derrumbe (%). Detrás, el campamento de la cuadrilla: la nota, el ascensor para subir, el respiradero,
+    // las pisadas que se meten en la roca madre y una salita tapiada con roca maciza (para el taladro).
+    id: 'fondo_pozo5',
+    pozo: 'cinco',
+    tiro: 'principal',
+    colocar: { fondo: true },
+    nota: 'nota_5',
+    cofre: { texto: 'Provisiones de la cuadrilla: 10 de cobre, 8 de cuarzo, 4 escaleras y 4 puntales', material: { cobre: 10, cuarzo: 8 }, escaleras: 4, puntales: 4 },
+    filas: [
+      '...............',
+      'x_____________x',
+      'xU____________x',
+      'xpp___________x',
+      'x_____________x',
+      'x__________E__x',
+      'x%%%%%%%%%%%%%x',
+      'x%%%%%%%%%%%%%x',
+      'x_________xxxxx',
+      'x__________m__x',
+      'x_N_I_A_V_Dm_Bx',
+    ],
+    textos: { '10,10': { cara: 'pensativo', texto: 'Pisadas… Se meten en la roca madre, como si la roca se hubiera cerrado detrás de ellos. Siguieron adelante.' } },
+  },
+);
 
 // piezas del juego más las del editor de niveles guardadas en este navegador (solo las marcadas como activas)
 window.piezasActivas = () => {

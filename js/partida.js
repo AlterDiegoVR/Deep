@@ -13,7 +13,10 @@ window.Partida = (()=>{
   //   banderas     marcas sueltas de la historia: { 'pico_padre': true, ... }
   const puebloNuevo = () => ({ dia: 1, prosperidad: 0, casas: D.casas.map(c => c.id), encargos: {}, banderas: {} });
   // 0.300: el primer encargo de la ardilla ahora enseña el tónico de vuelta (los pulmones de topo pasan a la mina 3)
-  const migrar = Pu => { if(Pu.encargos && Pu.encargos.hongos_1 === 'hecho' && Pu.banderas && !Pu.banderas.receta_tonico) Pu.banderas.receta_tonico = true; return Pu; };
+  const migrar = Pu => { if(Pu.encargos && Pu.encargos.hongos_1 === 'hecho' && Pu.banderas && !Pu.banderas.receta_tonico) Pu.banderas.receta_tonico = true;
+    // 0.301: los vecinos llegan tras la mina 5; los que ya conocías se quedan
+    const V = Pu.vecinos || {}; for(const id of ['castor', 'marmota', 'gemelos']) if(V[id] && V[id].intro && Pu.banderas) Pu.banderas['llega_' + id] = true;
+    return Pu; };
   const P = {
     almacen: load('pozoviejo-almacen', {}),
     kit: load('pozoviejo-kit', {...D.herramientas.inicial}),

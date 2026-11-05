@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.300',
+  version: '0.301',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -328,7 +328,8 @@ window.DATOS = {
       texto: 'El pozo del agua: galerías inundadas, pozas hondas y aire que hay que vigilar. Tiene una noria vieja y una galería de la cuadrilla. Está cerrada: se abre con materiales de la Cantera del molino.' },
     { id: 4, boca: [150, 475], nombre: 'Mina de los cuervos', abierta: false, pozo: 'cuatro', desbloqueo: { hierro: 30, cobre: 10 },
       texto: 'La mina del hielo: galerías heladas, una cascada congelada y el nido de los murciélagos. Estaño entre el hielo. Se abre con hierro de la Galería del río.' },
-    { id: 5, boca: [267, 150], nombre: 'El socavón del viejo', abierta: false, texto: 'Junto a la casa del viejo topo. Próximamente.' },
+    { id: 5, boca: [267, 150], nombre: 'El socavón del viejo', abierta: false, pozo: 'cinco',
+      texto: 'El socavón junto a la casa del viejo topo. Por aquí bajó la cuadrilla aquel día. No hay mineral que sacar: lo que hay ahí dentro es otra cosa.' },
     { id: 6, boca: [22, 407], nombre: 'Cueva de las arenas', abierta: false, texto: 'Próximamente.' },
     { id: 7, boca: [30, 250], nombre: 'Pozo del gas',        abierta: false, texto: 'Próximamente.' },
     { id: 8, boca: [37, 145], nombre: 'La sima',             abierta: false, texto: 'Próximamente.' },
@@ -521,8 +522,11 @@ window.DATOS = {
         { nombre: 'Hielo viejo',            largo: 28 },
         { nombre: 'El nido de los cuervos', largo: 30 },
         { nombre: 'Galerías de escarcha',   largo: 32 },
-        { nombre: 'El fondo helado',        largo: 34 },
+        { nombre: 'Grietas de hielo azul',  largo: 34 },
+        { nombre: 'El hielo eterno',        largo: 36 },
+        { nombre: 'El fondo helado',        largo: 36 },
       ],
+      version: 1,                  // 0.301: más larga (9 tramos), con ascensor a mitad y la pirámide de hielo
       conFondo: true,
       altoSala: 4,
       escasez: 0.03,
@@ -547,9 +551,44 @@ window.DATOS = {
       ],
       ramales: [
         { id: 'hielo_campamento', nombre: 'El campamento helado', fila: 70, lado: 'derecha', largo: 30 },
+        { id: 'hielo_piramide',   nombre: 'La pirámide de hielo', fila: 150, lado: 'izquierda', largo: 26 },
       ],
       contenido: { salaSellada: false, grisu: false, barro: false },
       desdeTramo: { carbon: 1, cobre: 2, cuarzo: 3, cuevas: 0, agua: 2, polillas: 9 },
+    },
+    // Pozo 5 (mina 5, el socavón del viejo): una mina sencilla, sin hielo y con poca agua, y sin mineral propio.
+    // Se baja escuchando al viejo topo, que habla desde arriba por el tubo de voz de los mineros («voces»: a qué metro).
+    // Al fondo (js/piezas.js), el derrumbe de aquel día: la dinamita de la bolsa del viejo, el tubo para avisarle,
+    // y detrás, el campamento de la cuadrilla, sus pisadas, una sala tapiada con roca maciza y el respiradero.
+    cinco: {
+      nombre: 'El socavón del viejo',
+      real: true,
+      guardado: 'deep-pozo5',
+      columnas: 15,
+      tramos: [
+        { nombre: 'La boca del socavón',      largo: 14 },
+        { nombre: 'El tubo de voz',           largo: 18 },
+        { nombre: 'Las galerías de la cuadrilla', largo: 22 },
+        { nombre: 'El derrumbe',              largo: 22 },
+      ],
+      conFondo: true,
+      altoSala: 4,
+      escasez: 0.04,
+      arenaUmbral: 0.88,
+      aguaUmbral: 0.8,             // poca agua
+      montacargasCada: 2,
+      sueltos: {},                 // esta mina no tiene planta
+      contenido: { salaSellada: false, grisu: false, barro: false, puertas: false, llaves: false, ramales: false },
+      desdeTramo: { carbon: 0, cobre: 1, cuarzo: 2, cuevas: 0, agua: 2, polillas: 1 },
+      // lo que cuenta el viejo por el tubo de voz al llegar a cada metro (una sola vez)
+      voces: [
+        { metro: 3,  cara: 'pensativo', texto: '¿Me oyes, chaval? Es el tubo de voz de los mineros: baja por todo el socavón. Yo me quedo aquí arriba.' },
+        { metro: 14, cara: 'pensativo', texto: 'Los topos nunca sabíamos por qué mina bajar para llegar al corazón. Cada vez era otra. Como si el camino cambiara. Por eso hay tantas minas.' },
+        { metro: 30, cara: 'triste',    texto: 'Aquel día bajamos todos por aquí. Yo iba el último. Hubo una explosión, el techo se vino abajo… Ellos quedaron debajo. Yo, arriba.' },
+        { metro: 46, cara: 'cansado',   texto: 'Estuve días picando. Solo. No pude abrir ni un palmo. Y desde entonces… desde entonces no he vuelto a bajar.' },
+        { metro: 62, cara: 'pensativo', texto: 'La montaña necesita a los topos, ¿sabes? Limpiamos sus respiraderos. Sin nosotros se ahoga. Por eso el valle está tan seco.' },
+        { metro: 74, cara: 'gruñon',    texto: 'Ya casi estás. Al fondo verás el derrumbe. Abre la bolsa cuando llegues.' },
+      ],
     },
   },
 
@@ -592,6 +631,14 @@ window.DATOS = {
                       texto: 'Una hoja redonda con una flor pálida que brilla un poco. Flota en las pozas de la Galería del río.' },
     campanilla:     { nombre: 'Campanilla de nieve', plural: 'campanillas de nieve', categoria: 'herbario', icono: '❄️', dibujo: 'campanilla', brilla: true, mina: 4,
                       texto: 'Una florecilla blanca que asoma entre el hielo. Crece en la Mina de los cuervos.' },
+    nota_5:         { nombre: 'Nota de la cuadrilla (5)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
+                      texto: '«El viejo se ha quedado arriba: le ha caído el techo delante de las narices. Estará bien. Nosotros seguimos: el camino se abre por dentro de la roca, como si la montaña nos dejara pasar. Le dejamos el tubo de voz, por si nos oye.»' },
+    nota_6:         { nombre: 'Nota de la cuadrilla (6)', categoria: 'mineria', icono: '📜', dibujo: 'nota',
+                      texto: '«Subimos a la cima del hielo para ver el valle desde dentro. Hasta aquí llega el calor del corazón. Hemos dejado la brújula: ya no nos sirve; el camino nos lo dice la montaña.»' },
+    brujula_rota:   { nombre: 'Brújula rota', categoria: 'mineria', icono: '🧭', dibujo: 'reliquia', brilla: true, unico: true,   // en el cofre de la pirámide de hielo (mina 4)
+                      texto: 'Una brújula de la cuadrilla. La aguja no apunta al norte: tiembla cerca del mineral. Está rota.' },
+    bolsa_viejo:    { nombre: 'Bolsa del viejo', categoria: 'mineria', icono: '👝', dibujo: 'reliquia', noColeccion: true,
+                      texto: 'Una bolsa de cuero que pesa más de lo que parece. El viejo topo no ha dicho qué lleva.' },
     taladro_viejo:  { nombre: 'Taladro viejo', categoria: 'mineria', icono: '🔩', dibujo: 'reliquia',
                       texto: 'El taladro de la vitrina del museo, de la época dorada. Está oxidado, pero el tejón dice que tiene arreglo.' },
     pieza_ascensor: { nombre: 'Pieza del ascensor', categoria: 'mineria', icono: '⚙️', dibujo: 'pieza',
@@ -649,6 +696,7 @@ window.DATOS = {
   // ---------- Taller del tejón: mejoras para siempre ----------
   // REGLA: cada mejora pide dos materiales distintos. «desde»: bandera con la que aparece (por ejemplo, abrir una mina).
   //   efecto: mochila (x capacidad) · golpe (golpes menos al picar, mínimo uno) · taladro (rompe la roca maciza)
+  //           brujula (flecha al mineral elegido) · garfio (escalas desde cualquier peldaño) · faroles (cuántos por bajada) · tandaP / tandaL (puntales y escaleras de más por bajada)
   //   necesita: algo que tiene que estar en tu colección (el pico, el taladro viejo…)
   taller: {
     mejoras: [
@@ -658,6 +706,17 @@ window.DATOS = {
         texto: 'Un golpe menos al picar.', necesita: 'pico_padre' },
       { id: 'taladro', icono: '🔩', nombre: 'Taladro de la época dorada', desde: 'temblor_mina5', precio: { cobre: 12, cuarzo: 6 }, efecto: { taladro: 1 },
         texto: 'Rompe la roca maciza.', necesita: 'taladro_viejo' },
+      // 0.301: la brújula de la pirámide de hielo, y lo que el tejón puede hacer cuando el pueblo empieza a revivir
+      { id: 'brujula', icono: '🧭', nombre: 'Brújula de vetas', desde: 'mina_4_abierta', precio: { estano: 10, cuarzo: 6 }, efecto: { brujula: 1 },
+        texto: 'Señala el mineral que elijas en el almacén.', necesita: 'brujula_rota' },
+      { id: 'mochila_2', icono: '🎒', nombre: 'Mochila de lona encerada', desde: 'tejon_comercio', precio: { estano: 20, arcilla: 30 }, efecto: { mochila: 1.3 },
+        texto: '+30 % de mochila.' },
+      { id: 'garfio', icono: '🪝', nombre: 'Garfio para escalas', desde: 'tejon_comercio', precio: { hierro: 12, arcilla: 15 }, efecto: { garfio: 1 },
+        texto: 'Recoges las escalas desde cualquier peldaño.' },
+      { id: 'faroles', icono: '🏮', nombre: 'Faroles', desde: 'tejon_comercio', precio: { carbon: 20, estano: 8 }, efecto: { faroles: 3 },
+        texto: '3 por bajada. Mantén Mecha para colgarlos.' },
+      { id: 'cinturon', icono: '🧰', nombre: 'Cinturón de herramientas', desde: 'tejon_comercio', precio: { cobre: 12, arcilla: 25 }, efecto: { tandaP: 6, tandaL: 4 },
+        texto: 'Bajas con 6 puntales y 4 escaleras más.' },
     ],
   },
 
@@ -708,7 +767,9 @@ window.DATOS = {
       { si: 'museo_abierto', texto: 'He entrado en el museo. Polvo, vitrinas, fotos de topos sonriendo. En una de ellas estaba papá, muy joven. Me he llevado el taladro de la vitrina. Creo que a él le habría parecido bien.' },
       { si: 'respiradero_3', texto: 'Ha llegado un castor al pueblo. ¡Un vecino nuevo! Dice que ha oído que esto vuelve a ser un buen sitio. La plaza está un poco más verde. No es mucho, pero es algo.' },
       { si: 'respiradero_4', texto: 'Una marmota se ha mudado a la casa de paja. Duerme más que yo. El pueblo se llena de ruido otra vez y me gusta.' },
-      { si: 'viejo_mina5', texto: 'El viejo topo me ha cerrado el paso al socavón. Nunca le había visto tan serio. ¿Qué hay ahí dentro que no quiere que vea?' },
+      { si: 'mina_5_abierta', texto: 'El viejo topo me ha contado lo de aquel día. Iba a bajar con ellos. Me ha dado una bolsa y no me ha dicho qué lleva. Mañana bajo al socavón.' },
+      { si: 'temblor_mina5', texto: 'Era dinamita. El viejo la hizo estallar desde arriba y tembló toda la montaña. Detrás del derrumbe estaba su campamento, y sus pisadas se meten en la roca. Siguieron adelante. Papá siguió adelante.' },
+      { si: 'viejo_verdad', texto: 'El viejo dice que la montaña necesita a los topos para respirar. Me ha dado la dinamita que sobró. Hay tres minas al oeste del pueblo.' },
     ],
   },
 
@@ -734,17 +795,18 @@ window.DATOS = {
     { id: 'taller',   nombre: 'Taller del tejón', dueno: 'El tejón',     tipo: 'taller',  color: '#df7126' },
     { id: 'alcaldia', nombre: 'Ayuntamiento',    dueno: 'El alcalde',    tipo: 'alcaldia', color: '#3f3f74' },
     { id: 'casa',     nombre: 'Casa de Deep',   dueno: 'Tu casa',       tipo: 'casa',    color: '#37946e' },
-    // cerradas al principio: el museo lo recuperará Deep; en las casas de paja irán llegando vecinos nuevos.
+    // cerradas al principio: el museo lo recuperará Deep; en las casas de paja irán llegando vecinos nuevos
+    //   (0.301: el castor llega tras la explosión de la mina 5; la marmota y los gemelos, al terminar cada una de las minas siguientes).
     //   abreCon: bandera con la que se abre · abierta: cómo queda (nombre, dueño, tipo y, si es de un vecino, cuál).
     //   Al abrirse, en la plaza se dibuja la casa abierta (la de la imagen verde).
     { id: 'museo',    nombre: 'Museo de minería', dueno: 'Cerrado',      tipo: 'cerrada', texto: 'El viejo museo de minería. Las puertas están clavadas con tablas y el letrero, comido por el polvo.',
       abreCon: 'museo_abierto', abierta: { dueno: 'Tu colección', tipo: 'museo' } },   // la cadena del museo empieza tras el temblor de la mina 5
     { id: 'paja1',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Las ventanas están tapadas con tablas. Hace años que aquí no vive nadie.',
-      abreCon: 'respiradero_3', abierta: { nombre: 'Casa del castor', dueno: 'El castor', tipo: 'vecino', vecino: 'castor' } },
+      abreCon: 'llega_castor', abierta: { nombre: 'Casa del castor', dueno: 'El castor', tipo: 'vecino', vecino: 'castor' } },
     { id: 'paja2',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Una casita de paja con la puerta clavada. Alguien dejó unas macetas secas en la ventana.',
-      abreCon: 'respiradero_4', abierta: { nombre: 'Casa de la marmota', dueno: 'La marmota', tipo: 'vecino', vecino: 'marmota' } },
+      abreCon: 'llega_marmota', abierta: { nombre: 'Casa de la marmota', dueno: 'La marmota', tipo: 'vecino', vecino: 'marmota' } },
     { id: 'paja3',    nombre: 'Casa tapiada',   dueno: 'Nadie',         tipo: 'cerrada', texto: 'Tapiada. Por una rendija se ven muebles cubiertos con sábanas.',
-      abreCon: 'respiradero_6', abierta: { nombre: 'Casa de los gemelos', dueno: 'Los gemelos', tipo: 'vecino', vecino: 'gemelos' } },
+      abreCon: 'llega_gemelos', abierta: { nombre: 'Casa de los gemelos', dueno: 'Los gemelos', tipo: 'vecino', vecino: 'gemelos' } },
   ],
 
   // =====================================================================

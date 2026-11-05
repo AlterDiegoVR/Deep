@@ -356,3 +356,11 @@ label.chip.llevar{margin:0;cursor:pointer}
 #plazaPanel.crece:not(.completa){max-height:80%}
 .burbujaAsp{position:relative;margin-top:4px;background:#fff6e8;border:2px solid var(--madera-oo);border-radius:12px;padding:8px 12px;font-weight:800;font-size:16px}
 .burbujaAsp::before{content:'';position:absolute;top:-9px;left:24px;border:8px solid transparent;border-top:0;border-bottom-color:var(--madera-oo)}
+
+/* 0.301: aviso pequeño en el mapa (minas regeneradas) y brújula del almacén */
+.banner{position:absolute;z-index:6;left:50%;top:52px;transform:translateX(-50%);width:min(340px, calc(100% - 24px));background:var(--perg-c);color:var(--tinta);
+  border:3px solid var(--madera-oo);border-radius:12px;padding:8px 12px;font-weight:800;font-size:14px;line-height:1.3;box-shadow:0 4px 0 var(--madera-oo);animation:burbuja .25s ease-out;transition:opacity .5s;cursor:pointer}
+.banner.fuera{opacity:0}
+.banner[hidden]{display:none}
+button.chip{cursor:pointer;font:inherit}
+button.chip.sel{background:#fff3c4;border-color:#df7126}
