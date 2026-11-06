@@ -521,7 +521,9 @@ window.Arcade = (()=>{
     _borrar(){ prog = nuevoProg(); guardar(); } };
 })();
 
-// 0.302: en el móvil, al primer toque se pone a pantalla completa (fuera la barra del navegador). En iPhone no se puede.
-(() => { const ir = () => { const d = document.documentElement;
-  if(!document.fullscreenElement && d.requestFullscreen && matchMedia('(hover:none)').matches) d.requestFullscreen({navigationUI: 'hide'}).catch(() => {}); };
-  addEventListener('pointerdown', ir, {once: true}); })();
+// En el móvil, al primer toque se pone a pantalla completa (fuera la barra del navegador). En iPhone no se puede.
+// 0.302b: con el dedo, el navegador solo lo deja al LEVANTARLO (touchend / pointerup), no al apretar.
+(() => { const d = document.documentElement; let hecho = false;
+  const ir = () => { if(hecho || document.fullscreenElement || !d.requestFullscreen || !matchMedia('(hover:none)').matches) return;
+    d.requestFullscreen({navigationUI: 'hide'}).then(() => { hecho = true; }).catch(() => {}); };
+  addEventListener('touchend', ir, {passive: true}); addEventListener('pointerup', ir); })();
