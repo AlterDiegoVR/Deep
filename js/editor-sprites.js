@@ -38,6 +38,7 @@ window.EditorSprites = (()=>{
       <select id="spQuien" title="Personaje"></select>
       <select id="spAnim" title="Animación"></select>
       <button id="spDeshacer" title="Ctrl+Z">Deshacer</button>
+      <button id="spDescartar" title="Vuelve a como estaba la última vez que guardaste (o al original si nunca has guardado)">Descartar cambios</button>
       <span class="ed-hueco"></span>
       <button id="spGuardar" class="pri">Guardar</button>
       <button id="spExportar">Exportar</button>
@@ -67,6 +68,7 @@ window.EditorSprites = (()=>{
           <p>Cada personaje tiene animaciones (<b>quieto</b> y <b>andar</b>) hechas de <b>fotogramas</b> de 32 × 31 casillas. Mira a la derecha: para la izquierda, el juego lo refleja.</p>
           <p>Para cambiar el orden de la animación, arrastra un fotograma en la tira de abajo o usa «Mover ◀ ▶».</p>
           <p>Pinta casilla a casilla. «Ver el anterior» enseña en transparencia el fotograma de antes, para que los pies avancen bien.</p>
+          <p><b>Descartar cambios</b> vuelve a como estaba la última vez que guardaste; <b>Borrar mi versión</b> vuelve al original del juego.</p>
           <p><b>Guardar</b> lo deja en este navegador. Si «Usar en el juego» está marcado, el juego lo usa al recargar la página. <b>Exportar</b> descarga un archivo para pasárselo a Claude.</p>
         </div></details></section>
         <section><h3>Así se ve</h3>
@@ -87,6 +89,7 @@ window.EditorSprites = (()=>{
     document.querySelectorAll('#sprEd .ed-herr button').forEach(b => b.onclick = () => { herr = b.dataset.h; marcar(); });
     $('spVolver').onclick = () => siCambios(() => window.Pantallas.mostrar('mapa'));
     $('spDeshacer').onclick = deshacer;
+    $('spDescartar').onclick = () => { if(!cambiado) return aviso('No hay cambios que descartar'); if(confirmar('¿Descartar todos los cambios desde la última vez que guardaste?')){ cambiado = false; const a = anim, f = fr; cargar(id); if(sp.anims[a]){ anim = a; $('spAnim').value = a; fr = Math.min(f, sp.anims[a].length - 1); pintarTodo(); } aviso('Cambios descartados'); } };
     $('spGuardar').onclick = guardar;
     $('spExportar').onclick = exportar;
     $('spImportar').onchange = importar;
