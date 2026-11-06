@@ -387,3 +387,5 @@ button.chip.sel{background:#fff3c4;border-color:#df7126}
 #edComprobarTabla td, #edComprobarTabla th{padding:1px 6px;text-align:right} #edComprobarTabla td:first-child{text-align:left}
 #edComprobarTabla tr.dif td{color:#ac3232;font-weight:900}
 #sprEd .ed-scroll{flex:none}
+.sp-tira canvas.destino{border-color:#df7126;transform:translateY(-3px)}
+.sp-tira canvas.arrastra{opacity:.5}

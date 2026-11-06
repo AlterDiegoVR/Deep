@@ -25,6 +25,7 @@ window.EditorSprites = (()=>{
   const guardarTodos = s => { try{ localStorage.setItem(CLAVE, JSON.stringify({sprites: s})); }catch(e){ aviso('No se ha podido guardar'); } };
 
   // ---------- estado ----------
+  let moverTira = null;
   let sp = null, id = 'deep', anim = 'andar', fr = 0, color = '0', herr = 'lapiz', hist = [], cebolla = true, espejo = false, cambiado = false, montado = false, abierto = false, anT = 0, anF = 0, raf = 0;
   const F = () => sp.anims[anim][fr];
   const set = (g, x, y, c) => { if(x < 0 || x >= W || y < 0 || y >= H) return; const r = g[y]; g[y] = r.slice(0, x) + c + r.slice(x + 1); };
@@ -55,6 +56,7 @@ window.EditorSprites = (()=>{
         <div class="ed-filas">
           <button id="spAntes">◀</button><span id="spNum"></span><button id="spDespues">▶</button>
           <button id="spDup">Duplicar fotograma</button><button id="spBorrarF">Borrar fotograma</button>
+          <button id="spMovIzq" title="Mover este fotograma un sitio antes">Mover ◀</button><button id="spMovDer" title="Mover este fotograma un sitio después">Mover ▶</button>
           <button id="spReflejar">Reflejar ↔</button>
           <label class="ed-check sp-chk"><input type="checkbox" id="spCebolla" checked> Ver el anterior</label>
         </div>
@@ -63,6 +65,7 @@ window.EditorSprites = (()=>{
       <aside class="ed-der">
         <section><details><summary><b>¿Cómo funciona?</b></summary><div class="ed-ayuda">
           <p>Cada personaje tiene animaciones (<b>quieto</b> y <b>andar</b>) hechas de <b>fotogramas</b> de 32 × 31 casillas. Mira a la derecha: para la izquierda, el juego lo refleja.</p>
+          <p>Para cambiar el orden de la animación, arrastra un fotograma en la tira de abajo o usa «Mover ◀ ▶».</p>
           <p>Pinta casilla a casilla. «Ver el anterior» enseña en transparencia el fotograma de antes, para que los pies avancen bien.</p>
           <p><b>Guardar</b> lo deja en este navegador. Si «Usar en el juego» está marcado, el juego lo usa al recargar la página. <b>Exportar</b> descarga un archivo para pasárselo a Claude.</p>
         </div></details></section>
@@ -91,6 +94,11 @@ window.EditorSprites = (()=>{
     $('spDespues').onclick = () => { fr = (fr + 1) % sp.anims[anim].length; pintarTodo(); };
     $('spDup').onclick = () => { apuntar(); sp.anims[anim].splice(fr + 1, 0, F().slice()); fr++; tocar(); };
     $('spBorrarF').onclick = () => { if(sp.anims[anim].length < 2) return aviso('Tiene que quedar al menos un fotograma'); apuntar(); sp.anims[anim].splice(fr, 1); fr = Math.max(0, fr - 1); tocar(); };
+    // mover el fotograma de sitio dentro de la animación (también arrastrándolo en la tira de abajo)
+    const mover = (de, a) => { const L = sp.anims[anim]; if(a < 0 || a >= L.length || a === de) return; apuntar(); const [g] = L.splice(de, 1); L.splice(a, 0, g); fr = a; tocar(); };
+    $('spMovIzq').onclick = () => mover(fr, fr - 1);
+    $('spMovDer').onclick = () => mover(fr, fr + 1);
+    moverTira = mover;
     $('spReflejar').onclick = () => { apuntar(); sp.anims[anim][fr] = F().map(r => r.split('').reverse().join('')); tocar(); };
     $('spCebolla').onchange = () => { cebolla = $('spCebolla').checked; dibujar(); };
     $('spEspejo').onchange = () => { espejo = $('spEspejo').checked; };
@@ -154,7 +162,12 @@ window.EditorSprites = (()=>{
   }
   function pintarTira(){
     $('spNum').textContent = `${fr + 1} / ${sp.anims[anim].length}`;
-    $('spTira').innerHTML = ''; sp.anims[anim].forEach((g, i) => { const c = document.createElement('canvas'); c.width = W*2; c.height = H*2; c.className = i === fr ? 'sel' : ''; pintarFrame(c.getContext('2d'), g, 0, 0, 2); c.onclick = () => { fr = i; pintarTodo(); }; $('spTira').appendChild(c); });
+    $('spTira').innerHTML = ''; sp.anims[anim].forEach((g, i) => { const c = document.createElement('canvas'); c.width = W*2; c.height = H*2; c.className = i === fr ? 'sel' : ''; pintarFrame(c.getContext('2d'), g, 0, 0, 2); c.onclick = () => { fr = i; pintarTodo(); };
+      c.draggable = true; c.title = 'Fotograma ' + (i + 1) + ' (arrástralo para cambiarlo de sitio)';
+      c.ondragstart = e => { e.dataTransfer.setData('text/plain', '' + i); c.classList.add('arrastra'); };
+      c.ondragover = e => { e.preventDefault(); c.classList.add('destino'); }; c.ondragleave = () => c.classList.remove('destino');
+      c.ondrop = e => { e.preventDefault(); const de = +e.dataTransfer.getData('text/plain'); if(moverTira) moverTira(de, i); };
+      $('spTira').appendChild(c); });
   }
   function pintarTodo(){ dibujar(); pintarTira(); pintarPaleta(); }
   // vista previa: anima la animación elegida (si es «quieto», alterna quieto y andar)
