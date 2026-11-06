@@ -16,16 +16,18 @@ window.EditorSprites = (()=>{
 
   // ---------- qué se puede editar ----------
   const original = id => {
-    if(id === 'deep'){ const T = window.SPRITES.topo; return {nombre: 'Deep', pal: T.pal, anims: {reposo: T.anims.reposo, andar: T.anims.andar}}; }
+    // 0.302e: todas las animaciones de Deep (y el tropiezo); el original sale de ORIG_DEEP, guardado antes de aplicar tu versión
+    if(id === 'deep'){ const T = window.ORIG_DEEP || window.SPRITES.topo; return {nombre: 'Deep', pal: T.pal, anims: Object.assign({}, T.anims, T.tropiezo ? {tropiezo: T.tropiezo} : {})}; }
     const P = window.PASEANTES[id]; return P ? {nombre: P.nombre, pal: P.pal, anims: P.anims} : null;
   };
   const LISTA = () => [['deep', 'Deep'], ...Object.entries(window.PASEANTES).map(([k, p]) => [k, p.nombre])];
+  const NOMBRE_ANIM = {reposo: 'Quieto', andar: 'Andar', picar_lado: 'Picar de lado', picar_abajo: 'Picar abajo', caer: 'Caer', caida_larga: 'Caída larga', tropiezo: 'Tropiezo'};
   const copia = o => JSON.parse(JSON.stringify(o));
   const guardados = () => { try{ return (JSON.parse(localStorage.getItem(CLAVE) || '{}') || {}).sprites || {}; }catch(e){ return {}; } };
   const guardarTodos = s => { try{ localStorage.setItem(CLAVE, JSON.stringify({sprites: s})); }catch(e){ aviso('No se ha podido guardar'); } };
 
   // ---------- estado ----------
-  let moverTira = null;
+  let moverTira = null, portapapeles = null;
   let sp = null, id = 'deep', anim = 'andar', fr = 0, color = '0', herr = 'lapiz', hist = [], cebolla = true, espejo = false, cambiado = false, montado = false, abierto = false, anT = 0, anF = 0, raf = 0;
   const F = () => sp.anims[anim][fr];
   const set = (g, x, y, c) => { if(x < 0 || x >= W || y < 0 || y >= H) return; const r = g[y]; g[y] = r.slice(0, x) + c + r.slice(x + 1); };
@@ -59,6 +61,9 @@ window.EditorSprites = (()=>{
           <button id="spDup">Duplicar fotograma</button><button id="spBorrarF">Borrar fotograma</button>
           <button id="spMovIzq" title="Mover este fotograma un sitio antes">Mover ◀</button><button id="spMovDer" title="Mover este fotograma un sitio después">Mover ▶</button>
           <button id="spReflejar">Reflejar ↔</button>
+          <button id="spCopiar" title="Copia este fotograma para pegarlo en esta u otra animación">Copiar</button>
+          <button id="spPegar" title="Sustituye este fotograma por el copiado">Pegar encima</button>
+          <button id="spPegarNuevo" title="Añade el copiado como fotograma nuevo, detrás de este">Pegar como nuevo</button>
           <label class="ed-check sp-chk"><input type="checkbox" id="spCebolla" checked> Ver el anterior</label>
         </div>
         <div class="sp-tira" id="spTira"></div>
@@ -66,6 +71,7 @@ window.EditorSprites = (()=>{
       <aside class="ed-der">
         <section><details><summary><b>¿Cómo funciona?</b></summary><div class="ed-ayuda">
           <p>Cada personaje tiene animaciones (<b>quieto</b> y <b>andar</b>) hechas de <b>fotogramas</b> de 32 × 31 casillas. Mira a la derecha: para la izquierda, el juego lo refleja.</p>
+          <p>Para llevar un fotograma a otra animación: <b>Copiar</b>, eliges la otra animación y <b>Pegar encima</b> (sustituye) o <b>Pegar como nuevo</b> (lo añade).</p>
           <p>Para cambiar el orden de la animación, arrastra un fotograma en la tira de abajo o usa «Mover ◀ ▶».</p>
           <p>Pinta casilla a casilla. «Ver el anterior» enseña en transparencia el fotograma de antes, para que los pies avancen bien.</p>
           <p><b>Descartar cambios</b> vuelve a como estaba la última vez que guardaste; <b>Borrar mi versión</b> vuelve al original del juego.</p>
@@ -102,6 +108,11 @@ window.EditorSprites = (()=>{
     $('spMovIzq').onclick = () => mover(fr, fr - 1);
     $('spMovDer').onclick = () => mover(fr, fr + 1);
     moverTira = mover;
+    // copiar y pegar fotogramas entre animaciones (y entre personajes)
+    $('spCopiar').onclick = () => { portapapeles = {g: F().slice(), pal: Object.assign({}, sp.pal)}; aviso('Fotograma copiado: elige otra animación y pégalo'); };
+    const pegado = () => portapapeles.g.map(r => [...r].map(c => c === '.' ? '.' : (sp.pal[c] && sp.pal[c] === portapapeles.pal[c]) ? c : letraDe(portapapeles.pal[c] || '#ff00ff')).join(''));
+    $('spPegar').onclick = () => { if(!portapapeles) return aviso('Primero copia un fotograma'); apuntar(); sp.anims[anim][fr] = pegado(); tocar(); };
+    $('spPegarNuevo').onclick = () => { if(!portapapeles) return aviso('Primero copia un fotograma'); apuntar(); sp.anims[anim].splice(fr + 1, 0, pegado()); fr++; tocar(); };
     $('spReflejar').onclick = () => { apuntar(); sp.anims[anim][fr] = F().map(r => r.split('').reverse().join('')); tocar(); };
     $('spCebolla').onchange = () => { cebolla = $('spCebolla').checked; dibujar(); };
     $('spEspejo').onchange = () => { espejo = $('spEspejo').checked; };
@@ -184,7 +195,7 @@ window.EditorSprites = (()=>{
     id = nuevo; const g = guardados()[id], o = original(id);
     sp = copia(g ? {nombre: o.nombre, pal: Object.assign({}, o.pal, g.pal), anims: Object.assign({}, o.anims, g.anims), activa: g.activa !== false} : Object.assign({activa: true}, o));
     anim = sp.anims[anim] ? anim : 'andar'; fr = 0; hist = []; cambiado = false; $('spGuardar').textContent = 'Guardar';
-    $('spQuien').value = id; $('spAnim').innerHTML = Object.keys(sp.anims).map(a => `<option value="${a}">${a === 'reposo' ? 'Quieto' : a === 'andar' ? 'Andar' : a}</option>`).join(''); $('spAnim').value = anim;
+    $('spQuien').value = id; $('spAnim').innerHTML = Object.keys(sp.anims).map(a => `<option value="${a}">${NOMBRE_ANIM[a] || a}</option>`).join(''); $('spAnim').value = anim;
     $('spActivo').checked = sp.activa !== false;
     color = Object.keys(sp.pal)[0]; pintarTodo(); marcar();
   }
