@@ -1,7 +1,7 @@
 import json
 from PIL import Image, ImageDraw, ImageFont
 exec(open('herr.py').read().split('# ---- pico del padre')[0])   # D, pal, put
-pal.update({'Q':'#df7126','R':'#fbf236','S':'#9badb7','V':'#595652','Y':'#fbf236','O':'#df7126'})
+pal.update({'Q':'#b8862f','R':'#e3b85a','S':'#9badb7','V':'#595652','Y':'#fbf236','O':'#df7126'})
 # 1) pico del padre: toda la cabeza del pico naranja dorado
 def pico_padre(fr):
     f=list(fr)
@@ -19,19 +19,25 @@ def sin_pico(fr):
     return f
 # 2) taladrar hacia abajo: el taladro en vertical, delante de Deep, la broca hacia el suelo
 def tal_abajo(k):
+    # como Mr. Driller: el taladro delante de Deep, agarrado con las dos manos, la broca hacia el suelo entre las patas
     f=sin_pico(D['anims']['reposo'][0])
-    cuerpo=['000000','0YYYO0','0YOYO0','0OOOO0','000000']
+    for y,xs in ((14,range(17,19)),(15,range(16,20)),(16,range(17,20))):
+        for x in xs: put(f,y,x,'.')   # fuera la mano del pico
+    cuerpo=['.0000000.','0YYYYYYO0','0YOYYYOO0','0OOOOOOO0','.0000000.']
     for j,row in enumerate(cuerpo):
-        for i,c in enumerate(row): put(f,16+j,18+i,c)
+        for i,c in enumerate(row):
+            if c!='.': put(f,17+j,5+i,c)
+    for y in (18,19):  # manos a los lados
+        put(f,y,4,'k'); put(f,y,14,'k')
+    put(f,17,4,'0'); put(f,20,4,'0'); put(f,17,14,'0'); put(f,20,14,'0'); put(f,18,3,'0'); put(f,19,3,'0'); put(f,18,15,'0'); put(f,19,15,'0')
     a,b=('S','V') if k%2==0 else ('V','S')
-    for j,y in enumerate(range(21,28)):
-        w = 2 if j<4 else 1
-        x0 = 20 - (1 if j<4 else 0)
-        for i in range(w+ (1 if j<4 else 0)):
-            put(f,y,x0+i, a if (j+i)%2==0 else b)
-        put(f,y,x0-1,'0'); put(f,y,x0+w+(1 if j<4 else 0),'0')
-    put(f,28,20,'0')
-    CH=[[(29,18,'b'),(29,22,'n'),(28,23,'b')],[(29,21,'b'),(28,17,'n'),(30,19,'b')],[(30,22,'b'),(29,19,'n'),(28,23,'n')]][k%3]
+    for j,y in enumerate(range(22,29)):
+        w = 3 if j<3 else (2 if j<5 else 1)
+        x0 = 9 - (w//2)
+        for i in range(w): put(f,y,x0+i, a if (j+i)%2==0 else b)
+        put(f,y,x0-1,'0'); put(f,y,x0+w,'0')
+    put(f,29,9,'0')
+    CH=[[(30,7,'b'),(30,11,'n'),(29,12,'b')],[(30,9,'b'),(29,6,'n'),(30,12,'b')],[(30,6,'b'),(30,10,'n'),(29,12,'n')]][k%3]
     for y,x,c in CH: put(f,y,x,c)
     return f
 # 3) picar hacia arriba: preparar (pico levantado, el de picar de lado) y golpe arriba (pico por encima del casco)
@@ -58,7 +64,7 @@ def img(fr,s=S):
     return im.resize((32*s,31*s),Image.NEAREST)
 fB=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',30); f=ImageFont.truetype('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf',22)
 LW=190; CW=32*S+12; RH=31*S+12
-filas=[('Pico del padre (naranja dorado)',None),('Quieto',[pico_padre(x) for x in D['anims']['reposo']]),('Andar',[pico_padre(x) for x in D['anims']['andar']]),('Picar',[pico_padre(x) for x in D['anims']['picar_lado']]),
+filas=[('Pico del padre (ocre)',None),('Quieto',[pico_padre(x) for x in D['anims']['reposo']]),('Andar',[pico_padre(x) for x in D['anims']['andar']]),('Picar',[pico_padre(x) for x in D['anims']['picar_lado']]),
        ('Taladrar hacia abajo',None),('Taladrando',TAB),('Picar hacia arriba (nuevo)',None),('Picar arriba',ARR)]
 H=sum(50 if v is None else RH for _,v in filas)+10
 out=Image.new('RGB',(LW+4*CW+10,H),(58,48,40)); d=ImageDraw.Draw(out); y=0
