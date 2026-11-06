@@ -49,8 +49,11 @@ window.Arcade = (()=>{
   const DESDE = { carbon: 0, cobre: 0, cuarzo: 0, cuevas: 0, agua: 0, polillas: 0, gas: 99, barro: 99 };
   const tema = (F, nombre) => ({ nombre, min: F.min, arena: F.arena, cuevas: F.cuevas, agua: F.agua, polillas: F.polillas });
   // las fases del pozo: las cinco del arcade o, en el sin fin, vueltas que se repiten cada vez más largas y pidiendo más
-  function listaFases(sinFin){
-    if(!sinFin) return FASES.map(F => ({F, largo: F.largo, pide: F.pide, nombre: F.nombre, color: 0}));
+  // 0.302: los cajones piden más en Arcade y Tres vidas (x1,5) y algo más en Contrarreloj (x1,25); el cuarzo, escaso, sube la mitad
+  const MULT = (A.multCajon || { arcade: 1.5, vidas: 1.5, ta: 1.25 });
+  const subir = (pide, m) => Object.fromEntries(Object.entries(pide).map(([k, n]) => [k, Math.round(n * (k === 'cuarzo' ? 1 + (m - 1)/2 : m))]));
+  function listaFases(sinFin, modo){
+    if(!sinFin) return FASES.map(F => ({F, largo: F.largo, pide: subir(F.pide, MULT[modo] || 1), nombre: F.nombre, color: 0}));
     const SF = A.sinFin || {crece: 4, largoMax: 40, pideCrece: 0.5}, out = [];
     for(let v=0; v<15; v++) FASES.forEach((F, i) => out.push({F, largo: Math.min(SF.largoMax, F.largo + v*SF.crece), color: i,
       pide: Object.fromEntries(Object.entries(F.pide).map(([k, n]) => [k, Math.round(n*(1 + v*SF.pideCrece))])),
@@ -81,7 +84,7 @@ window.Arcade = (()=>{
   const comboNuevo = () => ({n: 0, mult: 0, ultimo: null, pot: 0, t: 0, tipos: {}, puro: true, tono: 0, enMax: 0});
   function empezar(modo, vidas){
     const MO = MODOS[modo];
-    LF = listaFases(!!MO.sinFin);
+    LF = listaFases(!!MO.sinFin, modo);
     S = {modo, puntos: 0, tiempo: 0, tFase: 0, fase: 0, combo: comboNuevo(), vidas: MO.vidas ? (A.vidas || 3) : (vidas || 1), vidasMax: MO.vidas ? (A.vidas || 3) : (vidas || 1),
       fin: false, parciales: [], fasesPts: [], ptsFase: 0, metros: MO.metros || 0, corre: {}, agua: 0, mecha: true, ultimoPuntal: 0, prevHerr: null, prevProps: null, fuego: 0};
     const key = 'arcade_' + modo;
@@ -517,3 +520,8 @@ window.Arcade = (()=>{
     _desbloquearTodo(){ DESB.forEach(d => desbloquear(d.id)); },
     _borrar(){ prog = nuevoProg(); guardar(); } };
 })();
+
+// 0.302: en el móvil, al primer toque se pone a pantalla completa (fuera la barra del navegador). En iPhone no se puede.
+(() => { const ir = () => { const d = document.documentElement;
+  if(!document.fullscreenElement && d.requestFullscreen && matchMedia('(hover:none)').matches) d.requestFullscreen({navigationUI: 'hide'}).catch(() => {}); };
+  addEventListener('pointerdown', ir, {once: true}); })();

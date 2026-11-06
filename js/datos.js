@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.301',
+  version: '0.302',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -484,7 +484,7 @@ window.DATOS = {
       aguaEscala: 4,               // ...(más pequeño = charcas más pequeñas; normal 5)
       cuevasUmbral: 0.64,          // más cuevas (normal 0.7): muchas quedan secas y sirven para llevar el agua
       montacargasCada: 2,
-      version: 2,
+      version: 3,                  // 0.302: la noria con barreras de verdad (empieza de nuevo)
       sueltos: { flor_mina: { cada: 30, desdeFila: 16 }, hongo_azul: { cada: 60, desdeFila: 20 } },
       // nenúfares: flotan en la superficie de las pozas (uno cada tantas pozas, más o menos)
       enAgua: { nenufar: { cada: 5, desdeFila: 10 } },
@@ -526,7 +526,7 @@ window.DATOS = {
         { nombre: 'El hielo eterno',        largo: 36 },
         { nombre: 'El fondo helado',        largo: 36 },
       ],
-      version: 1,                  // 0.301: más larga (9 tramos), con ascensor a mitad y la pirámide de hielo
+      version: 2,                  // 0.301: más larga (9 tramos), con ascensor a mitad y la pirámide de hielo · 0.302: escalones de una casilla
       conFondo: true,
       altoSala: 4,
       escasez: 0.03,

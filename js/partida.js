@@ -35,12 +35,26 @@ window.Partida = (()=>{
     guardarEnColeccion(id, n){ P.coleccion[id] = (P.coleccion[id] || 0) + n; P.visto[id] = true; },
     marcarVisto(id){ P.visto[id] = true; },
     // siguiente objetivo de la historia: lo que hace falta y para qué (dejar fino el ascensor, abrir la siguiente mina…)
+    // 0.302: también los pasos de la historia que no son de materiales (sin coste: solo dicen qué hacer)
     objetivo(){
-      if(!P.bandera('ascensor_pozo1_roto')) return null;   // en el prólogo (la flor, el fondo del Pozo viejo) aún no hay objetivo de materiales
-      if(P.bandera('ascensor_pozo1_apanado') && !P.bandera('ascensor_pozo1_fino') && D.ascensor && D.ascensor.fino)
+      const B = k => P.bandera(k), hist = (corto, nombre) => ({nombre: nombre || corto, corto, coste: null, historia: true});
+      if((P.coleccion.flor_mina || 0) > 0 && !B('flor_entregada')) return hist('lleva la flor a la señora Coneja');
+      if((P.coleccion.pico_padre || 0) > 0 && !B('viejo_pico')) return hist('enseña el pico al viejo topo');
+      if(B('ascensor_pozo1_roto') && !B('ascensor_pozo1_apanado')) return hist('habla con el tejón del ascensor', 'habla con el tejón: el ascensor del Pozo viejo está roto');
+      if(!B('ascensor_pozo1_roto')) return null;   // en el prólogo (el fondo del Pozo viejo) aún no hay objetivo
+      if(B('ascensor_pozo1_apanado') && !B('ascensor_pozo1_fino') && D.ascensor && D.ascensor.fino)
         return {nombre: 'dejar fino el ascensor del Pozo viejo', corto: 'el ascensor fino', coste: D.ascensor.fino};
-      for(const m of D.minas) if(m.desbloqueo && !m.abierta && !P.bandera('mina_' + m.id + '_abierta'))
+      for(const m of D.minas) if(m.desbloqueo && !m.abierta && !B('mina_' + m.id + '_abierta'))
         return {nombre: 'abrir la mina ' + m.id + ' (' + m.nombre + ')', corto: 'abrir la mina ' + m.id, coste: m.desbloqueo};
+      if(B('respiradero_4') && !B('mina_5_abierta')) return hist('habla con el viejo topo', 'habla con el viejo topo: en su casa o en la boca del socavón');
+      if(B('mina_5_abierta') && !B('temblor_mina5')) return hist('baja al socavón del viejo');
+      if(B('temblor_mina5') && !B('viejo_verdad')) return hist('vuelve a hablar con el viejo');
+      if(B('temblor_mina5') && !B('pista_taladro')) return hist('habla con el tejón');
+      if(B('pista_taladro') && !B('llave_museo')) return hist('pide la llave del museo al alcalde');
+      if(B('llave_museo') && !B('museo_abierto')) return hist('abre el museo');
+      if(B('museo_abierto') && !B('tejon_taladro')) return hist('lleva el taladro al tejón');
+      const MJ = (P.pueblo.mejoras || {}), tal = ((D.taller && D.taller.mejoras) || []).find(m => m.id === 'taladro');
+      if(B('tejon_taladro') && tal && !MJ.taladro) return {nombre: 'arreglar el taladro (en el taller del tejón)', corto: 'arreglar el taladro', coste: tal.precio};
       return null;
     },
     // ungüentos que te llevas a la próxima bajada: los marcados primero y, si quedan huecos, los que nunca has tocado

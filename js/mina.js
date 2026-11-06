@@ -125,11 +125,11 @@ function statsText(){
 function newWorld(){ return newTiroWorld('principal', (Math.random()*1e9)|0); }
 function packWorld(W){
   return {id:W.id, lastRun:W.lastRun, seed:W.seed, rows:W.rows.map(R => String.fromCharCode(...Array.from(R.t, v => 65+v))), nat:W.rows.map(R => String.fromCharCode(...Array.from(R.nat, v => 48+v))), lvx:W.rows.reduce((o, R, i) => { if(R.lv.some(v => v > 0)) o[i] = Array.from(R.lv, v => +v.toFixed(4)); return o; }, {}),
-    items:W.items.filter(i=>i.alive || i.k === 'herr'), bag:W.bag, rewarded:W.rewarded, runs:W.runs, herr:true, ver:W.ver, record:W.record, doors:W.doors, cargaOk:W.cargaOk||[], ascUsado:!!W.ascUsado, escalas:W.escalas||[], fijos:W.fijos||[], compuertas:W.compuertas||[], derrumbe:W.derrumbe||[]};
+    items:W.items.filter(i=>i.alive || i.k === 'herr'), bag:W.bag, rewarded:W.rewarded, runs:W.runs, herr:true, ver:W.ver, record:W.record, doors:W.doors, cargaOk:W.cargaOk||[], ascUsado:!!W.ascUsado, escalas:W.escalas||[], fijos:W.fijos||[], compuertas:W.compuertas||[], derrumbe:W.derrumbe||[], barreras:W.barreras||[]};
 }
 function unpackWorld(o){
   if(o.ver !== WV) return null;   // pozo de una versión anterior: se empieza uno nuevo
-  const w = {id:o.id||'principal', lastRun:o.lastRun||0, ver:WV, seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||0, record:o.record||0, doors:o.doors||[], cargaOk:o.cargaOk||[], ascUsado:!!o.ascUsado, escalas:o.escalas||[], fijos:o.fijos||[], compuertas:o.compuertas||[], derrumbe:o.derrumbe||[]};
+  const w = {id:o.id||'principal', lastRun:o.lastRun||0, ver:WV, seed:o.seed, rows:[], items:o.items||[], bag:o.bag||null, rewarded:o.rewarded||[], runs:o.runs||0, record:o.record||0, doors:o.doors||[], cargaOk:o.cargaOk||[], ascUsado:!!o.ascUsado, escalas:o.escalas||[], fijos:o.fijos||[], compuertas:o.compuertas||[], derrumbe:o.derrumbe||[], barreras:o.barreras||[]};
   o.rows.forEach((s, i) => { const R = newRow(), n = o.nat && o.nat[i];
     const lvS = o.lv && o.lv[i], lvX = o.lvx && o.lvx[i];
     for(let c=0;c<COLS;c++){ R.t[c] = s.charCodeAt(c)-65; R.hp[c] = INFO[R.t[c]].hp||0; R.nat[c] = n ? n.charCodeAt(c)-48 : (isSolid(R.t[c]) ? 0 : 1);
@@ -150,7 +150,7 @@ function natFromSeed(w){
   finally{ W = keep; lastOil = keepOil; }
 }
 // ---------- piezas hechas a mano (js/piezas.js) ----------
-const PZ_TILE = {'_':AIR, t:DIRT, p:STONE, d:HARD, m:ROCK, x:BEDROCK, g:CSAND, a:SAND, '~':WATER, e:RUBBLE, r:CLAY, c:COAL, u:COPPER, q:QUARTZ, i:IRON, s:TIN, z:ICE, P:DOOR, '*':GAS, '&':MUD};
+const PZ_TILE = {'_':AIR, t:DIRT, n:DIRT, p:STONE, d:HARD, m:ROCK, x:BEDROCK, g:CSAND, a:SAND, '~':WATER, e:RUBBLE, r:CLAY, c:COAL, u:COPPER, q:QUARTZ, i:IRON, s:TIN, z:ICE, P:DOOR, '*':GAS, '&':MUD};
 function tramoRows(i){ let r = SURF; for(let k=0;k<i;k++){ r += TRAMOS[k].len + (k < ROOM_ROW.length ? ROOM_H : 0); } return [r, r + (TRAMOS[i] ? Math.min(TRAMOS[i].len, 60) : 0)]; }
 function placePieces(){
   const out = [], seed = W ? W.seed : 0;
@@ -201,6 +201,7 @@ function applyPieces(r, Tt){
     for(let c=0;c<COLS;c++){
       const ch = line[c]; if(ch === '.') continue;
       W.items = W.items.filter(it => !(it.r === r && it.c === c && it.k !== 'moth'));
+      if(ch === 'n'){ if(!W.barreras) W.barreras = []; if(!W.barreras.includes(r*16 + c)) W.barreras.push(r*16 + c); }   // tierra que hace de barrera de la noria (0.302)
       if(PZ_TILE[ch] !== undefined){ Tt[c] = PZ_TILE[ch]; continue; }
       // herramientas de la cuadrilla: escaleras, puntales y tablones bien clavados (no se pueden recoger)
       if(ch === 'L' || ch === 'I' || ch === '='){ Tt[c] = ch === 'L' ? LADDER : ch === 'I' ? PROP : PLANK; marcarFijo(r, c); continue; }
@@ -1362,10 +1363,15 @@ let foco = null;   // la cámara mira un momento a otro sitio (la reja de la nor
 function mecanismos(top, bot){
   for(const it of W.items){
     // al ver la noria seca por primera vez, Deep da la pista
-    if(it.alive && it.k === 'noria' && !it.activa && !it.vista && Math.abs(it.r - p.r) <= 3 && Math.abs(it.c - p.c) <= 6){ it.vista = true;
+    // 0.302: unas filas antes de llegar, la cámara se aleja y enseña el puzle entero; luego vuelve a Deep
+    if(it.alive && it.k === 'noria' && !it.activa && !it.vista && p.r >= it.r - 16 && p.r <= it.r - 4){ it.vista = true;
+      foco = {r: it.r - 3, c: 7, t: 3.4, zoom: CA.zoomVer};
       decir('pensativo', 'Una noria vieja, seca… y una cadena que va hasta esa reja. Si le llegara agua, ¿giraría?'); }
+    if(it.alive && it.k === 'brasa' && !W.brasasVistas && p.r >= it.r - 12 && p.r < it.r){ W.brasasVistas = true;
+      decir('sorprendido', 'Huele a quemado… ¿Hay fuego ahí abajo?'); }
     if(!it.alive || it.r < top - 4 || it.r > bot + 4) continue;
-    if(it.k === 'noria' && !it.activa && lvAt(it.r, it.c) >= 0.25){
+    // solo gira con el agua de su depósito: las tres barreras tienen que estar abiertas (el agua de fuera no cuenta)
+    if(it.k === 'noria' && !it.activa && lvAt(it.r, it.c) >= 0.25 && (W.barreras || []).every(k => !isSolid(tAt(Math.floor(k/16), k % 16)))){
       it.activa = true; SND('noria'); SND('trampilla'); shakeKick = Math.max(shakeKick, 2.5);
       const cs = (W.compuertas || []).map(k => [Math.floor(k/16), k % 16]);
       for(const [r, c] of cs) if(tAt(r, c) === ROCK){ setT(r, c, AIR); W.rows[r].nat[c] = 1; burst(r+0.5, c+0.5, '#847e87', 10); }
@@ -2828,7 +2834,7 @@ const misionCuenta = k => (Pa.almacen[k]||0) + (bag[KEY2T[k]]||0);
 const misionTxt = o => Object.entries(o.coste).map(([k, n]) => M[k].nombre + ' ' + Math.min(misionCuenta(k), n) + '/' + n).join(' · ');
 function misionInicio(){
   mision = null; if(ARC) return;
-  const o = Pa.objetivo(); if(!o) return;
+  const o = Pa.objetivo(); if(!o || !o.coste) return;   // los objetivos de historia (sin coste) no se recuerdan en la mina
   mision = {o, hecho: new Set(Object.entries(o.coste).filter(([k, n]) => misionCuenta(k) >= n).map(([k]) => k))};
   mision.todo = mision.hecho.size === Object.keys(o.coste).length;
   toast('Objetivo: ' + o.corto, misionTxt(o) + (mision.todo ? ' · ¡Ya lo tienes todo!' : ''));
@@ -3055,7 +3061,7 @@ function frame(now){
     const Lz = layout(p.r), closeUp = !dead && ((Lz.surface && !bajadaBloqueada()) || (Lz.part !== undefined && Lz.part > 0 && Lz.part < ROOM_H-1));
     const zBase = cfg.zoom === 'siempre' ? Math.max(1, CA.zoomExplorar) : 1;
     if(!foco) camX += ((p.x + 0.5)*T - camX)*Math.min(1, dt*CA.seguirLateral);
-    const zT = (looking ? CA.zoomVer : closeUp ? ZCLOSE : zBase) ;
+    const zT = foco && foco.zoom ? foco.zoom : (looking ? CA.zoomVer : closeUp ? ZCLOSE : zBase) ;
     zoom += (zT - zoom)*Math.min(1, dt*(zT > zoom ? CA.velocidadAcercar : CA.velocidadAlejar));
     if(looking) zoom += (zT - zoom)*Math.min(1, dt*4);   // al mirar, rápido
     if(Math.abs(zoom - zT) < 0.004) zoom = zT;

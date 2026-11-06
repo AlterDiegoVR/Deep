@@ -261,15 +261,16 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 /* ---- 0.215: editor de niveles (PC) ---- */
 .ed-entrar{margin-left:auto;font-size:13px;padding:2px 10px}
 .ed-entrar + .ver{margin-left:6px}
+.ed-entrar2{margin-left:6px}
 @media (hover:none), (max-width:820px){ .ed-entrar{display:none} .ed-entrar + .ver{margin-left:auto} }
 #app.ancho{max-width:none}
-#pantalla-editor{height:100%}
-#editor{height:100%;display:flex;flex-direction:column;gap:8px;color:var(--tinta);font-size:14px}
+#pantalla-editor, #pantalla-sprites{height:100%}
+#editor, #sprEd{height:100%;display:flex;flex-direction:column;gap:8px;color:var(--tinta);font-size:14px}
 .ed-barra{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--madera);border:3px solid var(--madera-oo);border-radius:12px;padding:6px 10px}
 .ed-barra h1{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0 6px;color:var(--amarillo);text-shadow:0 2px 0 var(--madera-oo)}
-.ed-barra button, .ed-barra select, .ed-file, #editor aside button{font:inherit;font-weight:800;border:2px solid var(--madera-oo);border-radius:10px;background:var(--perg-c);color:var(--tinta);padding:4px 10px;cursor:pointer}
-.ed-barra .pri, #editor .pri{background:var(--amarillo)}
-#editor .peligro{background:#e7b3a6}
+.ed-barra button, .ed-barra select, .ed-file, #editor aside button, #sprEd aside button{font:inherit;font-weight:800;border:2px solid var(--madera-oo);border-radius:10px;background:var(--perg-c);color:var(--tinta);padding:4px 10px;cursor:pointer}
+.ed-barra .pri, #editor .pri, #sprEd .pri{background:var(--amarillo)}
+#editor .peligro, #sprEd .peligro{background:#e7b3a6}
 .ed-file input{display:none}
 .ed-hueco{flex:1}
 .ed-cuerpo{flex:1;min-height:0;display:grid;grid-template-columns:230px 1fr 300px;gap:8px}
@@ -293,7 +294,11 @@ label.sl select{font:inherit;font-weight:700;background:#fff6e8;color:var(--tint
 .ed-col i.libre{background:repeating-conic-gradient(#3a3340 0 25%, #2f2935 0 50%) 0 0/10px 10px}
 .ed-centro{display:flex;flex-direction:column;gap:6px;min-height:0;align-items:center}
 .ed-scroll{flex:1;min-height:0;overflow:auto;display:flex;gap:4px;background:#17111a;border:3px solid var(--madera-oo);border-radius:12px;padding:8px;width:fit-content;max-width:100%}
-.ed-scroll canvas{cursor:crosshair;image-rendering:pixelated;flex:none}
+.ed-scroll canvas{cursor:crosshair;image-rendering:pixelated;flex:none;align-self:flex-start}   /* 0.302: sin esto, el flex lo estiraba de alto (y de ancho, por proporción) y el clic caía en otra casilla */
+.ed-estado{font-size:13px;font-weight:800;color:#f4e4c1;background:#2a2030;border-radius:8px;padding:4px 10px;min-height:26px;max-width:100%}
+.ed-ayuda{font-size:12.5px;line-height:1.35}
+.ed-ayuda b{color:var(--tinta)}
+.ed-rango{font-size:11px;opacity:.8}
 .ed-nums{display:flex;flex-direction:column;color:#9badb7;font-size:11px;font-weight:800;text-align:right;min-width:26px}
 .ed-nums span{display:flex;align-items:center;justify-content:flex-end}
 .ed-filas{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
@@ -364,3 +369,21 @@ label.chip.llevar{margin:0;cursor:pointer}
 .banner[hidden]{display:none}
 button.chip{cursor:pointer;font:inherit}
 button.chip.sel{background:#fff3c4;border-color:#df7126}
+
+.ed-brilla{outline:3px solid #fbf236;outline-offset:2px;transition:outline .3s}
+
+/* 0.302: editor de sprites */
+#sprEd .ed-cuerpo{grid-template-columns:220px 1fr 260px}
+.sp-pal{display:flex;flex-wrap:wrap;gap:3px}
+.sp-c{width:22px;height:22px;border:2px solid var(--madera-oo) !important;border-radius:5px !important;padding:0 !important;cursor:pointer}
+.sp-c.sel{outline:3px solid #fbf236;outline-offset:1px}
+.sp-tira{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.sp-tira canvas{background:#2f2935;border:2px solid var(--madera-oo);border-radius:6px;cursor:pointer;image-rendering:pixelated}
+.sp-tira canvas.sel{border-color:#fbf236}
+.sp-prev{display:flex;align-items:flex-end;gap:12px;background:#4a3a30;border-radius:10px;padding:8px}
+.sp-prev canvas{image-rendering:pixelated}
+.sp-chk{color:var(--perg);font-weight:800;font-size:12px;display:flex;gap:4px;align-items:center}
+#edComprobarTabla{border-collapse:collapse;font-size:13px}
+#edComprobarTabla td, #edComprobarTabla th{padding:1px 6px;text-align:right} #edComprobarTabla td:first-child{text-align:left}
+#edComprobarTabla tr.dif td{color:#ac3232;font-weight:900}
+#sprEd .ed-scroll{flex:none}

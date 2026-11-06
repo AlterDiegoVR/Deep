@@ -2,17 +2,19 @@
 //  PANTALLAS: mapa, plaza y mina
 // =====================================================================
 window.Pantallas = (()=>{
-  const ids = {mapa:'pantalla-mapa', plaza:'pantalla-plaza', mina:'pantalla-mina', editor:'pantalla-editor'};
+  const ids = {mapa:'pantalla-mapa', plaza:'pantalla-plaza', mina:'pantalla-mina', editor:'pantalla-editor', sprites:'pantalla-sprites'};
   let actual = null;
   function mostrar(nombre, pozo, opts){
     if(actual === 'mina' && nombre !== 'mina') window.Mina.salir();
     if(actual === 'editor' && nombre !== 'editor') window.Editor.cerrar();
-    document.getElementById('app').classList.toggle('ancho', nombre === 'editor');
+    if(actual === 'sprites' && nombre !== 'sprites') window.EditorSprites.cerrar();
+    document.getElementById('app').classList.toggle('ancho', nombre === 'editor' || nombre === 'sprites');
     for(const [k, id] of Object.entries(ids)) document.getElementById(id).hidden = k !== nombre;
     actual = nombre;
     if(nombre === 'mapa'){ window.Pueblo.mapa(); }
     else if(nombre === 'plaza'){ window.Pueblo.plaza(); }
     else if(nombre === 'editor'){ window.Pueblo.parar(); window.Editor.abrir(); }
+    else if(nombre === 'sprites'){ window.Pueblo.parar(); window.EditorSprites.abrir(); }
     else { window.Pueblo.parar(); window.Mina.entrar(pozo, opts); }
   }
   return {mostrar, get actual(){ return actual; }};
@@ -21,8 +23,9 @@ window.Pantallas = (()=>{
 document.getElementById('verLbl').textContent = 'v' + window.DATOS.version;
 document.querySelectorAll('.verTxt').forEach(e => e.textContent = window.DATOS.version);
 document.title = 'Deep v' + window.DATOS.version;
-window.Pantallas.mostrar(location.hash === '#editor' ? 'editor' : 'mapa');
+window.Pantallas.mostrar(location.hash === '#editor' ? 'editor' : location.hash === '#sprites' ? 'sprites' : 'mapa');
 document.getElementById('abrirEditor').onclick = () => window.Pantallas.mostrar('editor');
+document.getElementById('abrirSprites').onclick = () => window.Pantallas.mostrar('sprites');
 
 // sonido al pulsar cualquier botón o desplegable de los menús (no los mandos de la mina, que ya suenan a su manera)
 document.addEventListener('click', e => {
@@ -30,3 +33,8 @@ document.addEventListener('click', e => {
   if(b && !b.closest('#pad') && window.Sonido) window.Sonido.tocar('clic', 0.9);
 }, true);
 document.addEventListener('change', e => { if(e.target.matches('select') && window.Sonido) window.Sonido.tocar('clic', 0.7); }, true);
+
+// 0.302: en el móvil, al primer toque se pone a pantalla completa (fuera la barra del navegador). En iPhone no se puede.
+(() => { const ir = () => { const d = document.documentElement;
+  if(!document.fullscreenElement && d.requestFullscreen && matchMedia('(hover:none)').matches) d.requestFullscreen({navigationUI: 'hide'}).catch(() => {}); };
+  addEventListener('pointerdown', ir, {once: true}); })();

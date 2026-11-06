@@ -17,7 +17,8 @@ window.Pueblo = (()=>{
   function ajustar(cv, cont, W, H, pan){
     const r = cont.getBoundingClientRect();
     const cubre = Math.max(r.width/W, r.height/H), cabe = Math.min(r.width/W, r.height/H);
-    const css = cubre/cabe <= 1.6 ? cubre : cabe;
+    // 0.302: solo se amplía para llenar si apenas se recorta (en móvil); si no (PC, en horizontal), se ve entera con bandas a los lados
+    const css = cubre/cabe <= 1.15 ? cubre : cabe;
     const lim = (v, tam, hueco) => tam <= hueco ? (hueco - tam)/2 : Math.max(hueco - tam, Math.min(0, v));
     const left = lim((r.width - W*css)/2 + (pan ? pan.x : 0), W*css, r.width), top = lim((r.height - H*css)/2 + (pan ? pan.y : 0), H*css, r.height);
     if(pan){ pan.x = left - (r.width - W*css)/2; pan.y = top - (r.height - H*css)/2; }
@@ -233,7 +234,7 @@ window.Pueblo = (()=>{
     if(mapaSel === null || mapaSel === 'pueblo' || (esperando && mapaSel !== 'objetivo')){ $('mapaPanel').hidden = true; return; }
     if(mapaSel === 'objetivo'){
       $('mpEyebrow').textContent = 'Siguiente objetivo'; $('mpTitulo').textContent = o ? o.nombre[0].toUpperCase() + o.nombre.slice(1) : '';
-      $('mpTexto').innerHTML = o ? costeChips(o.coste) : ''; btn.hidden = true;
+      $('mpTexto').innerHTML = o && o.coste ? costeChips(o.coste) : ''; btn.hidden = true;
       colocarBurbuja(MW/2, 40); return;
     }
     if(mapaSel === 'viejo'){
@@ -560,7 +561,7 @@ window.Pueblo = (()=>{
       const extra = [Pa.pueblo.kitMc ? `🧰 Kit: ${Pa.pueblo.kitMc.pozoNombre}, sala ${Pa.pueblo.kitMc.sala}` : '', Pa.pueblo.descansado ? '😴 +25 % de mochila' : ''].filter(Boolean);
       if(extra.length) h += '<div class="list">' + extra.map(x => `<span class="chip">${x}</span>`).join('') + '</div>';
       h += '<p class="lbl">Minerales</p><div class="list">' + (ks.length ? ks.map(k => chip(k, Pa.almacen[k])).join('') : '<span class="chip muted">Vacío</span>') + '</div>';
-      if(obj) h += `<p class="lbl">Para ${obj.nombre}</p><div class="list">${Object.entries(obj.coste).map(([k, n]) => chipFalta(k, Pa.almacen[k] || 0, n)).join('')}</div>`;
+      if(obj && obj.coste) h += `<p class="lbl">Para ${obj.nombre}</p><div class="list">${Object.entries(obj.coste).map(([k, n]) => chipFalta(k, Pa.almacen[k] || 0, n)).join('')}</div>`;
       const MJ = ((D.taller && D.taller.mejoras) || []).filter(m => (Pa.pueblo.mejoras || {})[m.id]);
       if(MJ.length) h += '<p class="lbl">Mejoras</p><div class="list">' + MJ.map(m => `<span class="chip">${m.icono} ${m.nombre}</span>`).join('') + '</div>';
       // brújula de vetas: qué mineral busca en la próxima bajada

@@ -12,7 +12,7 @@ window.Editor = (()=>{
   // ---------- paleta: cada casilla del formato de las piezas ----------
   const PAL = [
     {g:'Terreno', items:[
-      ['.', 'Libre (lo pone el generador)'], ['_', 'Aire'], ['t', 'Tierra'], ['p', 'Piedra'], ['d', 'Roca dura (fija)'], ['m', 'Roca maciza (taladro)'], ['x', 'Roca madre (irrompible)'],
+      ['.', 'Libre (lo pone el generador)'], ['_', 'Aire'], ['t', 'Tierra'], ['n', 'Tierra de barrera (noria)'], ['p', 'Piedra'], ['d', 'Roca dura (fija)'], ['m', 'Roca maciza (taladro)'], ['x', 'Roca madre (irrompible)'],
       ['a', 'Arena'], ['g', 'Arena arcillosa (barro)'], ['~', 'Agua'], ['&', 'Barro'], ['*', 'Gas'], ['e', 'Escombro'], ['z', 'Hielo']]},
     {g:'Minerales', items:[['r', 'Arcilla'], ['c', 'Carbón'], ['u', 'Cobre'], ['q', 'Cuarzo'], ['i', 'Hierro'], ['s', 'Estaño']]},
     {g:'Objetos', items:[['o', 'Bidón de aceite'], ['k', 'Llave'], ['h', 'Escalera suelta'], ['H', 'Puntal suelto'], ['B', 'Cofre con premio'],
@@ -20,13 +20,22 @@ window.Editor = (()=>{
       ['K', 'Pico con un símbolo'], ['Z', 'Pieza del ascensor'], ['w', 'Polilla']]},
     {g:'Cuadrilla (fijo)', items:[['L', 'Escalera de la cuadrilla'], ['I', 'Puntal de la cuadrilla'], ['=', 'Tablón de la cuadrilla']]},
     {g:'Mecanismos', items:[['P', 'Puerta con candado (bordes)'], ['M', 'Montacargas (sube al principal)'], ['A', 'Ascensor viejo'], ['V', 'Respiradero'],
-      ['W', 'Noria'], ['G', 'Compuerta (la abre la noria)'], ['b', 'Brasas'], ['X', 'Puerta de la cuadrilla']]},
+      ['W', 'Noria'], ['G', 'Compuerta (la abre la noria)'], ['b', 'Brasas'], ['X', 'Puerta de la cuadrilla'],
+      ['U', 'Boca del tubo de voz (mina 5)'], ['E', 'Sitio de la dinamita (mina 5)'], ['%', 'Derrumbe (lo abre la dinamita)']]},
     {g:'Textos', items:[['T', 'Cartel de tutorial'], ['D', 'Frase de Deep']]},
   ];
   const NOMBRE = {}; PAL.forEach(g => g.items.forEach(([c, n]) => NOMBRE[c] = n));
-  const COLOR = {'.':null, '_':'#1b1426', t:'#8f563b', p:'#696a6a', d:'#4b3f4f', m:'#2b4a8a', x:'#221c28', a:'#d9a066', g:'#c46a3a', '~':'#306082', '&':'#5a3a26', '*':'#2d4a2a', e:'#847e87',
-    r:MAT.arcilla.color, c:MAT.carbon.color, u:MAT.cobre.color, q:MAT.cuarzo.color, z:'#9ee6f2', i:MAT.hierro.color, s:MAT.estano.color, P:'#3f3f74', G:'#3f3f74'};
-  const ICONO = {o:'🛢️', k:'🔑', h:'🪜', H:'🪵', B:'📦', f:'🌸', j:'🍄', y:'🪷', R:'🏮', F:'🖼️', N:'📜', Q:'⛑️', K:'⛏️', Z:'⚙️', w:'🦋', M:'🛗', A:'🚡', V:'♨️', W:'🎡', b:'🔥', X:'🚪', P:'🔒', T:'💬', D:'🗨️', '*':'☁️'};
+  // qué es cada casilla, en una frase (sale en la barra de debajo del lienzo al pasar el ratón)
+  const DESC = {'.': 'el generador pone lo que toque según las reglas de la mina', '_': 'hueco vacío', t: 'se pica de un golpe', n: 'tierra; la noria solo gira si se han picado todas las de su pieza', p: 'varios golpes; puede caer si no tiene apoyo',
+    d: 'no se rompe nunca, pero no es el borde del mundo', m: 'solo la rompe el taladro', x: 'el borde del mundo: no se rompe', a: 'cae y te sepulta', g: 'arena que con agua se hace barro',
+    '~': 'te quita aire', '&': 'te frena y te hunde', '*': 'gas grisú: explota con la lámpara', e: 'lo que queda tras un derrumbe; se pica fácil', z: 'resbala y se derrite con la lámpara',
+    o: 'rellena la lámpara', k: 'abre una puerta con candado', h: 'se recoge y suma una escalera', H: 'se recoge y suma un puntal', B: 'cofre con premio', P: 'puerta lateral a una sala escondida (necesita llave)',
+    M: 'te sube al tiro principal (en los ramales)', A: 'ascensor para subir', V: 'el respiradero del fondo: reverdece la zona', W: 'gira con agua y abre la compuerta', G: 'se abre cuando gira la noria',
+    b: 'quema la lámpara; se apaga con agua', X: 'puerta cerrada de la cuadrilla', L: 'fija: no se puede recoger', I: 'fijo: no se puede recoger', '=': 'fijo: no se puede recoger',
+    T: 'cartel con título, texto y gif', D: 'Deep dice una frase al pasar', U: 'al llegar con la dinamita puesta, estalla', E: 'Deep deja aquí la dinamita de la bolsa', '%': 'roca maciza hasta que estalla la dinamita'};
+  const COLOR = {'.':null, '_':'#1b1426', t:'#8f563b', n:'#a0663f', p:'#696a6a', d:'#4b3f4f', m:'#2b4a8a', x:'#221c28', a:'#d9a066', g:'#c46a3a', '~':'#306082', '&':'#5a3a26', '*':'#2d4a2a', e:'#847e87',
+    r:MAT.arcilla.color, c:MAT.carbon.color, u:MAT.cobre.color, q:MAT.cuarzo.color, z:'#9ee6f2', i:MAT.hierro.color, s:MAT.estano.color, P:'#3f3f74', G:'#3f3f74', '%':'#5a4a6a'};
+  const ICONO = {o:'🛢️', k:'🔑', h:'🪜', H:'🪵', B:'📦', f:'🌸', j:'🍄', y:'🪷', R:'🏮', F:'🖼️', N:'📜', Q:'⛑️', K:'⛏️', Z:'⚙️', w:'🦋', M:'🛗', A:'🚡', V:'♨️', W:'🎡', b:'🔥', X:'🚪', P:'🔒', T:'💬', D:'🗨️', '*':'☁️', U:'📯', E:'🧨'};
   // contador: qué se cuenta en cada sector
   const CUENTA = [['Arcilla', 'r'], ['Carbón', 'c'], ['Cobre', 'u'], ['Cuarzo', 'q'], ['Hierro', 'i'], ['Estaño', 's'], ['Agua', '~'], ['Arena', 'ag'], ['Gas', '*'], ['Aceite', 'o'], ['Flores', 'f'], ['Hongos', 'j'], ['Nenúfares', 'y'],
     ['Escaleras y puntales sueltos', 'hH'], ['Llaves', 'k'], ['Cofres', 'B'], ['Polillas', 'w'], ['Aire (huecos)', '_']];
@@ -50,7 +59,8 @@ window.Editor = (()=>{
       <h1>Editor de niveles</h1>
       <select id="edAbrir" title="Abrir una pieza"></select>
       <button id="edNueva">Nueva</button>
-      <button id="edGenerarBtn">Generar sector</button>
+      <button id="edGenerarBtn" title="Ir al panel de generar">Generar sector…</button>
+      <button id="edComprobar" title="Suma el mineral de toda la mina con tus piezas">Comprobar mina</button>
       <button id="edLimpiar">Limpiar</button>
       <button id="edDeshacer" title="Ctrl+Z">Deshacer</button>
       <span class="ed-hueco"></span>
@@ -67,7 +77,7 @@ window.Editor = (()=>{
         <p class="ed-nota">Clic: pinta · Clic derecho: libre · Ctrl+Z: deshacer</p>
         <div id="edPaleta"></div>
       </aside>
-      <main class="ed-centro"><div class="ed-scroll" id="edScroll"><canvas id="edCv"></canvas></div>
+      <main class="ed-centro"><div class="ed-estado" id="edEstado">Pasa el ratón por una casilla para ver qué es</div><div class="ed-scroll" id="edScroll"><canvas id="edCv"></canvas></div>
         <div class="ed-filas">
           <button id="edArribaMas">+ fila arriba</button><button id="edArribaMenos">− fila arriba</button>
           <span id="edAlto"></span>
@@ -75,6 +85,16 @@ window.Editor = (()=>{
         </div>
       </main>
       <aside class="ed-der">
+        <section><details><summary><b>¿Cómo funciona?</b></summary><div class="ed-ayuda">
+          <p>Una <b>pieza</b> es un trozo de pozo hecho a mano que el juego pone encima de lo que genera. Las casillas en «Libre» las rellena el generador.</p>
+          <p><b>Generar sector</b> (abajo): saca un trozo con las reglas del juego para editarlo encima. Ya queda puesto en su sitio y con un nombre nuevo.</p>
+          <p><b>Abrir pieza</b> (arriba): las piezas que ya hay en el juego (noria, brasas, fondos…) y las tuyas.</p>
+          <p><b>Dónde va</b>: a qué profundidad (fila, desde la boca), pegada a una sala, al fondo del tiro o al azar dentro de un tramo.</p>
+          <p><b>Semilla</b>: el número que decide el azar del generador. La misma semilla da siempre lo mismo; vacía, una al azar.</p>
+          <p><b>Guardar</b> la deja en este navegador y ya sale en el juego. <b>Probar</b> te baja a la mina con ella. <b>Exportar</b> descarga un archivo para pasárselo a Claude.</p>
+          <p><b>Borrar mi versión</b> borra lo que guardaste con ese nombre; si era una pieza del juego, vuelve la original.</p>
+          <p><b>Comprobar mina</b> suma el mineral de toda la mina con tus piezas y lo compara con lo normal y con lo que pide la mina siguiente.</p>
+        </div></details></section>
         <section><h3>Pieza</h3>
           <label>Nombre (id) <input id="edId"></label>
           <div class="ed-pozos" id="edPozos"></div>
@@ -93,7 +113,8 @@ window.Editor = (()=>{
           <label id="edTxGifL">Gif (dirección, opcional) <input id="edTxGif" placeholder="https://…"></label>
           <label id="edTxCaraL">Cara de Deep <select id="edTxCara">${['contento','alegre','sorprendido','asustado','triste','decidido','cansado','pensativo'].map(c => `<option>${c}</option>`).join('')}</select></label>
         </section>
-        <section><h3>Contador del sector</h3><p class="ed-nota" id="edEsperadoNota"></p><table id="edContador"></table></section>
+        <section id="edComprobarBox" hidden><h3>Mineral de la mina</h3><p class="ed-nota" id="edComprobarNota"></p><table id="edComprobarTabla"></table></section>
+        <section id="edGenBox"><h3>Contador del sector</h3><p class="ed-nota" id="edEsperadoNota"></p><table id="edContador"></table></section>
         <section><h3>Generar sector</h3>
           <p class="ed-nota">Genera un trozo de pozo con las reglas del juego (sin piezas) para editarlo encima. Sustituye lo que hay.</p>
           <label>Pozo <select id="edGPozo"></select></label>
@@ -119,6 +140,8 @@ window.Editor = (()=>{
     $('edGPozo').onchange = llenarGenerar; $('edGTiro').onchange = llenarGenerar2;
     $('edGTramo').onchange = () => { const o = $('edGTramo').selectedOptions[0]; if(o && o.dataset.d !== undefined){ $('edGDesde').value = o.dataset.d; $('edGHasta').value = o.dataset.h; } };
     $('edGenerar').onclick = generar;
+    $('edGenerarBtn').onclick = () => { const b = $('edGPozo').closest('section'); b.scrollIntoView({behavior: 'smooth', block: 'center'}); b.classList.add('ed-brilla'); setTimeout(() => b.classList.remove('ed-brilla'), 1200); };
+    $('edComprobar').onclick = comprobarMina;
     // propiedades
     $('edId').oninput = () => { pz.id = $('edId').value.trim().replace(/\s+/g, '_') || pz.id; tocar(false); };
     $('edTiro').onchange = () => { pz.tiro = $('edTiro').value; tocar(false); };
@@ -151,7 +174,9 @@ window.Editor = (()=>{
     // lienzo
     const cv = $('edCv');
     let pintando = false, ini = null, boton = 0;
-    const celda = e => { const r = cv.getBoundingClientRect(); return [Math.floor((e.clientY - r.top)/CEL), Math.floor((e.clientX - r.left)/CEL)]; };
+    // con el tamaño con el que se ve de verdad (por si el navegador lo escala)
+    const celda = e => { const r = cv.getBoundingClientRect(), ex = r.width / cv.width, ey = r.height / cv.height; return [Math.floor((e.clientY - r.top)/(CEL*ey)), Math.floor((e.clientX - r.left)/(CEL*ex))]; };
+    cv.addEventListener('pointerleave', () => { $('edEstado').textContent = 'Pasa el ratón por una casilla para ver qué es'; });
     cv.addEventListener('contextmenu', e => e.preventDefault());
     cv.addEventListener('pointerdown', e => {
       const [f, c] = celda(e); if(f < 0 || f >= pz.filas.length || c < 0 || c >= COLS) return;
@@ -164,7 +189,8 @@ window.Editor = (()=>{
       poner(f, c, ch); pintando = true; tocar(); cv.setPointerCapture(e.pointerId);
     });
     cv.addEventListener('pointermove', e => {
-      const [f, c] = celda(e); $('edCv').title = f >= 0 && f < pz.filas.length && c >= 0 && c < COLS ? (NOMBRE[pz.filas[f][c]] || '') + ' · fila ' + filaReal(f) + ', columna ' + c : '';
+      const [f, c] = celda(e);
+      if(f >= 0 && f < pz.filas.length && c >= 0 && c < COLS){ const ch = pz.filas[f][c]; $('edEstado').innerHTML = `<b>${NOMBRE[ch] || ch}</b>${DESC[ch] ? ' — ' + DESC[ch] : ''} · fila ${filaReal(f)}, columna ${c}`; }
       if(!pintando) return;
       if(herr === 'rect'){ dibujar([ini, [f, c]]); return; }
       if(f >= 0 && f < pz.filas.length && c >= 0 && c < COLS){ poner(f, c, boton === 2 ? '.' : pincel); tocar(); }
@@ -239,12 +265,23 @@ window.Editor = (()=>{
     document.querySelectorAll('.ed-col').forEach(b => b.classList.toggle('sel', b.dataset.c === pincel));
     document.querySelectorAll('.ed-herr button').forEach(b => b.classList.toggle('sel', b.dataset.h === herr));
   }
+  // lo normal según las reglas: se genera el mismo trozo muchas veces (con semillas distintas) y se mira la media y el margen (del 10 % al 90 %)
+  function rangoReglas(k, tiro, d, h, veces = 40){
+    const M = {}; CUENTA.forEach(([n]) => M[n] = []);
+    for(let i=0;i<veces;i++){ const g = window.Mina.generar(k, tiro, d, h, 1000 + i*7919), n = contar(g.filas); CUENTA.forEach(([nm]) => M[nm].push(n[nm])); }
+    const out = {media:{}, min:{}, max:{}};
+    for(const [nm] of CUENTA){ const v = M[nm].sort((a, b) => a - b); out.media[nm] = Math.round(v.reduce((a, b) => a + b, 0) / v.length); out.min[nm] = v[Math.floor(v.length*0.1)]; out.max[nm] = v[Math.min(v.length - 1, Math.floor(v.length*0.9))]; }
+    return out;
+  }
+  const esRango = e => e && e.media;
+  const fuera = (a, e, nm) => esRango(e) ? (a < e.min[nm] || a > e.max[nm]) : (a !== (e[nm] || 0));
+  const txtRango = (e, nm) => esRango(e) ? (e.min[nm] === e.max[nm] ? '' + e.min[nm] : e.min[nm] + '–' + e.max[nm]) : (e[nm] ?? 0);
   function pintarContador(){
     const ahora = contar(pz.filas), esp = pz.esperado;
-    $('edEsperadoNota').textContent = esp ? 'Lo que tiene ahora y lo que debería tener según las reglas (al generarlo).' : 'Genera el sector para saber lo que debería tener según las reglas.';
-    $('edContador').innerHTML = '<tr><th></th><th>Ahora</th><th>Debería</th></tr>' + CUENTA.map(([nom]) => {
-      const a = ahora[nom], e = esp ? (esp[nom] ?? 0) : null; if(!a && !e) return '';
-      return `<tr class="${e !== null && a !== e ? 'dif' : ''}"><td>${nom}</td><td>${a}</td><td>${e === null ? '—' : e}</td></tr>`; }).join('');
+    $('edEsperadoNota').textContent = esp ? 'Lo que tiene ahora y lo normal según las reglas para este trozo (de 40 generaciones: entre el 10 % y el 90 %).' : 'Genera el sector para saber lo normal según las reglas.';
+    $('edContador').innerHTML = '<tr><th></th><th>Ahora</th><th>Normal</th></tr>' + CUENTA.map(([nom]) => {
+      const a = ahora[nom], e = esp ? txtRango(esp, nom) : null; if(!a && (!e || e === '0' || e === 0)) return '';
+      return `<tr class="${esp && fuera(a, esp, nom) ? 'dif' : ''}"><td>${nom}</td><td>${a}</td><td>${e === null ? '—' : e}</td></tr>`; }).join('');
   }
   function pintarProps(){
     $('edId').value = pz.id;
@@ -296,7 +333,11 @@ window.Editor = (()=>{
     if(h - d > 120){ aviso('Como mucho 120 filas de una vez'); return; }
     const g = window.Mina.generar(k, tiro, d, h, +$('edGSemilla').value || 0);
     apuntar();
-    pz.filas = g.filas; pz.textos = {}; pz.pozo = k; pz.tiro = tiro; pz.colocar = {fila: d}; pz.esperado = contar(g.filas); sel = null;
+    // nombre nuevo, para no pisar sin querer la última pieza que tuvieras abierta
+    const ti = $('edGTramo').selectedIndex, base = k + '_' + (tiro === 'principal' ? 'tramo' + Math.max(0, ti) : tiro);
+    let id = base, n = 2; const usados = new Set([...window.PIEZAS.map(p => p.id), ...Object.keys(guardadas())]); while(usados.has(id)) id = base + '_' + (n++);
+    pz.id = id;
+    pz.filas = g.filas; pz.textos = {}; pz.pozo = k; pz.tiro = tiro; pz.colocar = {fila: d}; pz.esperado = rangoReglas(k, tiro, d, h); sel = null;
     pintarProps(); pintarTexto(); tocar();
     aviso('Sector generado (semilla ' + g.semilla + ')' + (g.salas.length ? '. Las filas de sala segura (' + g.salas.join(', ') + ') quedan libres: el juego las pone' : ''));
   }
@@ -305,9 +346,11 @@ window.Editor = (()=>{
   function siCambios(f, fNo){ if(!cambiado){ f(); return; } preguntar('Hay cambios sin guardar en «' + pz.id + '». ¿Seguir y perderlos?', 'Sí, seguir', f, fNo); }
   function guardar(despues){
     const ahora = contar(pz.filas), esp = pz.esperado;
-    const difs = esp ? CUENTA.map(([n]) => n).filter(n => (ahora[n] || 0) !== (esp[n] || 0)) : [];
-    const hacer = () => { const ps = guardadas(); ps[pz.id] = norm(pz); guardarTodas(ps); cambiado = false; $('edGuardar').textContent = 'Guardar'; llenarAbrir(); aviso('Guardada en este navegador' + (pz.activa !== false ? ': ya sale en el juego' : ' (inactiva)')); if(despues) despues(); };
-    if(difs.length) preguntar('El sector no tiene lo que debería según las reglas: ' + difs.map(n => n.toLowerCase() + ' ' + (ahora[n] || 0) + ' (debería ' + (esp[n] || 0) + ')').join(', ') + '. ¿Guardar igualmente?', 'Sí, guardar', hacer);
+    const difs = esp ? CUENTA.map(([n]) => n).filter(n => fuera(ahora[n] || 0, esp, n)) : [];
+    const delJuego = window.PIEZAS.some(p => p.id === pz.id) && !guardadas()[pz.id];
+    const hacer0 = () => { const ps = guardadas(); ps[pz.id] = norm(pz); guardarTodas(ps); cambiado = false; $('edGuardar').textContent = 'Guardar'; llenarAbrir(); aviso('Guardada en este navegador' + (pz.activa !== false ? ': ya sale en el juego' : ' (inactiva)')); if(despues) despues(); };
+    const hacer = () => delJuego ? preguntar('«' + pz.id + '» es el nombre de una pieza del juego. Si guardas, tu versión la sustituye en este navegador. ¿Seguir? (Si no, cambia el nombre.)', 'Sí, sustituirla', hacer0) : hacer0();
+    if(difs.length) preguntar('Se sale de lo normal según las reglas: ' + difs.map(n => n.toLowerCase() + ' ' + (ahora[n] || 0) + ' (normal ' + txtRango(esp, n) + ')').join(', ') + '. ¿Guardar igualmente?', 'Sí, guardar', hacer);
     else hacer();
   }
   function probar(){
@@ -330,6 +373,33 @@ window.Editor = (()=>{
       for(const p of (d.piezas || [])) if(p && p.id && Array.isArray(p.filas)){ ps[p.id] = norm(p); n++; }
       guardarTodas(ps); llenarAbrir(); aviso('Importadas ' + n + ' pieza(s)'); }catch(err){ aviso('Ese archivo no es de piezas de Deep'); } e.target.value = ''; };
     rd.readAsText(f);
+  }
+  // ---------- comprobar una mina entera ----------
+  // Genera el tiro principal entero varias veces y le pone encima las piezas que van a una fila (las tuyas activas y las del juego).
+  // Compara: lo normal sin tus piezas, lo que hay con ellas, y lo que pide abrir la mina siguiente.
+  function comprobarMina(){
+    const k = $('edGPozo').value, info = window.Mina.tramos(k), ult = info.fondo !== null ? info.fondo : info.tramos[info.tramos.length - 1].hasta;
+    const mias = Object.values(guardadas()).filter(p => p.activa !== false);
+    const delPozo = p => (Array.isArray(p.pozo) ? p.pozo : [p.pozo]).includes(k) && (p.tiro || 'principal') === 'principal' && p.colocar && p.colocar.fila !== undefined;
+    const piezas = [...window.PIEZAS.filter(p => delPozo(p) && !mias.some(m => m.id === p.id)), ...mias.filter(delPozo)];
+    const MINS = CUENTA.slice(0, 6), N = 12, sin = {}, con = {};
+    MINS.forEach(([n]) => { sin[n] = []; con[n] = []; });
+    for(let i=0;i<N;i++){
+      const g = window.Mina.generar(k, 'principal', 0, ult, 5000 + i*104729), filas = g.filas.slice();
+      const a = contar(filas); MINS.forEach(([n]) => sin[n].push(a[n]));
+      for(const p of piezas) p.filas.forEach((f, j) => { const r = p.colocar.fila + j; if(r < 0 || r >= filas.length) return; let o = ''; for(let c=0;c<COLS;c++) o += f[c] && f[c] !== '.' ? f[c] : filas[r][c]; filas[r] = o; });
+      const b = contar(filas); MINS.forEach(([n]) => con[n].push(b[n]));
+    }
+    const rg = v => { v = v.slice().sort((a, b) => a - b); const lo = v[Math.floor(v.length*0.1)], hi = v[Math.min(v.length - 1, Math.floor(v.length*0.9))]; return lo === hi ? '' + lo : lo + '–' + hi; };
+    const mio = D.minas.find(m => m.pozo === k), sig = mio ? D.minas.find(m => m.id === mio.id + 1) : null, pide = (sig && sig.desbloqueo) || {};
+    const clave = {Arcilla: 'arcilla', 'Carbón': 'carbon', Cobre: 'cobre', Cuarzo: 'cuarzo', Hierro: 'hierro', 'Estaño': 'estano'};
+    $('edComprobarBox').hidden = false;
+    $('edComprobarNota').textContent = D.pozos[k].nombre + ': ' + piezas.length + ' pieza(s) a una fila (' + mias.filter(delPozo).length + ' tuyas). Margen de ' + N + ' generaciones.' + (sig && sig.desbloqueo ? ' «Pide» es lo que cuesta abrir la mina ' + sig.id + '.' : '');
+    $('edComprobarTabla').innerHTML = '<tr><th></th><th>Normal</th><th>Con tus piezas</th><th>Pide</th></tr>' + MINS.map(([n]) => {
+      const p = pide[clave[n]] || 0, lo = con[n].slice().sort((a, b) => a - b)[Math.floor(N*0.1)];
+      if(!Math.max(...sin[n], ...con[n]) && !p) return '';
+      return `<tr class="${p && lo < p ? 'dif' : ''}"><td>${n}</td><td>${rg(sin[n])}</td><td>${rg(con[n])}</td><td>${p || '—'}</td></tr>`; }).join('');
+    $('edComprobarBox').scrollIntoView({behavior: 'smooth', block: 'center'});
   }
   let avisoT = 0;
   function aviso(t){ const el = $('edAviso'); el.textContent = t; el.hidden = false; clearTimeout(avisoT); avisoT = setTimeout(() => el.hidden = true, Math.max(2500, t.length*60)); }

@@ -34,7 +34,7 @@
 //    Q  casco de la cuadrilla (coleccionable)
 //    j  hongo luminoso   R  lámpara de carburo   F  foto de una cuadrilla   w  polilla
 //    *  gas              &  barro         i  hierro         s  estaño        y  nenúfar (flotando en agua)   z  hielo
-//    U  boca del tubo de voz (mina 5)   E  sitio de la dinamita (mina 5)   %  derrumbe (roca maciza que abre la dinamita)
+//    n  tierra que hace de barrera de la noria   U  boca del tubo de voz (mina 5)   E  sitio de la dinamita (mina 5)   %  derrumbe (roca maciza que abre la dinamita)
 //    T  cartel de tutorial (título, texto y, si quieres, un gif)   D  frase de Deep (con su cara; con «quien», de otro)
 //       (los textos van en «textos»: { 'fila,columna': { titulo, texto, gif } } o { texto, cara })
 //
@@ -153,6 +153,7 @@ window.PIEZAS = [
     //   La noria abre la compuerta del cuartito del cofre (al otro lado del canal). Si te quedas encerrado sin agua, las paredes de
     //   tierra de la derecha dan al pozo: siempre se puede salir picando. Al volver a bajar, con la noria ya movida y el
     //   cofre abierto, su hueco sale tapiado con piedra. Se refleja al azar (el paso para seguir bajando sale a un lado u otro).
+    // 0.302: las tres barreras son «n» (tierra de barrera: la noria solo gira con las tres abiertas) y la pared del lado del pozo, de piedra
     id: 'noria_pozo3',
     pozo: 'tres',
     tiro: 'principal',
@@ -160,12 +161,12 @@ window.PIEZAS = [
     reflejar: true,
     filas: [
       'x~~~xxxxxx_x..x',
-      'x~~~t_____Lx..x',
-      'xxxxxxxxtxxx..x',
-      'xxxxxxx____t..x',
-      'xxxxxxx____t..x',
-      'xxxxxxxtxxxx..x',
-      'xxfBG______t..x',
+      'x~~~n_____Lx..x',
+      'xxxxxxxxnxxx..x',
+      'xxxxxxx____p..x',
+      'xxxxxxx____p..x',
+      'xxxxxxxnxxxx..x',
+      'xxfBG______p..x',
       'xxxxxWxxxxxx..x',
       'xxxxxxxxxxxx..x',
     ],
@@ -348,7 +349,7 @@ window.PIEZAS.push(
     ],
   },
   {
-    // La pirámide de hielo (ramal de la mina 4): escalones de hielo de dos casillas; hacen falta escaleras (o mecha baja
+    // La pirámide de hielo (ramal de la mina 4): escalones de hielo de una casilla (0.302); hacen falta escaleras (o mecha baja
     // y paciencia: el hielo se derrite). Arriba del todo, el cofre de la cuadrilla con la brújula rota y una nota.
     id: 'piramide_pozo4',
     pozo: 'cuatro',
@@ -358,18 +359,18 @@ window.PIEZAS.push(
     cofre: { texto: 'La brújula rota de la cuadrilla, 8 de estaño, 6 de hierro y 6 de cuarzo', objeto: 'brujula_rota', unico: true, material: { estano: 8, hierro: 6, cuarzo: 6 } },
     filas: [
       'x___xxxxxxxxxxx',
+      'x_D___________x',
       'x_____________x',
       'x______B______x',
-      'x_____zzz_____x',
+      'x______z______x',
       'x_____zzz_____x',
       'x____zzzzz____x',
-      'x____zzzzz____x',
       'x___zzzzzzz___x',
-      'x___zzzzzzz___x',
-      'xMD_zzzzzzzzzNx',
+      'x__zzzzzzzzz__x',
+      'xMzzzzzzzzzzzNx',
       'xxxxxxxxxxxxxxx',
     ],
-    textos: { '9,2': { cara: 'sorprendido', texto: 'Una pirámide de hielo… y arriba del todo, un cofre. Tendré que subir escalón a escalón.' } },
+    textos: { '1,2': { cara: 'sorprendido', texto: 'Una pirámide de hielo… y arriba del todo, un cofre. Tendré que subir escalón a escalón.' } },
   },
   {
     // El fondo del socavón del viejo (mina 5). Arriba, la cornisa con la boca del tubo de voz (U) y el sitio de la dinamita (E)
