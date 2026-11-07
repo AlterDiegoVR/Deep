@@ -15,9 +15,16 @@ window.Pueblo = (()=>{
   // La imagen llena todo el hueco. Si sobra por un lado (la pantalla es más alargada que la imagen), se recorta
   // y se puede arrastrar para ver lo que queda fuera (pan guarda cuánto se ha movido).
   function ajustar(cv, cont, W, H, pan){
-    const r = cont.getBoundingClientRect();
-    const cubre = Math.max(r.width/W, r.height/H), cabe = Math.min(r.width/W, r.height/H);
+    cont.style.maxHeight = ''; cont.style.marginBlock = '';
+    let r = cont.getBoundingClientRect();
+    let cubre = Math.max(r.width/W, r.height/H), cabe = Math.min(r.width/W, r.height/H);
     // 0.302: solo se amplía para llenar si apenas se recorta (en móvil); si no (PC, en horizontal), se ve entera con bandas a los lados
+    // 0.302i: si sobra alto (móvil a pantalla completa), el marco se encoge por arriba y por abajo hasta la ilustración: sin bandas
+    if(cubre/cabe > 1.15 && r.height/H > r.width/W){
+      const borde = cont.offsetHeight - cont.clientHeight;
+      cont.style.maxHeight = Math.floor(H * r.width/W + borde) + 'px'; cont.style.marginBlock = 'auto';
+      r = cont.getBoundingClientRect(); cubre = Math.max(r.width/W, r.height/H); cabe = Math.min(r.width/W, r.height/H);
+    }
     const css = cubre/cabe <= 1.15 ? cubre : cabe;
     const lim = (v, tam, hueco) => tam <= hueco ? (hueco - tam)/2 : Math.max(hueco - tam, Math.min(0, v));
     const left = lim((r.width - W*css)/2 + (pan ? pan.x : 0), W*css, r.width), top = lim((r.height - H*css)/2 + (pan ? pan.y : 0), H*css, r.height);

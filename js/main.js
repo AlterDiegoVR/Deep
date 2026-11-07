@@ -36,7 +36,8 @@ document.addEventListener('change', e => { if(e.target.matches('select') && wind
 
 // En el móvil, al primer toque se pone a pantalla completa (fuera la barra del navegador). En iPhone no se puede.
 // 0.302b: con el dedo, el navegador solo lo deja al LEVANTARLO (touchend / pointerup), no al apretar.
-(() => { const d = document.documentElement; let hecho = false;
-  const ir = () => { if(hecho || document.fullscreenElement || !d.requestFullscreen || !matchMedia('(hover:none)').matches) return;
-    d.requestFullscreen({navigationUI: 'hide'}).then(() => { hecho = true; }).catch(() => {}); };
+// 0.302i: si sales de la pantalla completa, el siguiente toque vuelve a ponerla.
+(() => { const d = document.documentElement;
+  const ir = () => { if(document.fullscreenElement || !d.requestFullscreen || !matchMedia('(hover:none)').matches) return;
+    d.requestFullscreen({navigationUI: 'hide'}).catch(() => {}); };
   addEventListener('touchend', ir, {passive: true}); addEventListener('pointerup', ir); })();
