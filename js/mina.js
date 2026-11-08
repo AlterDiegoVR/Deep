@@ -431,6 +431,7 @@ function tAt(r,c){ if(c<0 || c>=COLS) return ROCK; if(r<0) return AIR; ensure(r+
 function setT(r,c,v){ const R = W.rows[r]; R.t[c] = v; R.hp[c] = INFO[v].hp||0; R.sh[c] = 0; R.lv[c] = v === WATER ? 1 : 0; R.ox[c] = 0; R.oy[c] = 0; }
 
 // ---------- estado de la bajada ----------
+let flashCol = null, deepPant = null, lluvia = null;
 let platOpen = 0, p, lamp, bag, props, ladders, wick, dead, deadT, cashed, rocks, particles, floats, fillQ, digT, moveT, buried, crackMsgT, lockMsgT, flashT, maxDepth, lastRoomFloor, roomsSeen, segSeen, llaves = 0, submerged = false, cards = {}, air = 10, spun = new Set(), carpDone = 0, entDone = 0, chestFx = null, ruletaOpen = false, prevRecord = 0, newGround = false, bonusOpen = false, transit = null, mainLRF = 0, shake = 0, shakeKick = 0, cracking = 0, looking = false, driftT = 0, started = false, simAcc = 0, stabAcc = 0, tick = 0, t = 0, wet = false, gasNear = false;
 const input = {L:false, R:false, U:false, D:false};
 // pulsaciones cortas: se guardan un momento para que un toque rápido no se pierda entre fotogramas
@@ -538,7 +539,7 @@ function startRun(){
   ensureRoomItems(); tidyEscalas(); unroll = null;
   repartirDeposito();
   redSeguridad();
-  dead = null; deadT = 0; cashed = false; rocks = []; particles = []; floats = []; fillQ = [];
+  dead = null; deadT = 0; lluvia = null; flashCol = null; cashed = false; rocks = []; particles = []; floats = []; fillQ = [];
   digT = 0; moveT = 0; buried = 0; crackMsgT = 0; lockMsgT = 0; flashT = 0; maxDepth = 0;
   lastRoomFloor = SURF - 1; roomsSeen = new Set(); segSeen = 0;
   cam = p.y - (VH/T)*0.35; zoom = ZCLOSE; camX = (p.x+0.5)*T; started = true;
@@ -2199,6 +2200,7 @@ function render(){
     const x = VW/2 + sx + (f.x*T - fx)*zoom, y = VH*0.35 + sy + ((f.y-cam)*T - fy)*zoom;
     g.fillStyle = '#000'; g.fillText(f.txt, x+1, y+1); g.fillStyle = f.col; g.fillText(f.txt, x, y); }
   g.globalAlpha = 1;
+  if(p) deepPant = {x: (VW/2 + sx + (p.x*T + T/2 - fx)*zoom)/VW, y: (VH*0.35 + sy + ((p.y - cam)*T - fy)*zoom)/VH};
   if(comboTag && ARC && p) drawComboTag(g, VW/2 + sx + (p.x*T + T/2 - fx)*zoom, VH*0.35 + sy + ((p.y - cam)*T - fy)*zoom - 14);
   drawAirOverlay();
   drawTransit();
@@ -2210,7 +2212,7 @@ function render(){
   if(latActivo){ const de = LA.latidoDesde ?? 25, k = Math.max(0, (de - lamp)/de), a = 0.2 + 0.25*k + 0.3*latPulso;
     const gr = g.createRadialGradient(VW/2, VH*0.45, Math.min(VW, VH)*0.28, VW/2, VH*0.45, Math.hypot(VW, VH)*0.55);
     gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, `rgba(12,0,4,${Math.min(0.85, a)})`); g.fillStyle = gr; g.fillRect(0, 0, VW, VH); }
-  if(flashT > 0){ ctx.fillStyle = `rgba(251,242,54,${flashT})`; ctx.fillRect(0,0,VW,VH); }
+  if(flashT > 0){ ctx.globalAlpha = Math.min(1, flashT); ctx.fillStyle = flashCol || '#fbf236'; ctx.fillRect(0,0,VW,VH); ctx.globalAlpha = 1; } else flashCol = null;
 }
 // Aire: viñeta azul en la mina y un marcador grande arriba mientras estás bajo la superficie
 let airWarn = false, airTick = 0, latT = 0, latPulso = 0, latActivo = false;
@@ -3048,6 +3050,8 @@ function frame(now){
     for(const it of W.items){ if(it.dy) it.dy = Math.max(0, it.dy - dt*14);
       if(it.t0 !== undefined){ const e = t - it.t0; it.sube = e < 2.4 ? 1 - Math.abs(e - 1.2)/1.2 : 0; if(e >= 2.4){ delete it.t0; it.sube = 0; } } }   // el montacargas sube y vuelve
     if(chestFx){ chestFx.t += dt; if(chestFx.t > 2.4) chestFx = null; }
+    // 0.303: lluvia de chispas al cobrar un ¡MAX! o un enlace
+    if(lluvia){ lluvia.t -= dt; if(lluvia.t <= 0) lluvia = null; else if(p) for(let i = 0; i < 3; i++) particles.push({x: Math.random()*16, y: p.y - 6 - Math.random()*2, vx: (Math.random() - 0.5)*1.5, vy: 1 + Math.random()*3, life: 1.1 + Math.random()*0.5, col: Math.random() < 0.6 ? lluvia.col : '#fff'}); }
     for(const q of particles){ q.x += q.vx*dt; q.y += q.vy*dt; q.vy += 18*dt; q.life -= dt; }
     particles = particles.filter(q => q.life > 0);
     for(const f of floats){ f.y -= dt*1.1; f.life -= dt; }
@@ -3213,6 +3217,13 @@ return {
   arcadeDar(o){ props += o.puntales || 0; ladders += o.escaleras || 0; renderInv(); },
   arcadeSubir(cb){ subida = {t: 0, cb}; started = true; for(const k in input){ input[k] = false; tapped[k] = 0; } SND('chirrido'); },
   pausa(v){ if(v){ started = false; for(const k in input){ input[k] = false; tapped[k] = 0; } } else { started = true; lastT = performance.now(); } },
+  // 0.303: combo cobrado (nivel 0 normal, 1 grande, 2 puro, 3 ¡MAX! o enlace)
+  fxCobro(nivel, col){ if(!p) return; nivel = nivel || 0;
+    flashT = Math.max(flashT, [0.12, 0.2, 0.3, 0.42][nivel]); flashCol = col || '#fbf236';
+    shakeKick = Math.max(shakeKick, [1.2, 2, 3, 4.5][nivel]);
+    for(let i = 0; i < [12, 18, 26, 36][nivel]; i++) particles.push({x: p.x + 0.5, y: p.y + 0.3, vx: (Math.random() - 0.5)*9, vy: -2 - Math.random()*7, life: 0.6 + Math.random()*0.5, col: Math.random() < 0.7 ? col : '#fff'});
+    if(nivel >= 3) lluvia = {t: 1.2, col}; },
+  deepPantalla(){ return deepPant; },
   flotar(txt, col, dy){ if(p) floats.push({x:p.x+0.5, y:p.y - 0.4 - (dy||0), txt, life:1.3, col: col || '#fbf236'}); },
   avisar(titulo, texto){ toast(titulo, texto); },
   sonar(n, v){ SND(n, v); },

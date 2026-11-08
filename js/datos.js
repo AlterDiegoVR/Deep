@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.302i',
+  version: '0.303',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -835,19 +835,20 @@ window.DATOS = {
     // Los puntos del combo no son tuyos hasta cobrarlo: se cobra si pasan «cobrar» segundos sin picar otro mineral, o al
     // entrar en una sala segura. Se pierde si rompes algo que no sea mineral, te hace daño una caída o te toca una polilla.
     // Dos maneras de jugarlo: «puro» (todo el combo del mismo mineral, desde «puroDesde» minerales) vale «puroMult» veces más
-    // al cobrarlo; «enlace» (los «tipos» minerales distintos en el mismo combo) da un regalo de puntales y escaleras.
+    // al cobrarlo; «enlace» (los «tipos» minerales distintos en el mismo combo) vale «mult» veces más y da un regalo de puntales y escaleras.
+    //   quieto → quietoMax: quieto, la cuenta para cobrar corre «quieto» veces más deprisa y acelera hasta «quietoMax» en «quietoRampa» s (0.303)
     //   quieto: si te quedas quieto, el tiempo para cobrar corre estas veces más deprisa (andar sin picar no lo acelera)
     //   quietoMargen: segundos sin hacer nada (ni moverte, ni picar, ni pulsar) antes de que empiece a correr más deprisa
     //   golpeMargen: tras golpear un mineral (aunque no se rompa), la cuenta no corre durante estos segundos
     tutoEspera: 1000,                // milisegundos que el botón de una tarjeta está apagado al salir (para no cerrarla sin querer)
-    combo: { tope: 9, cobrar: 3, quieto: 3, quietoMargen: 0.7, golpeMargen: 0.6, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, puntales: 2, escaleras: 2 } },
+    combo: { tope: 9, cobrar: 3, quieto: 3, quietoMargen: 0.7, quietoMax: 6, quietoRampa: 1, golpeMargen: 0.6, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, mult: 2, puntales: 2, escaleras: 2 } },
     // tarjetas de cómo se juega: cada una sale una sola vez, la primera vez que aparece esa cosa (gif: js/tutorial-gifs.js)
     tutorial: [
       { id: 'picar',     titulo: 'Pica hacia abajo',      texto: 'Toca abajo o a los lados para picar. Cada golpe gasta un poco de lámpara. La tierra cae de un golpe; la piedra y la roca dura cuestan más.' },
       { id: 'cajon',     titulo: 'El cajón de cada fase', texto: 'Al final de cada fase hay un cajón que pide minerales. Llega con ellos en la mochila y pasas de fase. Si no los llevas, se acaba la partida.' },
       { id: 'recorrido', titulo: 'Baja todo lo que puedas', texto: 'Aquí no hay cajones: llega a la meta de metros lo antes posible. Las franjas de roca maciza solo dejan pasar por sus huecos.' },
       { id: 'combo',     titulo: 'Combo',                 texto: 'Cada mineral que picas seguido sube el multiplicador. Los puntos del combo no son tuyos hasta cobrarlo: si rompes algo que no sea mineral, te caes o te toca una polilla, lo pierdes.' },
-      { id: 'cobrar',    titulo: 'Cobrar, puro y enlace', texto: 'El combo se cobra solo si dejas de picar mineral un momento (quieto, más rápido). Todo del mismo mineral: <b>¡PURO!</b>, vale el doble. Los cuatro minerales en un combo: <b>¡ENLACE!</b>, te da puntales y escaleras.' },
+      { id: 'cobrar',    titulo: 'Cobrar, puro y enlace', texto: 'El combo se cobra solo si dejas de picar mineral un momento (quieto, más rápido). Todo del mismo mineral: <b>¡PURO!</b>, vale el doble. Los cuatro minerales en un combo: <b>¡ENLACE!</b>, vale el doble y te da puntales y escaleras.' },
       { id: 'escaleras', titulo: 'Escaleras',             texto: 'Picando hacia abajo no puedes volver a subir. Pon una escalera (botón Escalera) donde estés para poder trepar después.' },
       { id: 'derrumbe',  titulo: 'Derrumbes y puntales',  texto: 'Lo que queda sin apoyo cruje y cae. Si cae desde muy alto se rompe en escombro y el mineral se pierde. Un puntal (botón Puntal) sujeta el techo; la roca dura nunca cae.' },
       { id: 'lampara',   titulo: 'La lámpara',            texto: 'Si se apaga, se acabó. Recárgala en la llama de las salas seguras y con los bidones de aceite. Con la mecha baja gasta la mitad, pero ves menos.' },

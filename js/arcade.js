@@ -128,10 +128,19 @@ window.Arcade = (()=>{
     const C = S.combo; if(!C.n) return;
     const puro = C.puro && C.n >= (CB.puroDesde || 3), EN = CB.enlace, enlace = EN && Object.keys(C.tipos).length >= EN.tipos;
     if(puro) C.pot *= (CB.puroMult || 2);
+    if(enlace) C.pot *= (EN.mult || 1);   // 0.303: el enlace, como una escalera de color: también el doble
     S.puntos += C.pot; S.ptsFase += C.pot;
     if(C.n >= 2) tuto('cobrar');
-    if(C.n >= 2){ Mi.flotar((puro ? '¡PURO! ' : '') + 'Combo ×' + C.mult + ': +' + numero(C.pot), puro ? '#ff7bd5' : '#fbf236', 0.6); Mi.sonar('cobrar', 0.8); pulso('arcPuntos'); }
-    if(enlace){ Mi.arcadeDar({puntales: EN.puntales || 0, escaleras: EN.escaleras || 0}); Mi.flotar('¡ENLACE! +' + (EN.puntales || 0) + ' puntales y +' + (EN.escaleras || 0) + ' escaleras', '#5fcde4', 1.3); Mi.sonar('desbloqueo', 0.7); }
+    if(C.n >= 2){
+      // 0.303: cobrar se nota: número grande que vuela al marcador, destello, sacudida y caja registradora
+      const max = C.mult >= CB.tope, nivel = enlace || max ? 3 : puro ? 2 : C.mult >= 5 ? 1 : 0;
+      const col = enlace ? '#5fcde4' : puro ? '#ff7bd5' : max ? '#ff9b3d' : '#fbf236';
+      const sub = (enlace ? '¡ENLACE! ' : puro ? '¡PURO! ' : max ? '¡MAX! ' : '') + 'Combo ×' + C.mult + (enlace || puro ? ' ×2' : '');
+      volarNumero('+' + numero(C.pot), sub, col, nivel);
+      Mi.fxCobro(nivel, col);
+      if(So && So.caja) So.caja(C.mult, nivel); else Mi.sonar('cobrar', 0.8);
+    }
+    if(enlace){ Mi.arcadeDar({puntales: EN.puntales || 0, escaleras: EN.escaleras || 0}); Mi.flotar('+' + (EN.puntales || 0) + ' puntales y +' + (EN.escaleras || 0) + ' escaleras', '#5fcde4', 0.9); setTimeout(() => Mi.sonar('desbloqueo', 0.7), 350); }
     S.combo = comboNuevo(); pintar();
   }
   function perder(){
@@ -266,7 +275,9 @@ window.Arcade = (()=>{
         // el combo se cobra solo si pasa un rato sin picar otro mineral
         // la cuenta no corre mientras golpeas un mineral; si te quedas quieto de verdad un rato, corre más deprisa
         if(S.combo.n && Mi.golpeMineralHace() > (CB.golpeMargen ?? 0.6)){
-          S.combo.t -= dt*(Mi.quietoDesde() > (CB.quietoMargen ?? 0.7) ? (CB.quieto || 3) : 1); if(S.combo.t <= 0) cobrar(); }
+          const q = Mi.quietoDesde() - (CB.quietoMargen ?? 0.7), q0 = CB.quieto || 3, q1 = CB.quietoMax || q0;
+          // 0.303: quieto, empieza a ×3 y acelera hasta ×6 en un segundo; al moverte vuelve a la normal
+          S.combo.t -= dt*(q > 0 ? Math.min(q1, q0 + (q1 - q0)*q/(CB.quietoRampa || 1)) : 1); if(S.combo.t <= 0) cobrar(); }
         // logros que se miran sobre la marcha
         if(est.bajoAgua){ S.agua += dt; if(S.agua >= 30) desbloquear('asp_buzo'); } else S.agua = 0;
         if(!est.inRoom && est.wick) S.mecha = false;
@@ -320,7 +331,24 @@ window.Arcade = (()=>{
     set('arcObjetivo', obj, forzar, true);
   }
   function set(id, v, forzar, html){ if(!forzar && ult[id] === v) return; ult[id] = v; if(html) $(id).innerHTML = v; else $(id).textContent = v; }
-  function pulso(id){ const e = $(id); e.classList.remove('pulso'); void e.offsetWidth; e.classList.add('pulso'); }
+  function pulso(id, clase = 'pulso'){ const e = $(id); e.classList.remove('pulso', 'pulsoGordo'); void e.offsetWidth; e.classList.add(clase); }
+  // 0.303: el número del combo cobrado sale grande de encima de Deep y vuela hasta el marcador de puntos
+  function volarNumero(txt, sub, col, nivel){
+    const cv = $('cv'), dest = $('arcPuntos'); if(!cv || !dest || !document.body.animate){ pulso('arcPuntos'); return; }
+    const r = cv.getBoundingClientRect(), d = Mi.deepPantalla() || {x: 0.5, y: 0.35}, q = dest.getBoundingClientRect();
+    const x0 = Math.max(r.left + 110, Math.min(r.right - 110, r.left + d.x*r.width)), y0 = r.top + d.y*r.height - 24, dx = q.left + q.width/2 - x0, dy = q.top + q.height/2 - y0;
+    const e = document.createElement('div'); e.className = 'arcVuela n' + nivel; e.style.left = x0 + 'px'; e.style.top = y0 + 'px'; e.style.color = col;
+    e.innerHTML = '<small></small><span></span>'; e.firstChild.textContent = sub; e.lastChild.textContent = txt;
+    document.body.appendChild(e);
+    const tt = 'translate(-50%,-50%) ';
+    const a = e.animate([
+      {transform: tt + 'scale(.2)', opacity: 0, easing: 'ease-out'},
+      {transform: tt + 'translateY(-26px) scale(1.3) rotate(-4deg)', opacity: 1, offset: 0.16, easing: 'ease-in-out'},
+      {transform: tt + 'translateY(-34px) scale(1)', opacity: 1, offset: 0.5 + nivel*0.04, easing: 'cubic-bezier(.5,0,.75,.4)'},
+      {transform: `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(.3)`, opacity: 0.85}
+    ], {duration: 1050 + nivel*170});
+    a.onfinish = () => { e.remove(); pulso('arcPuntos', nivel >= 2 ? 'pulsoGordo' : 'pulso'); if(So && So.tocar) So.tocar('cobrar', 0.35 + nivel*0.1); };
+  }
 
   // ---------- pantallas ----------
   // ---------- tarjetas de cómo se juega: cada una sale la primera vez que aparece esa cosa (con su gif) ----------

@@ -126,5 +126,18 @@ window.Sonido = (()=>{
     on = !!v; try{ localStorage.setItem('pozoviejo-sonido', on ? '1' : '0'); }catch(e){}
     if(master) master.gain.value = on ? CFG.volumen : 0;
   }
-  return {tocar, tic, pling, retumbo, activar, get activado(){ return on; }};
+  // 0.303: combo cobrado: «¡clin-clin!» de caja registradora, más agudo cuanto mayor el combo, y una cascada de monedas
+  function caja(mult = 2, nivel = 0){
+    if(!ac || !on) return;
+    const t0 = ac.currentTime, k = Math.pow(2, Math.min(12, (mult - 2)*1.5)/12), v = 0.8 + nivel*0.1;
+    try{
+      noise(t0, 0.07, 0.22*v, 'bandpass', 3200, 0, 4);
+      tone(t0 + 0.02, 0.5, 0.14*v, 'triangle', 1568*k); tone(t0 + 0.02, 0.5, 0.08*v, 'sine', 3136*k);
+      tone(t0 + 0.12, 0.6, 0.14*v, 'triangle', 2093*k); tone(t0 + 0.12, 0.6, 0.08*v, 'sine', 4186*k);
+      const n = 3 + Math.min(9, mult) + nivel*3;
+      for(let i = 0; i < n; i++) tone(t0 + 0.22 + i*0.045 + Math.random()*0.02, 0.09, 0.07*v, 'square', (1800 + Math.random()*1400)*k);
+      if(nivel >= 3){ [1047, 1319, 1568, 2093].forEach((f, i) => tone(t0 + 0.3 + i*0.08, 0.3, 0.12, 'triangle', f*k)); noise(t0 + 0.3, 0.6, 0.08, 'highpass', 6000); }
+    }catch(e){}
+  }
+  return {tocar, tic, pling, caja, retumbo, activar, get activado(){ return on; }};
 })();

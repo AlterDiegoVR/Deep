@@ -115,3 +115,11 @@ body.arcade{background-attachment:fixed}
 .mnOpciones button{font-family:Nunito,sans-serif;font-weight:800;font-size:12px;white-space:nowrap;color:#45283c;background:#fbe8cf;border:2px solid #45283c;border-radius:12px;padding:6px 12px;cursor:pointer;box-shadow:0 3px 0 #45283c}
 #tuBtn:disabled{opacity:.35;filter:grayscale(.6);transition:none}
 #tuBtn{transition:opacity .25s}
+
+/* 0.303: combo cobrado */
+.arcVuela{position:fixed;z-index:1000;pointer-events:none;font:900 30px/1 "Sofia Sans Condensed","Arial Narrow",sans-serif;text-align:center;white-space:nowrap;
+  text-shadow:0 3px 0 #000,2px 0 0 #000,-2px 0 0 #000,0 -2px 0 #000,0 0 14px currentColor;letter-spacing:.5px}
+.arcVuela small{display:block;font-size:.38em;margin-bottom:2px}
+.arcVuela.n1{font-size:36px}.arcVuela.n2{font-size:44px}.arcVuela.n3{font-size:54px}
+@keyframes arcPulsoGordo{0%{transform:scale(1.9) rotate(-8deg);color:#fff}40%{transform:scale(1.25) rotate(3deg)}100%{transform:scale(1)}}
+#arcPuntos.pulsoGordo{animation:arcPulsoGordo .55s ease-out}
