@@ -6,7 +6,7 @@
 window.DATOS = {
 
   // Versión del juego: sale en el menú para saber si has cargado la última
-  version: '0.303',
+  version: '0.304',
 
   // Pantalla. calidad 0 = resolución completa del móvil (movimiento suave; lo normal).
   // 1 o 2 = la mina se dibuja con menos píxeles: más ligero en móviles lentos, pero el movimiento va a saltos.
@@ -109,6 +109,7 @@ window.DATOS = {
     { id: 'cavar_arriba',  icono: '⬆️', nombre: 'Cavar hacia arriba',  texto: 'Pulsa arriba para picar lo que tienes encima. Cuidado con lo que te cae.', peso: 0.8, unica: true },
     { id: 'entibador',     icono: '🪵', nombre: 'Entibador',           texto: 'Cada 10 m que bajas te dan un puntal.', valor: 10, peso: 1, unica: true },
     { id: 'zahori_galerias', icono: '🗺️', nombre: 'Zahorí de galerías', texto: 'Una flecha te indica la sala secreta o la galería más cercana que aún no has encontrado.', peso: 0.8, unica: true },
+    { id: 'cesta_plantas', icono: '🧺', nombre: 'Cesta colgada',       texto: 'El montacargas también sube a tu colección las flores, los hongos y las plantas que lleves.', peso: 0.8, unica: true, requiere: 'plantas' },
     { id: 'zahori_flores', icono: '🌼', nombre: 'Zahorí de flores',    texto: 'Una flecha te indica la flor, el hongo o la planta más cercana.', peso: 0.8, unica: true },
     { id: 'escalera_ext',  icono: '📏', nombre: 'Escalera extensible', texto: 'Las escalas se despliegan dos casillas más.', valor: 2, peso: 1, unica: true },
     { id: 'puntal_alto',   icono: '🏗️', nombre: 'Puntal alto',         texto: 'Los puntales ocupan dos casillas de alto (si hay hueco encima).', peso: 0.9, unica: true },
@@ -752,6 +753,19 @@ window.DATOS = {
       minas: { 1: 'alfarero', 2: 'carbonero', 3: 'buzo', 4: 'explorador', 5: 'viejo', 6: 'cobrizo', 7: 'singafas', 8: 'oro', 9: 'cuarzo', 10: 'natural' },
       flores: { azul: 'azul', amarilla: 'rayo', blanca: 'fantasma', naranja: 'ardilla', morada: 'neon', roja: 'coneja' },
     },
+    // 0.304: apuntes: el cuaderno de tutorial de Deep (cómo se juega). Igual que el diario: cada página sale cuando se cumple su «si».
+    apuntes: [
+      { si: null, texto: '<b>Picar y bajar.</b> Con las flechas pico a los lados y hacia abajo. Cada bloque cuesta unos golpes: la tierra se va enseguida; la piedra dura, ni con el pico. Lo que pico de mineral va a la mochila.' },
+      { si: null, texto: '<b>La lámpara.</b> Se va gastando mientras bajo. Si se apaga, a oscuras no hay quien salga. Los bloques de aceite brillan: no se pican, hay que meterse en su hueco para cogerlos (y salir rápido si algo se viene encima).' },
+      { si: null, texto: '<b>Derrumbes.</b> Si quito lo que aguanta un techo, se viene abajo. Lo que cae se queda en escombro y me puede aplastar. Un puntal sujeta el techo: lo pongo debajo antes de picar donde no me fío.' },
+      { si: null, texto: '<b>Escaleras.</b> Para volver a subir por donde he bajado. Las pongo en el hueco donde estoy y trepo por ellas.' },
+      { si: null, texto: '<b>Si me pasa algo ahí abajo,</b> la mochila se queda donde caí, con todo lo que llevaba. Puedo volver a por ella, pero la mina se habrá llenado de escombro desde la última sala segura.' },
+      { si: null, texto: '<b>Salas seguras.</b> Cada cierto trecho hay una sala con suelo de madera. Ahí no se derrumba nada. La ruleta de la sala da una carta que me ayuda hasta que salga de la mina.' },
+      { si: 'mina_2_abierta', texto: '<b>El montacargas.</b> Algunas salas tienen uno. Roto, pide algo de mineral para arreglarlo; arreglado, manda arriba lo que llevo y la mochila queda vacía. Así no lo pierdo si me pasa algo.' },
+      { si: 'mina_3_abierta', texto: '<b>Agua.</b> El agua corre y llena los huecos. Debajo del agua se me acaba el aire: tengo que salir antes de que se vacíe la barra. A veces conviene desviarla hacia un lado y bajar por el otro.' },
+      { si: 'ardilla_intro', texto: '<b>Plantas y ungüentos.</b> Las flores y los hongos de las minas son para la ardilla. Con ellas prepara ungüentos de un solo uso: si me llevo uno, me ayuda en esa bajada.' },
+      { si: 'flor_entregada', texto: '<b>El almacén y las herramientas.</b> Lo que traigo se guarda en el almacén. Con eso se compran puntales, escaleras y mejoras. Antes de bajar elijo cuántos puntales y escaleras me llevo.' },
+    ],
     // diario: lo que Deep escribe a mano. Sale cada entrada cuando se cumple su condición («si»: una bandera, o «col:» y un objeto de la colección)
     diario: [
       { si: null, texto: 'Dicen que van a cerrar las minas. Que unos señores de la ciudad quieren sellarlas con hormigón. Papá decía que las minas eran el corazón del pueblo. Yo no sé si un pueblo puede vivir sin corazón.' },
@@ -819,18 +833,18 @@ window.DATOS = {
     //   arena / cuevas / agua: umbrales del ruido (más alto = menos; 2 = nada) · polillas: probabilidad por hueco
     fases: [
       { nombre: 'Galerías de arcilla', largo: 14, pide: { arcilla: 10, carbon: 4 },
-        min: { arcilla: 0.66, carbon: 0.78 }, arena: 0.88, cuevas: 0.76, agua: 2, polillas: 0 },
+        min: { arcilla: 0.66, carbon: 0.78, cobre: 0.87 }, arena: 0.88, cuevas: 0.76, agua: 2, polillas: 0 },
       { nombre: 'Vetas de carbón',     largo: 18, pide: { carbon: 14, cobre: 4 },
-        min: { arcilla: 0.8, carbon: 0.71, cobre: 0.8 }, arena: 0.85, cuevas: 0.72, agua: 2, polillas: 0 },
+        min: { arcilla: 0.8, carbon: 0.71, cobre: 0.8, cuarzo: 0.03 }, arena: 0.85, cuevas: 0.72, agua: 2, polillas: 0 },
       { nombre: 'Cuevas del cobre',    largo: 22, pide: { cobre: 14, carbon: 6 },
-        min: { carbon: 0.77, cobre: 0.72 }, arena: 0.83, cuevas: 0.68, agua: 0.62, polillas: 0 },
+        min: { arcilla: 0.86, carbon: 0.77, cobre: 0.72, cuarzo: 0.035 }, arena: 0.83, cuevas: 0.68, agua: 0.62, polillas: 0 },
       { nombre: 'Grutas de cuarzo',    largo: 26, pide: { cuarzo: 4, cobre: 10 },
-        min: { carbon: 0.8, cobre: 0.75, cuarzo: 0.035 }, arena: 0.82, cuevas: 0.66, agua: 0.62, polillas: 0.03 },
+        min: { arcilla: 0.86, carbon: 0.8, cobre: 0.75, cuarzo: 0.06 }, arena: 0.82, cuevas: 0.66, agua: 0.62, polillas: 0.03 },
       { nombre: 'Lo más hondo',        largo: 30, pide: { carbon: 12, cobre: 12, cuarzo: 4 },
-        min: { arcilla: 0.82, carbon: 0.74, cobre: 0.74, cuarzo: 0.03 }, arena: 0.8, cuevas: 0.64, agua: 0.6, polillas: 0.04 },
+        min: { arcilla: 0.82, carbon: 0.74, cobre: 0.74, cuarzo: 0.055 }, arena: 0.8, cuevas: 0.64, agua: 0.6, polillas: 0.04 },
     ],
     // puntos: lo que vale cada mineral (al picarlo, por el combo; y en el recuento, lo que sobra)
-    puntos: { arcilla: 10, carbon: 10, cobre: 20, cuarzo: 30 },
+    puntos: { arcilla: 10, carbon: 15, cobre: 20, cuarzo: 30 },
     // combo: cada mineral seguido sube el multiplicador 1, hasta el tope (¡MAX!). Se ve encima de Deep.
     // Los puntos del combo no son tuyos hasta cobrarlo: se cobra si pasan «cobrar» segundos sin picar otro mineral, o al
     // entrar en una sala segura. Se pierde si rompes algo que no sea mineral, te hace daño una caída o te toca una polilla.
@@ -841,7 +855,8 @@ window.DATOS = {
     //   quietoMargen: segundos sin hacer nada (ni moverte, ni picar, ni pulsar) antes de que empiece a correr más deprisa
     //   golpeMargen: tras golpear un mineral (aunque no se rompa), la cuenta no corre durante estos segundos
     tutoEspera: 1000,                // milisegundos que el botón de una tarjeta está apagado al salir (para no cerrarla sin querer)
-    combo: { tope: 9, cobrar: 3, quieto: 3, quietoMargen: 0.7, quietoMax: 6, quietoRampa: 1, golpeMargen: 0.6, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, mult: 2, puntales: 2, escaleras: 2 } },
+    combo: { tope: 9, cobrar: 3, quieto: 3, quietoMargen: 0.7, quietoMax: 6, quietoRampa: 1, golpeMargen: 0.6, fuegoDesde: 3, puroDesde: 3, puroMult: 2, enlace: { tipos: 4, mult: 2, puntales: 2, escaleras: 2 },
+      racha: { desde: 5, paso: 0.1, max: 0.5 } },   // 0.304: el mismo mineral seguido, desde el 5.º, +10 % cada uno (hasta +50 %)
     // tarjetas de cómo se juega: cada una sale una sola vez, la primera vez que aparece esa cosa (gif: js/tutorial-gifs.js)
     tutorial: [
       { id: 'picar',     titulo: 'Pica hacia abajo',      texto: 'Toca abajo o a los lados para picar. Cada golpe gasta un poco de lámpara. La tierra cae de un golpe; la piedra y la roca dura cuestan más.' },

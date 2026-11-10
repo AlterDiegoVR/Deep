@@ -110,9 +110,13 @@ window.Arcade = (()=>{
       const antes = C.mult;
       C.mult = C.n === 0 ? 1 : Math.min(CB.tope, C.mult + 1);
       if(C.n && key !== C.ultimo) C.puro = false;
+      C.racha = C.n && key === C.ultimo ? (C.racha || 1) + 1 : 1;
       C.n++; C.ultimo = key; C.t = CB.cobrar;
       const nuevoTipo = !C.tipos[key]; C.tipos[key] = true;
-      const pts = (A.puntos[key] || 10)*C.mult; C.pot += pts;
+      // 0.304: racha del mismo mineral seguido: desde el 5.º, cada uno vale un poco más (se queda en el bote aunque cambies)
+      const RA = CB.racha, extra = RA && C.racha >= RA.desde ? Math.min(RA.max, (C.racha - RA.desde + 1)*RA.paso) : 0;
+      const pts = Math.round((A.puntos[key] || 10)*C.mult*(1 + extra)); C.pot += pts;
+      if(extra) Mi.flotar('Racha ×' + C.racha + ' +' + Math.round(extra*100) + ' %', '#ffd27a', 0.5);
       // el pling sube siempre de tono; en ¡MAX!, doble toque y vuelve a subir desde abajo
       if(So && So.pling){
         if(C.mult >= CB.tope){ So.pling((C.enMax % 7)*2, 1, true); C.enMax++; }

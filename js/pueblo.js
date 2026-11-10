@@ -363,15 +363,21 @@ window.Pueblo = (()=>{
     componerPlaza();
     x.drawImage(PLZ.cv, 0, 0);
     for(const c of D.casas) if(c.abreCon && Pa.bandera(c.abreCon)){ const sl = silueta(c.id); if(sl) x.drawImage(sl.cv, sl.x, sl.y); }
-    moverTopo(t);
-    const andando = topo.camino.length > 0, frs = andando ? TOPO_ANDAR : TOPO_REPOSO;
-    const fr = frs[Math.floor(t*(andando ? 9 : 2)) % frs.length];
-    const X = Math.round(topo.x - 16), Y = Math.round(topo.y - 29);
-    x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(Math.round(topo.x), Math.round(topo.y), 9, 3, 0, 0, Math.PI*2); x.fill();
-    x.save();
-    if(topo.cara < 0){ x.translate(X + 32, Y); x.scale(-1, 1); x.drawImage(fr, 0, 0); }
-    else x.drawImage(fr, X, Y);
-    x.restore();
+    moverTopo(t); moverVecinos(t);
+    // Deep y los vecinos que pasean, pintados de arriba abajo (el de más abajo, delante)
+    const lista = [{q: topo, andar: TOPO_ANDAR, reposo: TOPO_REPOSO}];
+    for(const v of vecinos){ const F = vecFrames(v.id); if(F && !v.dentro) lista.push({q: v, andar: F.andar, reposo: F.reposo, fase: v.fase}); }
+    lista.sort((a, b) => a.q.y - b.q.y);
+    for(const o of lista){
+      const q = o.q, andando = q.camino.length > 0, frs = andando ? o.andar : o.reposo;
+      const fr = frs[Math.floor(t*(andando ? 9 : 2) + (o.fase || 0)) % frs.length];
+      const X = Math.round(q.x - 16), Y = Math.round(q.y - 29);
+      x.fillStyle = 'rgba(0,0,0,0.25)'; x.beginPath(); x.ellipse(Math.round(q.x), Math.round(q.y), 9, 3, 0, 0, Math.PI*2); x.fill();
+      x.save();
+      if(q.cara < 0){ x.translate(X + 32, Y); x.scale(-1, 1); x.drawImage(fr, 0, 0); }
+      else x.drawImage(fr, X, Y);
+      x.restore();
+    }
     // casa elegida: la flechita encima del tejado
     if(plazaSel !== null){ const e = CASA(D.casas[plazaSel]); if(e) flecha(x, (e.caja[0] + e.caja[2])/2, e.caja[1] - 1, t); }
   }
@@ -414,6 +420,53 @@ window.Pueblo = (()=>{
     const a = cercana(...celdaDe(topo.x, topo.y)), b = cercana(celda[0], celda[1]);
     topo.camino = buscar(a, b); topo.alLlegar = alLlegar; topo.rapido = false;
     if(!topo.camino.length && alLlegar){ topo.alLlegar = null; alLlegar(); }
+  }
+  // ---- 0.304: vecinos paseando por la plaza (sin interacción): solo los que ya viven en el pueblo, y más cuanto más revive.
+  // Pasean por los caminos, se paran, entran en una casa y desaparecen un rato, salen y van a otra.
+  const VEC_FR = {};
+  const vecFrames = id => { if(id in VEC_FR) return VEC_FR[id]; const S2 = (window.PASEANTES || {})[id];
+    if(!S2 || !S2.anims || !S2.anims.reposo){ VEC_FR[id] = null; return null; }
+    const fc = f => lienzo(32, 31, x => { f.forEach((row, y) => { for(let i=0;i<row.length;i++){ const ch = row[i]; if(ch === '.') continue; x.fillStyle = S2.pal[ch] || '#000'; x.fillRect(i, y, 1, 1); } }); });
+    return VEC_FR[id] = {andar: (S2.anims.andar || S2.anims.reposo).map(fc), reposo: S2.anims.reposo.map(fc)}; };
+  const RESIDENTES = [['coneja', 'tienda'], ['ardilla', 'herboristeria'], ['tejon', 'taller'], ['alcalde', 'alcaldia']];
+  const LLEGADAS = [['llega_castor', 'castor', 'paja1'], ['llega_marmota', 'marmota', 'paja2'], ['llega_gemelos', 'gemelos', 'paja3']];
+  let vecinos = [], vecClave = '';
+  const casaIdx = id => D.casas.findIndex(c => c.id === id);
+  const casaAbierta = i => { const c = D.casas[i]; return !!c && (!c.abreCon || Pa.bandera(c.abreCon)); };
+  function prepararVecinos(){
+    // nadie pasea hasta que empiezan a llegar vecinos nuevos; cada llegada saca a pasear al recién llegado y a dos de los de siempre
+    const llegados = LLEGADAS.filter(([f]) => Pa.bandera(f));
+    const ids = [...llegados.map(([, id, casa]) => [id, casa]), ...RESIDENTES.slice(0, Math.min(RESIDENTES.length, llegados.length*2))]
+      .filter(([id, casa]) => casaIdx(casa) >= 0 && vecFrames(id));
+    const clave = ids.map(a => a[0]).join(',');
+    if(clave === vecClave) return; vecClave = clave;
+    vecinos = ids.map(([id, casa], k) => ({id, casa: casaIdx(casa), x: 0, y: 0, cara: 1, camino: [], dentro: true, espera: 0.5 + k*1.7 + Math.random()*2, fase: Math.random()*4}));
+  }
+  function celdaAzar(){ for(let i=0;i<60;i++){ const cx = Math.floor(Math.random()*PL.cols), cy = Math.floor(Math.random()*PL.filas); if(pasa(cx, cy)) return [cx, cy]; } return PL.inicio; }
+  function nuevoDestino(v){
+    const r = Math.random(), otras = D.casas.map((c, i) => i).filter(i => i !== v.casa && casaAbierta(i) && CASA(D.casas[i]));
+    if(r < 0.25 && otras.length){ v.puerta = otras[Math.floor(Math.random()*otras.length)]; }
+    else if(r < 0.4){ v.puerta = v.casa; }
+    else v.puerta = null;
+    const a = cercana(...celdaDe(v.x, v.y)), b = v.puerta !== null ? cercana(...puerta(v.puerta)) : celdaAzar();
+    v.camino = buscar(a, b);
+    if(!v.camino.length){ v.espera = 1 + Math.random()*2; v.puerta = null; }
+  }
+  function moverVecinos(t){
+    const dt = Math.min(0.05, Math.max(0, t - (moverVecinos.tUlt || t))); moverVecinos.tUlt = t;
+    for(const v of vecinos){
+      if(v.espera > 0){ v.espera -= dt; if(v.espera > 0) continue;
+        if(v.dentro){ const c = centro(cercana(...puerta(v.sale ?? v.casa))); v.x = c.x; v.y = c.y; v.dentro = false; }   // sale de su casa
+        nuevoDestino(v); continue; }
+      if(!v.camino.length){ v.espera = 1 + Math.random()*4; continue; }
+      const p = v.camino[0], dx = p.x - v.x, dy = p.y - v.y, d = Math.hypot(dx, dy), s = 40*dt;
+      if(Math.abs(dx) > 0.5) v.cara = Math.sign(dx);
+      if(d <= s){ v.x = p.x; v.y = p.y; v.camino.shift();
+        if(!v.camino.length){
+          if(v.puerta !== null && v.puerta !== undefined){ v.dentro = true; v.sale = v.puerta; v.espera = 3 + Math.random()*8; v.puerta = null; }
+          else v.espera = 1 + Math.random()*4; } }
+      else { v.x += dx/d*s; v.y += dy/d*s; }
+    }
   }
   function moverTopo(t){
     const dt = Math.min(0.05, Math.max(0, t - topo.tUlt)); topo.tUlt = t;
@@ -478,12 +531,12 @@ window.Pueblo = (()=>{
   // ---- casa de Deep: diario, armario, dormir y datos ----
   let casaTab = 'diario', diarioPag = null, armVisto = null;
   function panelCasaDeep(cuerpo){
-    const CD = D.casaDeep || {diario: [], dormir: {cada: 3}}, tabs = {diario: '📖 Diario', armario: '👕 Armario', dormir: '🛏️ Dormir', datos: '📊 Datos'};
+    const CD = D.casaDeep || {diario: [], dormir: {cada: 3}}, tabs = {diario: '📖 Diario', apuntes: '🎓 Notas', armario: '👕 Armario', dormir: '🛏️ Dormir', datos: '📊 Datos'};
     let h = '<div class="tabs">' + Object.entries(tabs).map(([k, n]) => `<button class="tab${casaTab === k ? ' on' : ''}" data-t="${k}">${n}</button>`).join('') + '</div>';
-    if(casaTab === 'diario'){
+    if(casaTab === 'diario' || casaTab === 'apuntes'){
       // el diario: un cuaderno a toda pantalla, una entrada por página (se abre por la última; tocar la hoja pasa a la siguiente)
       const se = e => !e.si || (e.si.startsWith('col:') ? !!(Pa.coleccion[e.si.slice(4)] || Pa.visto[e.si.slice(4)]) : Pa.bandera(e.si));
-      const ents = CD.diario.filter(se), n = ents.length;
+      const ents = (casaTab === 'apuntes' ? CD.apuntes || [] : CD.diario).filter(se), n = ents.length;
       if(diarioPag === null || diarioPag >= n) diarioPag = n - 1;
       h += `<div class="cuaderno" id="cuaderno"><div class="pag">${ents[diarioPag] ? ents[diarioPag].texto : ''}</div>
         <div class="pie"><button id="pagAnt" ${diarioPag <= 0 ? 'disabled' : ''} aria-label="Página anterior">‹</button><span>Página ${diarioPag + 1} de ${n}</span><button id="pagSig" ${diarioPag >= n - 1 ? 'disabled' : ''} aria-label="Página siguiente">›</button></div></div>`;
@@ -513,10 +566,11 @@ window.Pueblo = (()=>{
         <p class="lbl">Minerales subidos</p><div class="list">${mins.length ? mins.map(([k, n]) => chip(k, n)).join('') : '<span class="chip muted">Aún nada</span>'}</div>`;
     }
     cuerpo.innerHTML = h;
-    const pasar = d => { const v = diarioPag + d; if(v < 0 || v >= (D.casaDeep.diario || []).length) return; diarioPag = v; window.Sonido && window.Sonido.tocar('clic', 0.5); panelCasa(); };
+    const pasar = d => { const v = diarioPag + d; const se = e => !e.si || (e.si.startsWith('col:') ? !!(Pa.coleccion[e.si.slice(4)] || Pa.visto[e.si.slice(4)]) : Pa.bandera(e.si));
+      if(v < 0 || v >= ((casaTab === 'apuntes' ? D.casaDeep.apuntes : D.casaDeep.diario) || []).filter(se).length) return; diarioPag = v; window.Sonido && window.Sonido.tocar('clic', 0.5); panelCasa(); };
     if($('pagAnt')){ $('pagAnt').onclick = e => { e.stopPropagation(); pasar(-1); }; $('pagSig').onclick = e => { e.stopPropagation(); if(!$('pagSig').disabled) pasar(1); };
       $('cuaderno').onclick = () => { if(!$('pagSig').disabled) pasar(1); }; }
-    cuerpo.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => { casaTab = b.dataset.t; if(casaTab === 'diario') diarioPag = null; panelCasa(); });
+    cuerpo.querySelectorAll('button[data-t]').forEach(b => b.onclick = () => { casaTab = b.dataset.t; if(casaTab === 'diario' || casaTab === 'apuntes') diarioPag = casaTab === 'apuntes' ? 0 : null; panelCasa(); });
     cuerpo.querySelectorAll('button[data-a]').forEach(b => b.onclick = () => { Pa.pueblo.aspecto = b.dataset.a; armVisto = b.dataset.a; Pa.guardar(); window.Sonido && window.Sonido.tocar('abrir', 0.6); panelCasa(); });
     const db = $('dormirBtn'); if(db) db.onclick = () => { Pa.pueblo.descansado = true; Pa.pueblo.siesta = Pa.estad().bajadas; Pa.guardar(); window.Sonido && window.Sonido.tocar('sala', 0.6); panelCasa(); };
   }
@@ -705,7 +759,7 @@ window.Pueblo = (()=>{
   ro.observe($('mapaLienzo')); ro.observe($('plazaLienzo'));
   return {
     mapa(){ activa = 'mapa'; mapaSel = null; esperando = false; colocarMini(); $('mapaPanel').hidden = true; requestAnimationFrame(recolocar); setTimeout(eventosMapa, 450); },
-    plaza(){ activa = 'plaza'; mini.nodo = D.mapa.paradas.pueblo; plazaSel = null; topo.x = SALIDA.x; topo.y = SALIDA.y; topo.camino = []; topo.alLlegar = null; irA(PL.inicio, null); requestAnimationFrame(recolocar); },
+    plaza(){ activa = 'plaza'; prepararVecinos(); mini.nodo = D.mapa.paradas.pueblo; plazaSel = null; topo.x = SALIDA.x; topo.y = SALIDA.y; topo.camino = []; topo.alLlegar = null; irA(PL.inicio, null); requestAnimationFrame(recolocar); },
     parar(){ activa = null; },
   };
 })();

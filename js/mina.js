@@ -275,7 +275,8 @@ function genRow(r){
       if(MN.arcilla !== undefined && vn(c/2.6, r/2.6, S+3) > MN.arcilla) v = CLAY;
       if(MN.carbon !== undefined && !isSand(v) && vn(c/2.2, r/2.2, S+4) > MN.carbon) v = COAL;
       if(MN.cobre !== undefined && !isSand(v) && vn(c/2, r/2, S+5) > MN.cobre) v = COPPER;
-      if(MN.cuarzo !== undefined && v === STONE && h2(c, r, S+12) < MN.cuarzo) v = QUARTZ;
+      // 0.304: el cuarzo, en vetitas de 2 o 3 (por bloques de 2×2), no suelto
+      if(MN.cuarzo !== undefined && v === STONE && h2(c >> 1, r >> 1, S+12) < MN.cuarzo && h2(c, r, S+13) < 0.6) v = QUARTZ;
     } else {
     if(vn(c/2.6, r/2.6, S+3) > 0.73 + esc + Math.min(sg, 6)*0.03) v = CLAY;
     const vieja = P1.escasezVieja || 0;   // en las minas nuevas, los minerales antiguos salen menos
@@ -1447,11 +1448,14 @@ function finishCollapse(){
   persist();
 }
 // guarda lo que llevas: minerales al almacén y objetos a la colección (al volver al pueblo o con el montacargas)
+let plantasMandadas = 0;
 function bankBag(soloMinerales){
-  let n = 0;
+  let n = 0; plantasMandadas = 0;
   for(const k in bag){
     if(!bag[k]) continue;
-    if(k.startsWith('o:')){ if(soloMinerales) continue;
+    // 0.304: con la carta «Cesta colgada», el montacargas también sube las plantas
+    if(k.startsWith('o:')){ if(soloMinerales && !(has('cesta_plantas') && esPlanta(k.slice(2)))) continue;
+      if(soloMinerales) plantasMandadas += bag[k];
       const o = OBJ[k.slice(2)];
       if(o && o.color){ Pa.guardarEnColeccion('flor_mina', bag[k]); const F = Pa.pueblo.flores || (Pa.pueblo.flores = {}); if(!F[o.color.id]) F[o.color.id] = 'nueva'; }
       else if(!(OBJ[k.slice(2)] || {}).noColeccion) Pa.guardarEnColeccion(k.slice(2), bag[k]);   // la bolsa del viejo no va a la colección
@@ -2104,7 +2108,11 @@ function render(){
   const fy = VH*0.35 + (pyw - VH*0.35)*k;
   const sh = shake + shakeKick, sx = (sh ? Math.round((Math.random()*2-1)*sh) : 0) , sy = (sh ? Math.round((Math.random()*2-1)*sh) : 0);   // el «on fire» ya no mueve la pantalla (mareaba)
   ctx.save();
-  ctx.translate(VW/2 + sx, VH*0.35 + sy); ctx.scale(zoom, zoom); ctx.translate(-fx, -fy);
+  // 0.304: sin rayas entre bloques (PC): el tamaño de un bloque en píxeles de pantalla es un número entero
+  // y los bordes de los bloques caen justo en un píxel (si no, el fondo negro asoma entre ellos)
+  const zq = Math.max(1, Math.round(zoom*T*PX))/(T*PX), bq = Math.round(-cam*T)*zq*PX;
+  const ox = Math.round((VW/2 + sx - fx*zq)*PX)/PX, oy = (Math.round((VH*0.35 + sy - fy*zq)*PX + bq) - bq)/PX;
+  ctx.translate(ox, oy); ctx.scale(zq, zq);
   // filas que caben en pantalla con este zoom
   const wy0 = fy - VH*0.35/zoom, wy1 = fy + VH*0.65/zoom;
   const r0 = Math.floor(cam + wy0/T)-1, r1 = Math.ceil(cam + wy1/T)+1;
@@ -2320,6 +2328,7 @@ function minaTiene(q){
   if(q === 'agua') return dt('agua') || !!P1.hielo;
   if(q === 'polillas') return dt('polillas');
   if(q === 'murcielagos') return !!P1.murcielagos;
+  if(q === 'plantas') return !ARC && (!!Object.keys(P1.sueltos || {}).some(esPlanta) || W.items.some(it => it.k === 'obj' && esPlanta(it.id)));
   return true;
 }
 function cartaPosible(k){ return (k.peso ?? 1) > 0 && !(k.unica && has(k.id)) && !ungLlevo[k.id] && (!k.requiere || minaTiene(k.requiere)); }
@@ -2579,12 +2588,13 @@ function fixLift(mc, conKit){
   toast(conKit ? '¡Arreglado con el kit del tejón!' : '¡Montacargas arreglado!', 'Desde aquí puedes mandar la carga al almacén y seguir bajando'); renderInv(); persist();
 }
 function sendCargo(mc){
-  const n = bankBag(true);
-  if(!n){ toast('Montacargas', 'No llevas mineral para mandar'); return; }
+  const n = bankBag(true), np = plantasMandadas;
+  if(!n && !np){ toast('Montacargas', has('cesta_plantas') ? 'No llevas mineral ni plantas para mandar' : 'No llevas mineral para mandar'); return; }
   Pa.guardar(); persist(); SND('aceite'); renderInv(); burst(mc.r+0.2, mc.c+0.5, '#fbf236', 16);
   mc.t0 = t;
-  toast('La carga sube al pueblo', n + ' de mineral al almacén. Tu mochila queda vacía');
-  floats.push({x:mc.c+0.5, y:mc.r-0.4, txt:'+' + n + ' al almacén', life:1.6, col:'#fbf236'});
+  const pl = np ? (n ? ' y ' : '') + np + (np === 1 ? ' planta' : ' plantas') + ' a tu colección' : '';
+  toast('La carga sube al pueblo', (n ? n + ' de mineral al almacén' : '') + pl + '. Tu mochila queda vacía');
+  floats.push({x:mc.c+0.5, y:mc.r-0.4, txt:(n ? '+' + n + ' al almacén' : '') + (np ? (n ? ' · ' : '') + '+' + np + ' 🌼' : ''), life:1.6, col:'#fbf236'});
 }
 // el ascensor del fondo (Pozo viejo): estado según la historia
 //   pieza: nunca se ha usado, le falta la pieza · roto: subió y se estropeó arriba · apanado: el tejón lo apañó (solo sube) · fino: sube y baja
